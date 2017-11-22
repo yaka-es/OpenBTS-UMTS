@@ -116,17 +116,17 @@ extern bool gLogToConsole;	// Pat added for easy debugging.
 
 
 
-std::list<std::string> gGetLoggerAlarms();		///< Get a copy of the recent alarm list.
+extern std::list<std::string> gGetLoggerAlarms();		///< Get a copy of the recent alarm list.
 
 
 /**@ Global control and initialization of the logging system. */
 //@{
 /** Initialize the global logging system. */
-void gLogInit(const char* name, const char* level=NULL, int facility=LOG_USER);
+extern void gLogInit(const std::string &name, const std::string &level, int facility = LOG_USER);
 /** Get the logging level associated with a given file. */
-int gGetLoggingLevel(const char *filename=NULL);
+extern int gGetLoggingLevel(const char *filename=NULL);
 /** Allow early logging when still in constructors */
-void gLogEarly(int level, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
+extern void gLogEarly(int level, const char *fmt, ...) __attribute__((format(printf, 2, 3)));
 //@}
 
 

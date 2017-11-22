@@ -228,6 +228,7 @@ const char * Parser::help(const string& cmd) const
 // Return a map containing the options found; if option in optstring was followed by ':', map value will be the next argv argument, otherwise "true".
 // Leave argc,argv pointing at the first argument after the options, ie, on return argc is the number of non-option arguments remaining in argv.
 // This routine does not allow combining options, ie, -a -b != -ab
+#ifdef UNUSED
 static map<string,string> cliParse(int &argc, char **&argv, ostream &os, const char *optstring)
 {
 	map<string,string> options;		// The result
@@ -261,13 +262,16 @@ static map<string,string> cliParse(int &argc, char **&argv, ostream &os, const c
 	}
 	return options;
 }
+#endif
 
 
 /**@name Commands for the CLI. */
 //@{
 
 // forward refs
+#ifdef UNUSED
 static CLIStatus printStats(int argc, char** argv, ostream& os);
+#endif
 
 /*
 	A CLI command takes the argument in an array.
@@ -367,7 +371,8 @@ static CLIStatus exit_function(int argc, char** argv, ostream& os)
 
 
 /** Print or clear the TMSI table. */
-static const char *tmsisHelp = "[-l | clear | dump [-l] <filename> | -delete -tmsi <tmsi> | -delete -imsi <imsi> | -query <query>] --\n"
+static const char *tmsisHelp __attribute_used__ =
+	"[-l | clear | dump [-l] <filename> | -delete -tmsi <tmsi> | -delete -imsi <imsi> | -query <query>] --\n"
 	"   default print the TMSI table;  -l gives longer listing;\n"
 	"   dump - dump the TMSI table to specified filename;\n"
 	"   clear - clear the TMSI table;\n"
@@ -473,7 +478,7 @@ static CLIStatus sendsimple(int argc, char** argv, ostream& os)
 		"To: sip:IMSI%s@127.0.0.1\n"
 		"Call-ID: %x@127.0.0.1:%d\n"
 		"CSeq: 1 MESSAGE\n"
-		"Content-Type: text/plain\nContent-Length: %u\n"
+		"Content-Type: text/plain\nContent-Length: %zu\n"
 		"\n%s\n";
 	static char buffer[1500];
 	snprintf(buffer,1499,form,
@@ -1304,12 +1309,13 @@ void Parser::addCommands()
 	addCommand("alarms", alarms, "-- show latest alarms");
 	addCommand("version", version,"-- print the version string");
 	addCommand("page", page, "print the paging table");
+	addCommand("endcall", endcall, "[transID] -- ???");
 	addCommand("power", power, "[minAtten maxAtten] -- report current attentuation or set min/max bounds");
-        addCommand("rxgain", rxgain, "[newRxgain] -- get/set the RX gain in dB");
-        //addCommand("noise", noise, "-- report receive noise level in RSSI dB");
-        addCommand("temperature", temperature, "-- report temperature level in C");
+	addCommand("rxgain", rxgain, "[newRxgain] -- get/set the RX gain in dB");
+	//addCommand("noise", noise, "-- report receive noise level in RSSI dB");
+	addCommand("temperature", temperature, "-- report temperature level in C");
 	addCommand("unconfig", unconfig, "key -- disable a configuration key by setting an empty value");
-        addCommand("txatten", txatten, "[newTxAtten] -- get/set the TX attenuation in dB");
+	addCommand("txatten", txatten, "[newTxAtten] -- get/set the TX attenuation in dB");
 	addCommand("freqcorr", freqcorr, "[newOffset] -- get/set the new radio frequency offset");
 	addCommand("rmconfig", rmconfig, "key -- set a configuration value back to its default or remove a custom key/value pair");
 	addCommand("notices", notices, "-- show startup copyright and legal notices");
@@ -1323,6 +1329,3 @@ void Parser::addCommands()
 
 
 };
-
-
-// vim: ts=4 sw=4

@@ -311,7 +311,7 @@ bool rnrad1Tx::setTxFreq (double freq)
   
   // split freq into fine and coarse components
   
-  double	coarse;
+  double coarse = 0;
   
   double freq1 = dacRate () / 8; // First coarse frequency
   double freq2 = dacRate () / 4; // Second coarse frequency

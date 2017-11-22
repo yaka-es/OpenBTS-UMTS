@@ -759,7 +759,7 @@ class FACHFEC : public PhChDownlink, public L1CCTrCh //L1FEC_t
 	public:
 
 	// (pat) Downlink channels do not get a scrambling code.
-	FACHFEC(unsigned wSF, unsigned wSpCode, unsigned wPB, unsigned wTBSize,TTICodes tti,ARFCNManager *wRadio):
+	FACHFEC(unsigned wSF, unsigned wSpCode, unsigned wPB __attribute_used__, unsigned wTBSize __attribute_used__, TTICodes tti __attribute_used__, ARFCNManager *wRadio):
 		PhChDownlink(SCCPCHType,wSF,wSpCode,wRadio),
 		L1CCTrCh(this) //L1FEC_t(this)
 	{
@@ -785,7 +785,7 @@ class FACHFEC : public PhChDownlink, public L1CCTrCh //L1FEC_t
 class RACHFEC : public PhChUplink, public L1CCTrCh //L1FEC_t
 {
 	public:
-	RACHFEC(unsigned wSF, unsigned wUplinkScramblingCode, unsigned wPB, unsigned wTBSize,TTICodes tti):
+	RACHFEC(unsigned wSF, unsigned wUplinkScramblingCode, unsigned wPB __attribute_used__, unsigned wTBSize __attribute_used__, TTICodes tti __attribute_used__):
 		PhChUplink(PRACHType,wSF,wUplinkScramblingCode),
                 L1CCTrCh(this)
 		//L1FEC_t(this) // parity and TTI not programmable

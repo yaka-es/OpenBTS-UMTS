@@ -535,7 +535,7 @@ void MSUEAdapter::sgsnHandleSecurityModeComplete(bool success)
 		  unsigned nsapiMask = status.mStatus[1] << 8 | status.mStatus[0];
 		  if (nsapiMask > 0) nsapiMask = (int) floor(log2(nsapiMask));
                   PdpContext *pdp = gmm->getPdp(nsapiMask);
-                  printf("PDP of %u is %0x\n",nsapiMask,pdp);
+                  printf("PDP of %u is %p\n",nsapiMask,pdp);
                   if (pdp && pdp->mServiceRequestPending)
          	  {
                     pdp->mRabStatus = SgsnAdapter::allocateRabForPdp(si->mMsHandle,pdp->mNSapi,pdp->mQoSReq);
@@ -587,10 +587,10 @@ static void sendAuthenticationRequest(SgsnInfo *si, GmmInfo::SecurityState secSt
                   unsigned nsapiMask = status.mStatus[1] << 8 | status.mStatus[0];
                   if (nsapiMask > 0) nsapiMask = (int) floor(log2(nsapiMask));
                   PdpContext *pdp = gmm->getPdp(nsapiMask);
-                  printf("PDP of %u is %0x, gmm = %0x, si = %0x\n",nsapiMask,pdp,gmm,si);
+                  printf("PDP of %u is %p, gmm = %p, si = %p\n",nsapiMask,pdp,gmm,si);
 		  nsapiMask = 5;
                   pdp = gmm->getPdp(nsapiMask);
-                  printf("PDP of %u is %0x, gmm = %0x, si = %0x\n",nsapiMask,pdp,gmm,si);
+                  printf("PDP of %u is %p, gmm = %p, si = %p\n",nsapiMask,pdp,gmm,si);
 
 	string IMSI = gmm->mImsi.hexstr();
 	//int len = gmm->mImsi.size();
@@ -638,7 +638,7 @@ static void sendAuthenticationRequest(SgsnInfo *si, GmmInfo::SecurityState secSt
                   nsapiMask = status.mStatus[1] << 8 | status.mStatus[0];
                   if (nsapiMask > 0) nsapiMask = (int) floor(log2(nsapiMask));
                   pdp = gmm->getPdp(nsapiMask);
-                  printf("PDP of %u is %0x\n",nsapiMask,pdp);
+                  printf("PDP of %u is %p\n",nsapiMask,pdp);
 
 }
 #endif
@@ -651,7 +651,7 @@ static void sgsnStartIntegrityProtection(SgsnInfo *si)
              unsigned nsapiMask = status.mStatus[1] << 8 | status.mStatus[0];
              if (nsapiMask > 0) nsapiMask = (int) floor(log2(nsapiMask));
              PdpContext *pdp = gmm->getPdp(nsapiMask);
-             printf("PDP of %u is %0x\n",nsapiMask,pdp);
+             printf("PDP of %u is %p\n",nsapiMask,pdp);
 	string IMSI = gmm->mImsi.hexstr();
 	LOG(INFO) << "Looking up Kc for imsi " << IMSI;
 	string Kcs = gTMSITable.getKc(IMSI.c_str());
@@ -672,7 +672,7 @@ static void handleAuthenticationResponse(SgsnInfo *si, L3GmmMsgAuthenticationRes
                   unsigned nsapiMask = status.mStatus[1] << 8 | status.mStatus[0];
                   if (nsapiMask > 0) nsapiMask = (int) floor(log2(nsapiMask));
                   PdpContext *pdp = gmm->getPdp(nsapiMask);
-                  printf("PDP of %u is %0x\n",nsapiMask,pdp);
+                  printf("PDP of %u is %p\n",nsapiMask,pdp);
 		if (!gmm) {
 				SGSNERROR("No imsi found for MS during Attach procedure"<<si);
 				return;
@@ -963,7 +963,6 @@ static void handleServiceRequest(SgsnInfo *si, L3GmmMsgServiceRequest &srmsg)
 	GmmInfo *gmm = si->getGmm();
 	// TODO:  Should we check the PTmsi and the PDP context status??? 
 	if (!gmm) {
-		sendReject:
 		L3GmmMsgServiceReject sr(GmmCause::Implicitly_detached);
 		si->sgsnWriteHighSideMsg(sr);
 			return;
@@ -978,7 +977,7 @@ static void handleServiceRequest(SgsnInfo *si, L3GmmMsgServiceRequest &srmsg)
                   unsigned nsapiMask = status.mStatus[1] << 8 | status.mStatus[0];
                   if (nsapiMask > 0) nsapiMask = (int) floor(log2(nsapiMask));
                   PdpContext *pdp = gmm->getPdp(nsapiMask);
-                  printf("PDP of %u is %0x, gmm = %0x, si = %0x\n",nsapiMask,pdp,gmm,si);
+                  printf("PDP of %u is %p, gmm = %p, si = %p\n",nsapiMask,pdp,gmm,si);
 		  if (pdp) {  
                                 pdp->mServiceRequestPending = true;
 		  }

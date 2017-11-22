@@ -18,14 +18,14 @@
 #ifndef CONFIGURATION_H
 #define CONFIGURATION_H
 
-
-#include "sqlite3util.h"
-
-#include <assert.h>
-#include <stdlib.h>
+#include <sys/types.h>
 #include <netinet/in.h>
 #include <arpa/inet.h>
+
+#include <assert.h>
 #include <regex.h>
+#include <stdint.h>
+#include <stdlib.h>
 
 #include <map>
 #include <vector>
@@ -34,7 +34,8 @@
 #include <iostream>
 
 #include <Threads.h>
-#include <stdint.h>
+
+#include "sqlite3util.h"
 
 
 /** A class for configuration file errors. */
@@ -43,55 +44,62 @@ extern char gCmdName[];	// Gotta be global, gotta be char*, gotta love it.
 
 /** An exception thrown when a given config key isn't found. */
 class ConfigurationTableKeyNotFound : public ConfigurationTableError {
-
-	private:
-
+private:
 	std::string mKey;
 
-	public:
+public:
+	ConfigurationTableKeyNotFound(const std::string& wKey) :
+		mKey(wKey)
+	{
+	}
 
-	ConfigurationTableKeyNotFound(const std::string& wKey)
-		:mKey(wKey)
-	{ }
-
-	const std::string& key() const { return mKey; }
-
+	const std::string & key() const
+	{
+		return mKey;
+	}
 };
 
 
 class ConfigurationRecord {
-
-	private:
-
+private:
 	std::string mValue;
 	long mNumber;
 	bool mDefined;
 
-	public:
+public:
+	ConfigurationRecord(bool wDefined=true) : mDefined(wDefined)
+	{
+	}
 
-	ConfigurationRecord(bool wDefined=true):
-		mDefined(wDefined)
-	{ }
-
-	ConfigurationRecord(const std::string& wValue):
+	ConfigurationRecord(const std::string& wValue) :
 		mValue(wValue),
-		mNumber(strtol(wValue.c_str(),NULL,0)),
+		mNumber(strtol(wValue.c_str(), NULL, 0)),
 		mDefined(true)
-	{ }
+	{
+	}
 
-	ConfigurationRecord(const char* wValue):
+	ConfigurationRecord(const char *wValue) :
 		mValue(std::string(wValue)),
-		mNumber(strtol(wValue,NULL,0)),
+		mNumber(strtol(wValue, NULL, 0)),
 		mDefined(true)
-	{ }
+	{
+	}
 
+	const std::string & value() const
+	{
+		return mValue;
+	}
 
-	const std::string& value() const { return mValue; }
-	long number() const { return mNumber; }
-	bool defined() const { return mDefined; }
+	long number() const {
+		return mNumber;
+	}
+
+	bool defined() const
+	{
+		return mDefined;
+	}
 
 	float floatNumber() const;
-
 };
 
 
@@ -192,7 +200,7 @@ class ConfigurationTable {
 	/** Generate an up-to-date TeX snippet. */
 	std::string getTeX(const std::string& program, const std::string& version);
 
-	/** Return true if the key is used in the table.  */
+	/** Return true if the key is used in the table. */
 	bool defines(const std::string& key);
 
 	/** Return true if the application's schema knows about this key. */
@@ -247,20 +255,23 @@ class ConfigurationTable {
 
 	/** Get length of a vector */
 	unsigned getVectorLength(const std::string &key) 
-		{ return getVector(key).size(); }
+	{
+		return getVector(key).size();
+	}
 
-	/** Set or change a value in the table.  */
+	/** Set or change a value in the table. */
 	bool set(const std::string& key, const std::string& value);
 
-	/** Set or change a value in the table.  */
+	/** Set or change a value in the table. */
 	bool set(const std::string& key, long value);
 
 	/**
-		Remove an entry from the table.
-		Will not alter required values.
-		@param key The key of the item to be removed.
-		@return true if anything was actually removed.
-	*/
+	 * Remove an entry from the table.
+	 * Will not alter required values.
+	 * @param key The key of the item to be removed.
+	 * @return true if anything was actually removed.
+	 */
+
 	bool remove(const std::string& key);
 
 	/** Search the table, dumping to a stream. */
@@ -417,8 +428,7 @@ class ConfigurationKey {
 	static void printDescription(const ConfigurationKey &key, std::ostream& os);
 };
 
+// Reference to a global config table, used all over the system.
+extern ConfigurationTable gConfig;
 
 #endif
-
-
-// vim: ts=4 sw=4

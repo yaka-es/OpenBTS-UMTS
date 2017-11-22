@@ -171,9 +171,10 @@ void FactoryCalibration::readEEPROM() {
 	./RAD1Cmd i2c_write $SDR_ADDR $BASEST$MKR_ST
 	sleep 1
 	*/
-	ret = i2c_write(0x50, "dfff");
+	char data[6] = "dfff";
+	ret = i2c_write(0x50, data);
 	sleep(1);
-//	std::cout << "i2c_write = " << ret << std::endl;
+	std::cout << "i2c_write = " << ret << std::endl;
 
 	/*
 	TEMP=$( ./RAD1Cmd i2c_read $SDR_ADDR 16 )

@@ -187,7 +187,7 @@ static bool encodeDcchMsg(UEInfo *uep, RbId rbid, ASN::DL_DCCH_Message_t *msg, B
 	// Encode the message (again), completely oblivious to cpu cycles consumed.
 	if (!uperEncodeToBV(&ASN::asn_DEF_DL_DCCH_Message,msg,result,descr)) {return false;}
 
-	std::string comment = format("DL_DCCH %s message size=%d",descr.c_str(),result.size());
+	std::string comment = format("DL_DCCH %s message size=%zu",descr.c_str(),result.size());
 	asnLogMsg(rbid, &ASN::asn_DEF_DL_DCCH_Message, msg,comment.c_str(),uep);
 
 	//if (gConfig.getNum("UMTS.Debug.Messages")) {
@@ -209,7 +209,7 @@ static bool encodeCcchMsg(ASN::DL_CCCH_Message_t *msg, ByteVector &result,
 	// We can just return: uperEncodeToBV printed a message on failure.
 	bool stat = uperEncodeToBV(&ASN::asn_DEF_DL_CCCH_Message,msg,result,descr);
 	if (stat) {
-		string comment = format("DL_CCCH %s message size=%d",descr.c_str(),result.size());
+		string comment = format("DL_CCCH %s message size=%zu",descr.c_str(),result.size());
 		asnLogMsg(0, &ASN::asn_DEF_DL_CCCH_Message, msg,comment.c_str(),uep,urnti);
 	}
 	//if (gConfig.getNum("UMTS.Debug.Messages")) {

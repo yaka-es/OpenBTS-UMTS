@@ -41,7 +41,7 @@ struct PdpPdu : SingleLinkListNode {
 	//PdpPdu *next() { return mNext; }
 	//void setNext(PdpPdu*wNext) { mNext = wNext; }
 	PdpPdu(ByteVector wpdu,mg_con_t *wmgp) : mpdu(wpdu), mgp(wmgp) { RN_MEMCHKNEW(PdpPdu) }
-	~PdpPdu() { RN_MEMCHKDEL(PdpPdu) }
+	virtual ~PdpPdu() { RN_MEMCHKDEL(PdpPdu) }
 };
 
 

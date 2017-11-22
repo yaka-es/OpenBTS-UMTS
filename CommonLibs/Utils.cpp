@@ -195,7 +195,7 @@ std::string replaceAll(const std::string input, const std::string search, const 
 
 	while (true) {
 		index = output.find(search, index);
-		if (index == std::string::npos) {
+		if (index == (int)std::string::npos) {
 			break;
 		}
 

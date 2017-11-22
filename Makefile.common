@@ -26,7 +26,7 @@
 
 
 
-AM_CXXFLAGS := -g -O3 -Wall -pthread -ldl -DTIMESTAMP_ISO=`date +'"%Y-%m-%dT%H:%M:%S"'`
+AM_CXXFLAGS := -g -O3 -Wall -Werror -pthread -ldl -DTIMESTAMP_ISO=`date +'"%Y-%m-%dT%H:%M:%S"'`
 AM_CPPFLAGS = $(STD_DEFINES_AND_INCLUDES)
 
 COMMON_INCLUDEDIR = $(top_srcdir)/CommonLibs

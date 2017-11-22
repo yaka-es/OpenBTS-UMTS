@@ -228,7 +228,7 @@ void Control::MOSMSController(const GSM::L3CMServiceRequest *req, UMTS::DCCHLogi
 	// FIXME -- We need to set the message ref correctly,
 	// even if the parsing fails.
 	// The compiler gives a warning here.  Let it.  It will remind someone to fix it.
-	unsigned ref;
+	unsigned ref = 0;
 	bool success = false;
 	try {
 		CPData data;
@@ -508,7 +508,7 @@ void Control::InCallMOSMSController(const CPData *cpData, TransactionEntry* tran
 	// FIXME -- We need to set the message ref correctly,
 	// even if the parsing fails.
 	// The compiler gives a warning here.  Let it.  It will remind someone to fix it.
-	unsigned ref;
+	unsigned ref = 0;
 	bool success = false;
 	try {
 		CPData data;

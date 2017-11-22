@@ -39,6 +39,25 @@
 	}; \
 	typedef Classname_i<0> Classname_z;
 
+// GCC 6: warning: use of an operand of type ‘bool’ in ‘operator++’ is deprecated [-Wdeprecated]
+#define _INITIALIZED_SCALAR_FUNCS_BOOL(Classname,Basetype,Init) \
+	Classname() : value(Init) {} \
+	Classname(Basetype wvalue) { value = wvalue; } /* Can set from basetype. */ \
+	operator Basetype(void) const { return value; }		/* Converts from basetype. */ \
+	Basetype operator=(Basetype wvalue) { return value = wvalue; } \
+	Basetype operator+=(Basetype wvalue) { return value = value + wvalue; } \
+	Basetype operator-=(Basetype wvalue) { return value = value - wvalue; } \
+	Basetype* operator&() { return &value; } \
+
+
+#define _DECLARE_SCALAR_TYPEB(Classname_i,Classname_z,Basetype) \
+	template <Basetype Init> \
+	struct Classname_i { \
+		Basetype value; \
+		_INITIALIZED_SCALAR_FUNCS_BOOL(Classname_i,Basetype,Init) \
+	}; \
+	typedef Classname_i<0> Classname_z;
+
 
 // Usage:
 // Where 'classname' is one of the types listed below, then:
@@ -55,7 +74,7 @@ _DECLARE_SCALAR_TYPE(UInt8_i,  	UInt8_z,  	uint8_t)
 _DECLARE_SCALAR_TYPE(UInt16_i,	UInt16_z,	uint16_t)
 _DECLARE_SCALAR_TYPE(UInt32_i,	UInt32_z,	uint32_t)
 _DECLARE_SCALAR_TYPE(Size_t_i,	Size_t_z,	size_t)
-_DECLARE_SCALAR_TYPE(Bool_i,  	Bool_z, 	bool)
+_DECLARE_SCALAR_TYPEB(Bool_i,  	Bool_z, 	bool)
 
 // float is special, because C++ does not permit the template initalization:
 struct Float_z {

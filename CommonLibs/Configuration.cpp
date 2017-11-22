@@ -32,90 +32,100 @@ using namespace std;
 
 char gCmdName[20] = {0}; // Use a char* to avoid avoid static initialization of string, and race at startup.
 
-static const char* createConfigTable = {
+static const char *createConfigTable =
 	"CREATE TABLE IF NOT EXISTS CONFIG ("
 		"KEYSTRING TEXT UNIQUE NOT NULL, "
 		"VALUESTRING TEXT, "
 		"STATIC INTEGER DEFAULT 0, "
 		"OPTIONAL INTEGER DEFAULT 0, "
 		"COMMENTS TEXT DEFAULT ''"
-	")"
-};
+	")";
 
 
+/*
+ * class ConfigurationRecord
+ */
 
 float ConfigurationRecord::floatNumber() const
 {
 	float val;
-	sscanf(mValue.c_str(),"%f",&val);
+	sscanf(mValue.c_str(), "%g", &val);
 	return val;
 }
 
+/*
+ * class ConfigurationRecord
+ */
 
-ConfigurationTable::ConfigurationTable(const char* filename, const char *wCmdName, ConfigurationKeyMap wSchema)
+ConfigurationTable::ConfigurationTable(const char *filename, const char *wCmdName, ConfigurationKeyMap wSchema)
 {
 	gLogEarly(LOG_INFO, "opening configuration table from path %s", filename);
-	// (mike) disabled as it messes up auto-creation of example.sql files
-	//printf("%s: reading configuration file %s\n", wCmdName, filename); fflush(stdout);
-	// Connect to the database.
-	int rc = sqlite3_open(filename,&mDB);
+
 	// (pat) When I used malloc here, sqlite3 sporadically crashes.
 	if (wCmdName) {
-		strncpy(gCmdName,wCmdName,18);
+		strncpy(gCmdName, wCmdName, 18);
 		gCmdName[18] = 0;
-		strcat(gCmdName,":");
+		strcat(gCmdName, ":");
 	}
+
+	// (mike) disabled as it messes up auto-creation of example.sql files
+	//printf("%s: reading configuration file %s\n", wCmdName, filename); fflush(stdout);
+
+	// Connect to the database.
+	int rc = sqlite3_open(filename, &mDB);
+
 	if (rc) {
 		gLogEarly(LOG_EMERG, "cannot open configuration database at %s, error message: %s", filename, sqlite3_errmsg(mDB));
 		sqlite3_close(mDB);
 		mDB = NULL;
 		return;
 	}
+
 	// Create the table, if needed.
-	if (!sqlite3_command(mDB,createConfigTable)) {
+	if (!sqlite3_command(mDB, createConfigTable)) {
 		gLogEarly(LOG_EMERG, "cannot create configuration table in database at %s, error message: %s", filename, sqlite3_errmsg(mDB));
 	}
 
 	// Pat and David both do not want to use WAL mode on the config databases.
 	// Set high-concurrency WAL mode.
-	//if (!sqlite3_command(mDB,enableWAL)) {
+	//if (!sqlite3_command(mDB, enableWAL)) {
 	//	gLogEarly(LOG_EMERG, "cannot enable WAL mode on database at %s, error message: %s", filename, sqlite3_errmsg(mDB));
 	//}
 
 	// Build CommonLibs schema
 	ConfigurationKey *tmp;
-	tmp = new ConfigurationKey("Control.NumSQLTries","3",
+	tmp = new ConfigurationKey("Control.NumSQLTries", "3",
 		"attempts",
 		ConfigurationKey::DEVELOPER,
 		ConfigurationKey::VALRANGE,
-		"1:10",// educated guess
+		"1:10", // educated guess
 		false,
 		"Number of times to retry SQL queries before declaring a database access failure."
 	);
 	mSchema[tmp->getName()] = *tmp;
 	delete tmp;
 
-	tmp = new ConfigurationKey("Log.Alarms.Max","20",
+	tmp = new ConfigurationKey("Log.Alarms.Max", "20",
 		"alarms",
 		ConfigurationKey::CUSTOMER,
 		ConfigurationKey::VALRANGE,
-		"10:20",// educated guess
+		"10:20", // educated guess
 		false,
 		"Maximum number of alarms to remember inside the application."
 	);
 	mSchema[tmp->getName()] = *tmp;
 	delete tmp;
 
-	tmp = new ConfigurationKey("Log.File","",
+	tmp = new ConfigurationKey("Log.File", "",
 		"",
 		ConfigurationKey::DEVELOPER,
 		ConfigurationKey::FILEPATH_OPT,
 		"",
 		false,
-		"Path to use for textfile based logging.  "
-			"By default, this feature is disabled.  "
-			"To enable, specify an absolute path to the file you wish to use, eg: /tmp/my-debug.log.  "
-			"To disable again, execute \"unconfig Log.File\"."
+		("Path to use for textfile based logging. "
+		 "By default, this feature is disabled. "
+		 "To enable, specify an absolute path to the file you wish to use, eg: /tmp/my-debug.log. "
+		 "To disable again, execute \"unconfig Log.File\".")
 	);
 	mSchema[tmp->getName()] = *tmp;
 	delete tmp;
@@ -124,14 +134,14 @@ ConfigurationTable::ConfigurationTable(const char* filename, const char *wCmdNam
 		"",
 		ConfigurationKey::CUSTOMER,
 		ConfigurationKey::CHOICE,
-		"EMERG|EMERGENCY - report serious faults associated with service failure or hardware damage,"
-			"ALERT|ALERT - report likely service disruption caused by misconfiguration or poor connectivity,"
-			"CRIT|CRITICAL - report anomalous events that are likely to degrade service,"
-			"ERR|ERROR - report internal errors of the software that may result in degradation of service in unusual circumstances,"
-			"WARNING|WARNING - report anomalous events that may indicate a degradation of normal service,"
-			"NOTICE|NOTICE - report anomalous events that probably do not affect service but may be of interest to network operators,"
-			"INFO|INFORMATION - report normal events,"
-			"DEBUG|DEBUG - only for use by developers and will degrade system performance",
+		("EMERG|EMERGENCY - report serious faults associated with service failure or hardware damage,"
+		 "ALERT|ALERT - report likely service disruption caused by misconfiguration or poor connectivity,"
+		 "CRIT|CRITICAL - report anomalous events that are likely to degrade service,"
+		 "ERR|ERROR - report internal errors of the software that may result in degradation of service in unusual circumstances,"
+		 "WARNING|WARNING - report anomalous events that may indicate a degradation of normal service,"
+		 "NOTICE|NOTICE - report anomalous events that probably do not affect service but may be of interest to network operators,"
+		 "INFO|INFORMATION - report normal events,"
+		 "DEBUG|DEBUG - only for use by developers and will degrade system performance"),
 		false,
 		"Default logging level when no other level is defined for a file."
 	);
@@ -148,30 +158,36 @@ ConfigurationTable::ConfigurationTable(const char* filename, const char *wCmdNam
 #if DUMP_CONFIGURATION_TABLE
 	// (pat) Dump any non-default config variables...
 	try {
-		if (wCmdName == NULL) { wCmdName = ""; }
+		if (wCmdName == NULL) {
+			wCmdName = "";
+		}
+
 		LOG(INFO) << wCmdName << ":" << " List of non-default config parameters:";
+
 		string snippet("");
 		ConfigurationKeyMap view = getSimilarKeys(snippet);
+
 		for (ConfigurationKeyMap::iterator it = view.begin(); it != view.end(); it++) {
 			string name = it->first;
+
 			ConfigurationKey key = it->second;
 			if (name != key.getName()) {
-				LOG(ALERT) << "SQL database is corrupt at name:"<<name <<" !=  key:"<<key.getName();
+				LOG(ALERT) << "SQL database is corrupt at name:" << name << " !=  key:" << key.getName();
 			}
-			string defaultValue= key.getDefaultValue();
+
+			string defaultValue = key.getDefaultValue();
 			string value = this->getStr(name);
 			if (value != defaultValue) {
-				LOG(INFO) << "Config Variable"<<LOGVAR(name) <<LOGVAR(value) <<LOGVAR(defaultValue);
+				LOG(INFO) << "Config Variable" << LOGVAR(name) << LOGVAR(value) << LOGVAR(defaultValue);
 			}
 		}
 	} catch (...) {
 		LOG(INFO) << wCmdName << ":" << " EXCEPTION CAUGHT";
 	}
 #endif
-
 }
 
-string ConfigurationTable::getDefaultSQL(const std::string& program, const std::string& version)
+string ConfigurationTable::getDefaultSQL(const std::string &program, const std::string &version)
 {
 	stringstream ss;
 	ConfigurationKeyMap::iterator mp;
@@ -186,10 +202,15 @@ string ConfigurationTable::getDefaultSQL(const std::string& program, const std::
 	ss << "PRAGMA foreign_keys=OFF;" << endl;
 	//ss << "PRAGMA journal_mode=WAL;" << endl;
 	ss << "BEGIN TRANSACTION;" << endl;
-	ss << "CREATE TABLE IF NOT EXISTS CONFIG ( KEYSTRING TEXT UNIQUE NOT NULL, VALUESTRING TEXT, STATIC INTEGER DEFAULT 0, OPTIONAL INTEGER DEFAULT 0, COMMENTS TEXT DEFAULT '');" << endl;
+	ss << "CREATE TABLE IF NOT EXISTS CONFIG ( "
+		"KEYSTRING TEXT UNIQUE NOT NULL, "
+		"VALUESTRING TEXT, "
+		"STATIC INTEGER DEFAULT 0, "
+		"OPTIONAL INTEGER DEFAULT 0, "
+		"COMMENTS TEXT DEFAULT ''"
+	");" << endl;
 
-	mp = mSchema.begin();
-	while (mp != mSchema.end()) {
+	for (mp = mSchema.begin(); mp != mSchema.end(); mp++) {
 		ss << "INSERT OR IGNORE INTO \"CONFIG\" VALUES(";
 			// name
 			ss << "'" << mp->first << "',";
@@ -215,7 +236,6 @@ string ConfigurationTable::getDefaultSQL(const std::string& program, const std::
 			}
 			ss << "'";
 		ss << ");" << endl;
-		mp++;
 	}
 
 	ss << "COMMIT;" << endl;
@@ -224,7 +244,7 @@ string ConfigurationTable::getDefaultSQL(const std::string& program, const std::
 	return ss.str();
 }
 
-string ConfigurationTable::getTeX(const std::string& program, const std::string& version)
+string ConfigurationTable::getTeX(const std::string &program, const std::string &version)
 {
 	stringstream ss;
 	ConfigurationKeyMap::iterator mp;
@@ -236,8 +256,8 @@ string ConfigurationTable::getTeX(const std::string& program, const std::string&
 	ss << "\\subsection{Customer Site Parameters}" << endl;
 	ss << "These parameters must be changed to fit your site." << endl;
 	ss << "\\begin{itemize}" << endl;
-	mp = mSchema.begin();
-	while (mp != mSchema.end()) {
+
+	for (mp = mSchema.begin(); mp != mSchema.end(); mp++) {
 		if (mp->second.getVisibility() == ConfigurationKey::CUSTOMERSITE) {
 			ss << "	\\item ";
 				// name
@@ -246,7 +266,6 @@ string ConfigurationTable::getTeX(const std::string& program, const std::string&
 				ss << mp->second.getDescription();
 			ss << endl;
 		}
-		mp++;
 	}
 	ss << "\\end{itemize}" << endl;
 	ss << endl;
@@ -277,8 +296,8 @@ string ConfigurationTable::getTeX(const std::string& program, const std::string&
 	ss << "\\subsection{Developer/Factory Parameters}" << endl;
 	ss << "These parameters should only be changed by when developing new code." << endl;
 	ss << "\\begin{itemize}" << endl;
-	mp = mSchema.begin();
-	while (mp != mSchema.end()) {
+
+	for (mp = mSchema.begin(); mp != mSchema.end(); mp++) {
 		if (mp->second.getVisibility() == ConfigurationKey::FACTORY ||
 			mp->second.getVisibility() == ConfigurationKey::DEVELOPER) {
 			ss << "	\\item ";
@@ -288,9 +307,9 @@ string ConfigurationTable::getTeX(const std::string& program, const std::string&
 				ss << mp->second.getDescription();
 			ss << endl;
 		}
-		mp++;
 	}
 	ss << "\\end{itemize}" << endl;
+
 	ss << "% END AUTO-GENERATED CONTENT" << endl;
 	ss << endl;
 
@@ -298,7 +317,7 @@ string ConfigurationTable::getTeX(const std::string& program, const std::string&
 	return Utils::replaceAll(tmp, "_", "\\_");
 }
 
-bool ConfigurationTable::defines(const string& key)
+bool ConfigurationTable::defines(const string &key)
 {
 	try {
 		ScopedLock lock(mLock);
@@ -310,12 +329,12 @@ bool ConfigurationTable::defines(const string& key)
 	}
 }
 
-bool ConfigurationTable::keyDefinedInSchema(const std::string& name)
+bool ConfigurationTable::keyDefinedInSchema(const std::string &name)
 {
-	return mSchema.find(name) == mSchema.end() ? false : true;
+	return (mSchema.find(name) == mSchema.end()) ? false : true;
 }
 
-bool ConfigurationTable::isValidValue(const std::string& name, const std::string& val) {
+bool ConfigurationTable::isValidValue(const std::string &name, const std::string &val) {
 	bool ret = false;
 
 	ConfigurationKey key = mSchema[name];
@@ -348,7 +367,7 @@ bool ConfigurationTable::isValidValue(const std::string& name, const std::string
 						break;
 					}
 				} else {
-					if (val == tmp.substr(startPos, tmp.find(',', startPos)-startPos)) {
+					if (val == tmp.substr(startPos, tmp.find(',', startPos) - startPos)) {
 						ret = true;
 						break;
 					}
@@ -575,23 +594,24 @@ bool ConfigurationTable::isValidValue(const std::string& name, const std::string
 	return ret;
 }
 
-ConfigurationKeyMap ConfigurationTable::getSimilarKeys(const std::string& snippet) {
+ConfigurationKeyMap ConfigurationTable::getSimilarKeys(const std::string &snippet)
+{
 	ConfigurationKeyMap tmp;
 
-	ConfigurationKeyMap::const_iterator mp = mSchema.begin();
-	while (mp != mSchema.end()) {
+	ConfigurationKeyMap::const_iterator mp;
+	for (mp = mSchema.begin(); mp != mSchema.end(); mp++) {
 		if (mp->first.find(snippet) != std::string::npos) {
 			tmp[mp->first] = mp->second;
 		}
-		mp++;
 	}
 
 	return tmp;
 }
 
-const ConfigurationRecord& ConfigurationTable::lookup(const string& key)
+const ConfigurationRecord & ConfigurationTable::lookup(const string &key)
 {
 	assert(mDB);
+
 	checkCacheAge();
 	// We assume the caller holds mLock.
 	// So it is OK to return a reference into the cache.
@@ -599,16 +619,17 @@ const ConfigurationRecord& ConfigurationTable::lookup(const string& key)
 	// Check the cache.
 	// This is cheap.
 	ConfigurationMap::const_iterator where = mCache.find(key);
-	if (where!=mCache.end()) {
-		if (where->second.defined()) return where->second;
+	if (where != mCache.end()) {
+		if (where->second.defined())
+			return where->second;
 		throw ConfigurationTableKeyNotFound(key);
 	}
 
 	// Check the database.
 	// This is more expensive.
 	char *value = NULL;
-	sqlite3_single_lookup(mDB,"CONFIG",
-			"KEYSTRING",key.c_str(),"VALUESTRING",value);
+
+	sqlite3_single_lookup(mDB, "CONFIG", "KEYSTRING", key.c_str(), "VALUESTRING", value);
 
 	// value found, cache the result
 	if (value) {
@@ -628,9 +649,7 @@ const ConfigurationRecord& ConfigurationTable::lookup(const string& key)
 	return mCache[key];
 }
 
-
-
-bool ConfigurationTable::isStatic(const string& key)
+bool ConfigurationTable::isStatic(const string &key)
 {
 	if (keyDefinedInSchema(key)) {
 		return mSchema[key].isStatic();
@@ -639,10 +658,7 @@ bool ConfigurationTable::isStatic(const string& key)
 	}
 }
 
-
-
-
-string ConfigurationTable::getStr(const string& key)
+string ConfigurationTable::getStr(const string &key)
 {
 	// We need the lock because rec is a reference into the cache.
 	try {
@@ -655,8 +671,7 @@ string ConfigurationTable::getStr(const string& key)
 	}
 }
 
-
-bool ConfigurationTable::getBool(const string& key)
+bool ConfigurationTable::getBool(const string &key)
 {
 	try {
 		return getNum(key) != 0;
@@ -667,8 +682,7 @@ bool ConfigurationTable::getBool(const string& key)
 	}
 }
 
-
-long ConfigurationTable::getNum(const string& key)
+long ConfigurationTable::getNum(const string &key)
 {
 	// We need the lock because rec is a reference into the cache.
 	try {
@@ -681,8 +695,7 @@ long ConfigurationTable::getNum(const string& key)
 	}
 }
 
-
-float ConfigurationTable::getFloat(const string& key)
+float ConfigurationTable::getFloat(const string &key)
 {
 	try {
 		ScopedLock lock(mLock);
@@ -694,10 +707,10 @@ float ConfigurationTable::getFloat(const string& key)
 	}
 }
 
-std::vector<string> ConfigurationTable::getVectorOfStrings(const string& key)
+std::vector<string> ConfigurationTable::getVectorOfStrings(const string &key)
 {
 	// Look up the string.
-	char *line=NULL;
+	char *line = NULL;
 	try {
 		ScopedLock lock(mLock);
 		const ConfigurationRecord& rec = lookup(key);
@@ -709,23 +722,33 @@ std::vector<string> ConfigurationTable::getVectorOfStrings(const string& key)
 	}
 
 	assert(line);
+
 	char *lp = line;
 	
 	// Parse the string.
 	std::vector<string> retVal;
+
 	while (lp) {
-		while (*lp==' ') lp++;
-		if (*lp == '\0') break;
-		char *tp = strsep(&lp," ");
-		if (!tp) break;
+		while (*lp == ' ')
+			lp++;
+
+		if (*lp == '\0')
+			break;
+
+		char *tp = strsep(&lp, " ");
+
+		if (!tp)
+			break;
+
 		retVal.push_back(tp);
 	}
+
 	free(line);
+
 	return retVal;
 }
 
-
-std::vector<unsigned> ConfigurationTable::getVector(const string& key)
+std::vector<unsigned> ConfigurationTable::getVector(const string &key)
 {
 	// Look up the string.
 	char *line=NULL;
@@ -755,8 +778,7 @@ std::vector<unsigned> ConfigurationTable::getVector(const string& key)
 	return retVal;
 }
 
-
-bool ConfigurationTable::remove(const string& key)
+bool ConfigurationTable::remove(const string &key)
 {
 	assert(mDB);
 
@@ -769,30 +791,37 @@ bool ConfigurationTable::remove(const string& key)
 	return sqlite3_command(mDB,cmd.c_str());
 }
 
-
-
-void ConfigurationTable::find(const string& pat, ostream& os) const
+void ConfigurationTable::find(const string &pat, ostream &os) const
 {
 	// Prepare the statement.
 	string cmd = "SELECT KEYSTRING,VALUESTRING FROM CONFIG WHERE KEYSTRING LIKE \"%" + pat + "%\"";
 	sqlite3_stmt *stmt;
-	if (sqlite3_prepare_statement(mDB,&stmt,cmd.c_str())) return;
+
+	if (sqlite3_prepare_statement(mDB, &stmt, cmd.c_str()))
+		return;
+
 	// Read the result.
-	int src = sqlite3_run_query(mDB,stmt);
-	while (src==SQLITE_ROW) {
-		const char* value = (const char*)sqlite3_column_text(stmt,1);
-		os << sqlite3_column_text(stmt,0) << " ";
+	int src = sqlite3_run_query(mDB, stmt);
+
+	while (src == SQLITE_ROW) {
+		const char *value = (const char *)sqlite3_column_text(stmt, 1);
+
+		os << sqlite3_column_text(stmt, 0) << " ";
+
 		int len = 0;
-		if (value) {
+		if (value)
 			len = strlen(value);
-		}
-		if (len && value) os << value << endl;
-		else os << "(disabled)" << endl;
-		src = sqlite3_run_query(mDB,stmt);
+
+		if (len && value)
+			os << value << endl;
+		else
+			os << "(disabled)" << endl;
+
+		src = sqlite3_run_query(mDB, stmt);
 	}
+
 	sqlite3_finalize(stmt);
 }
-
 
 ConfigurationRecordMap ConfigurationTable::getAllPairs() const
 {
@@ -801,98 +830,116 @@ ConfigurationRecordMap ConfigurationTable::getAllPairs() const
 	// Prepare the statement.
 	string cmd = "SELECT KEYSTRING,VALUESTRING FROM CONFIG";
 	sqlite3_stmt *stmt;
-	if (sqlite3_prepare_statement(mDB,&stmt,cmd.c_str())) return tmp;
+
+	if (sqlite3_prepare_statement(mDB, &stmt, cmd.c_str()))
+		return tmp;
+
 	// Read the result.
-	int src = sqlite3_run_query(mDB,stmt);
-	while (src==SQLITE_ROW) {
-		const char* key = (const char*)sqlite3_column_text(stmt,0);
-		const char* value = (const char*)sqlite3_column_text(stmt,1);
+	int src = sqlite3_run_query(mDB, stmt);
+
+	while (src == SQLITE_ROW) {
+		const char *key   = (const char *)sqlite3_column_text(stmt, 0);
+		const char *value = (const char *)sqlite3_column_text(stmt, 1);
+
 		if (key && value) {
 			tmp[string(key)] = ConfigurationRecord(value);
 		} else if (key && !value) {
 			tmp[string(key)] = ConfigurationRecord(false);
 		}
-		src = sqlite3_run_query(mDB,stmt);
+
+		src = sqlite3_run_query(mDB, stmt);
 	}
+
 	sqlite3_finalize(stmt);
 
 	return tmp;
 }
 
-bool ConfigurationTable::set(const string& key, const string& value)
+bool ConfigurationTable::set(const string &key, const string &value)
 {
 	assert(mDB);
+
 	ScopedLock lock(mLock);
+
 	string cmd;
+
 	if (keyDefinedInSchema(key)) {
-		cmd = "INSERT OR REPLACE INTO CONFIG (KEYSTRING,VALUESTRING,OPTIONAL,COMMENTS) VALUES (\"" + key + "\",\"" + value + "\",1,\'" + mSchema[key].getDescription() + "\')";
+		cmd = "INSERT OR REPLACE INTO CONFIG (KEYSTRING,VALUESTRING,OPTIONAL,COMMENTS) "
+			"VALUES (\"" + key + "\",\"" + value + "\",1,\'" + mSchema[key].getDescription() + "\')";
 	} else {
-		cmd = "INSERT OR REPLACE INTO CONFIG (KEYSTRING,VALUESTRING,OPTIONAL) VALUES (\"" + key + "\",\"" + value + "\",1)";
+		cmd = "INSERT OR REPLACE INTO CONFIG (KEYSTRING,VALUESTRING,OPTIONAL) "
+			"VALUES (\"" + key + "\",\"" + value + "\",1)";
 	}
 	
-	bool success = sqlite3_command(mDB,cmd.c_str());
+	bool success = sqlite3_command(mDB, cmd.c_str());
+
 	// Cache the result.
-	if (success) mCache[key] = ConfigurationRecord(value);
+	if (success)
+		mCache[key] = ConfigurationRecord(value);
+
 	return success;
 }
 
-bool ConfigurationTable::set(const string& key, long value)
+bool ConfigurationTable::set(const string &key, long value)
 {
 	char buffer[30];
-	sprintf(buffer,"%ld",value);
-	return set(key,buffer);
+	sprintf(buffer, "%ld", value);
+	return set(key, buffer);
 }
 
 void ConfigurationTable::checkCacheAge()
 {
 	// mLock is set by caller 
 	static time_t timeOfLastPurge = 0;
+
 	time_t now = time(NULL);
+
 	// purge every 3 seconds
 	// purge period cannot be configuration parameter
-	if (now - timeOfLastPurge < 3) return;
+	if ((now - timeOfLastPurge) < 3)
+		return;
+
 	timeOfLastPurge = now;
+
 	// this is purge() without the lock
-	ConfigurationMap::iterator mp = mCache.begin();
-	while (mp != mCache.end()) {
+	ConfigurationMap::iterator mp;
+	for (mp = mCache.begin(); mp != mCache.end(); /* nop */) {
 		ConfigurationMap::iterator prev = mp;
 		mp++;
 		mCache.erase(prev);
 	}
 }
-
 
 void ConfigurationTable::purge()
 {
 	ScopedLock lock(mLock);
-	ConfigurationMap::iterator mp = mCache.begin();
-	while (mp != mCache.end()) {
+
+	ConfigurationMap::iterator mp;
+	for (mp = mCache.begin(); mp != mCache.end(); /* nop */) {
 		ConfigurationMap::iterator prev = mp;
 		mp++;
 		mCache.erase(prev);
 	}
 }
 
-
-void ConfigurationTable::setUpdateHook(void(*func)(void *,int ,char const *,char const *,sqlite3_int64))
+void ConfigurationTable::setUpdateHook(void (*func)(void *, int, char const *, char const *, sqlite3_int64))
 {
 	assert(mDB);
-	sqlite3_update_hook(mDB,func,NULL);
+
+	sqlite3_update_hook(mDB, func, NULL);
 }
 
-
-void ConfigurationTable::setCrossCheckHook(vector<string> (*wCrossCheck)(const string&))
+void ConfigurationTable::setCrossCheckHook(vector<string> (*wCrossCheck)(const string &))
 {
 	mCrossCheck = wCrossCheck;
 }
 
-
-vector<string> ConfigurationTable::crossCheck(const string& key) {
+vector<string> ConfigurationTable::crossCheck(const string &key)
+{
 	vector<string> ret;
 
-	if (mCrossCheck != NULL) {
+	if (mCrossCheck != NULL)
 		ret = mCrossCheck(key);
-	}
 
 	return ret;
 }
@@ -900,55 +947,62 @@ vector<string> ConfigurationTable::crossCheck(const string& key) {
 void HashString::computeHash()
 {
 	// FIXME -- Someone needs to review this hash function.
-	const char* cstr = c_str();
+	const char *cstr = c_str();
+
 	mHash = 0;
-	for (unsigned i=0; i<size(); i++) {
+	for (size_t i = 0; i < size(); i++) {
 		mHash = mHash ^ (mHash >> 32);
-		mHash = mHash*127 + cstr[i];
+		mHash = mHash * 127 + cstr[i];
 	}
 }
 
 
-void SimpleKeyValue::addItem(const char* pair_orig)
+void SimpleKeyValue::addItem(const char *pair_orig)
 {
 	char *pair = strdup(pair_orig);
 	char *key = pair;
-	char *mark = strchr(pair,'=');
-	if (!mark) return;
+	char *mark = strchr(pair, '=');
+
+	if (!mark)
+		return;
+
 	*mark = '\0';
-	char *value = mark+1;
+
+	char *value = mark + 1;
 	mMap[key] = value;
 	free(pair);
 }
 
-
-
-const char* SimpleKeyValue::get(const char* key) const
+const char * SimpleKeyValue::get(const char *key) const
 {
 	HashStringMap::const_iterator p = mMap.find(key);
-	if (p==mMap.end()) return NULL;
+
+	if (p == mMap.end())
+		return NULL;
+
 	return p->second.c_str();
 }
 
 
-void SimpleKeyValue::addItems(const char* pairs_orig)
+void SimpleKeyValue::addItems(const char *pairs_orig)
 {
 	char *pairs = strdup(pairs_orig);
 	char *thisPair;
-	while ((thisPair=strsep(&pairs," "))!=NULL) {
+
+	while ((thisPair = strsep(&pairs, " ")) != NULL) {
 		addItem(thisPair);
 	}
+
 	free(pairs);
 }
 
-
-bool ConfigurationKey::isValidIP(const std::string& ip) {
+bool ConfigurationKey::isValidIP(const std::string &ip) {
 	struct sockaddr_in sa;
 	return inet_pton(AF_INET, ip.c_str(), &(sa.sin_addr)) != 0;
 }
 
-
-void ConfigurationKey::getMinMaxStepping(const ConfigurationKey &key, std::string &min, std::string &max, std::string &stepping) {
+void ConfigurationKey::getMinMaxStepping(const ConfigurationKey &key, std::string &min, std::string &max, std::string &stepping)
+{
 	uint delimiter;
 	int startPos;
 	uint endPos;
@@ -960,7 +1014,7 @@ void ConfigurationKey::getMinMaxStepping(const ConfigurationKey &key, std::strin
 	startPos = tmp.find('(');
 	if (startPos != (int)std::string::npos) {
 		endPos = tmp.find(')');
-		stepping = tmp.substr(startPos+1, endPos-startPos-1);
+		stepping = tmp.substr(startPos + 1, endPos-startPos - 1);
 		tmp = tmp.substr(0, startPos);
 	}
 	startPos = 0;
@@ -971,7 +1025,9 @@ void ConfigurationKey::getMinMaxStepping(const ConfigurationKey &key, std::strin
 }
 
 
-template<class T> bool ConfigurationKey::isInValRange(const ConfigurationKey &key, const std::string& val, const bool isInteger) {
+template<class T>
+bool ConfigurationKey::isInValRange(const ConfigurationKey &key, const std::string &val, const bool isInteger)
+{
 	bool ret = false;
 
 	T convVal;
@@ -1003,7 +1059,8 @@ template<class T> bool ConfigurationKey::isInValRange(const ConfigurationKey &ke
 	return ret;
 }
 
-const std::string ConfigurationKey::visibilityLevelToString(const ConfigurationKey::VisibilityLevel& visibility) {
+const std::string ConfigurationKey::visibilityLevelToString(const ConfigurationKey::VisibilityLevel &visibility)
+{
 	std::string ret = "UNKNOWN ERROR";
 
 	switch (visibility) {
@@ -1030,7 +1087,8 @@ const std::string ConfigurationKey::visibilityLevelToString(const ConfigurationK
 	return ret;
 }
 
-const std::string ConfigurationKey::typeToString(const ConfigurationKey::Type& type) {
+const std::string ConfigurationKey::typeToString(const ConfigurationKey::Type& type)
+{
 	std::string ret = "UNKNOWN ERROR";
 
 	switch (type) {
@@ -1099,7 +1157,8 @@ const std::string ConfigurationKey::typeToString(const ConfigurationKey::Type& t
 	return ret;
 }
 
-void ConfigurationKey::printKey(const ConfigurationKey &key, const std::string& currentValue, ostream& os) {
+void ConfigurationKey::printKey(const ConfigurationKey &key, const std::string &currentValue, ostream &os)
+{
 	os << key.getName() << " ";
 	if (!currentValue.length()) {
 		os << "(disabled)";
@@ -1112,7 +1171,8 @@ void ConfigurationKey::printKey(const ConfigurationKey &key, const std::string& 
 	os << endl;
 }
 
-void ConfigurationKey::printDescription(const ConfigurationKey &key, ostream& os) {
+void ConfigurationKey::printDescription(const ConfigurationKey &key, ostream &os)
+{
 	std::string tmp;
 	unsigned scope;
 
@@ -1120,10 +1180,12 @@ void ConfigurationKey::printDescription(const ConfigurationKey &key, ostream& os
 	if (key.getUnits().length()) {
 		os << " - units:            " << key.getUnits() << std::endl;
 	}
+
 	os << " - type:             " << ConfigurationKey::typeToString(key.getType()) << std::endl;
 	if (key.getDefaultValue().length()) {
 		os << " - default value:    " << key.getDefaultValue() << std::endl;
 	}
+
 	os << " - visibility level: " << ConfigurationKey::visibilityLevelToString(key.getVisibility()) << std::endl;
 	os << " - static:           " << key.isStatic() << std::endl;
 
@@ -1139,8 +1201,9 @@ void ConfigurationKey::printDescription(const ConfigurationKey &key, ostream& os
 		do {
 			startPos++;
 			delimiter = tmp.find(':', startPos);
-			os << " - valid values:     " << "from " << tmp.substr(startPos, delimiter-startPos) << " to "
-				<< tmp.substr(delimiter+1, tmp.find(',', delimiter)-delimiter-1) << std::endl;
+			os << " - valid values:     " <<
+				"from " << tmp.substr(startPos, delimiter - startPos) <<
+				" to " << tmp.substr(delimiter + 1, tmp.find(',', delimiter) - delimiter-1) << std::endl;
 
 		} while ((startPos = tmp.find(',', startPos)) != (int)std::string::npos);
 
@@ -1151,10 +1214,10 @@ void ConfigurationKey::printDescription(const ConfigurationKey &key, ostream& os
 		do {
 			startPos++;
 			if ((endPos = tmp.find('|', startPos)) != std::string::npos) {
-				os << " - valid values:     " << tmp.substr(startPos, endPos-startPos);
-				os << " = " << tmp.substr(endPos+1, tmp.find(',', endPos)-endPos-1) << std::endl;
+				os << " - valid values:     " << tmp.substr(startPos, endPos - startPos);
+				os << " = " << tmp.substr(endPos + 1, tmp.find(',', endPos) - endPos-1) << std::endl;
 			} else {
-				os << " - valid values:     " << tmp.substr(startPos, tmp.find(',', startPos)-startPos) << std::endl;
+				os << " - valid values:     " << tmp.substr(startPos, tmp.find(',', startPos) - startPos) << std::endl;
 			}
 
 		} while ((startPos = tmp.find(',', startPos)) != (int)std::string::npos);
@@ -1192,6 +1255,3 @@ void ConfigurationKey::printDescription(const ConfigurationKey &key, ostream& os
 		}
 	}
 }
-
-
-// vim: ts=4 sw=4

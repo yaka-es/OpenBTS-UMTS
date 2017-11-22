@@ -35,6 +35,7 @@ using namespace std;
 int DummyLoad::loadBurst(short *wDummyBurst, int len) {
   dummyBurst = wDummyBurst;
   dummyBurstSz = len;
+  return 0;
 }
 
 
@@ -86,11 +87,11 @@ int DummyLoad::readSamples(short *buf, int len, bool *overrun,
   underrunLock.unlock();
   if (currstamp+len < timestamp) {
 	usleep(100); 
-	return NULL;
+	return 0;
   } 
   else if (currstamp < timestamp) {
 	usleep(100);
-	return NULL;
+	return 0;
   }
   else if (timestamp+len < currstamp) {
 	memcpy(buf,dummyBurst+dummyBurstCursor*2,sizeof(short)*2*(dummyBurstSz-dummyBurstCursor));

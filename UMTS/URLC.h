@@ -386,6 +386,7 @@ class URlcBase
 	// so only the most most derived (aka final) class needs an initializer,
 	// and they are always provided.
 	URlcBase() { assert(0); }
+	virtual ~URlcBase() {}
 
 	// Modulo mSNS arithmetic functions.
 	int deltaSN(URlcSN sn1, URlcSN sn2);

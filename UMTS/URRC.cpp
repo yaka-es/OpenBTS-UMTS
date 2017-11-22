@@ -868,8 +868,8 @@ void UEInfo::msWriteHighSide(ByteVector &dlpdu, uint32_t rbid, const char *descr
 void UEInfo::ueWriteHighSide(RbId rbid, ByteVector &sdu, string descr)
 {
 	ueRegisterActivity();
-	PATLOG(1,format("ueWriteHighSide(%d,sizebytes=%d,%s)",rbid,sdu.size(),descr.c_str()));
-	LOG(INFO) << "From SGSN: " << format("ueWriteHighSide(%d,sizebytes=%d,%s)",rbid,sdu.size(),descr.c_str());
+	PATLOG(1,format("ueWriteHighSide(%d,sizebytes=%zu,%s)",rbid,sdu.size(),descr.c_str()));
+	LOG(INFO) << "From SGSN: " << format("ueWriteHighSide(%d,sizebytes=%zu,%s)",rbid,sdu.size(),descr.c_str());
         LOG(INFO) << "SGSN data: " << sdu;
 	URlcTrans *rlc = getRlcDown(rbid);
 	if (!rlc) {

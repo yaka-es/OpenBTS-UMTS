@@ -481,9 +481,3 @@ bool SIPInterface::checkInvite( osip_message_t * msg)
 
 	return true;
 }
-
-
-
-
-
-// vim: ts=4 sw=4

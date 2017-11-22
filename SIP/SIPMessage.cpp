@@ -204,7 +204,7 @@ osip_message_t * SIP::sip_message( const char * dialed_number, const char * sip_
 	}
 
 	// Content-Length
-	sprintf(temp_buf,"%u",strlen(message));
+	sprintf(temp_buf,"%zu",strlen(message));
 	osip_message_set_content_length(request, strdup(temp_buf));
 
 	// Payload.
@@ -527,7 +527,12 @@ osip_message_t * SIP::sip_ack(const char * req_uri, const char * dialed_number, 
 }
 
 
-osip_message_t * SIP::sip_bye(const char * req_uri, const char * dialed_number, const char * sip_username, short wlocal_port, const char * local_ip, const char * proxy_ip, short wproxy_port, const osip_from_t* from_header, const osip_to_t* to_header, const char * via_branch, const osip_call_id_t* call_id_header, int cseq) {
+osip_message_t * SIP::sip_bye(const char *req_uri, const char *dialed_number,
+	const char *sip_username, short wlocal_port, const char *local_ip,
+	const char *proxy_ip __attribute_used__, short wproxy_port,
+	const osip_from_t *from_header, const osip_to_t *to_header,
+	const char *via_branch, const osip_call_id_t *call_id_header, int cseq)
+{
 
 	// FIXME -- We really need some NULL-value error checking in here.
 
@@ -846,7 +851,7 @@ osip_message_t * SIP::sip_ringing( osip_message_t * invite, const char * sip_use
 }
 
 
-osip_message_t * SIP::sip_okay_SMS( osip_message_t * inv, const char * sip_username, const char * local_ip, short wlocal_port)
+osip_message_t * SIP::sip_okay_SMS(osip_message_t *inv, const char *sip_username __attribute_used__, const char *local_ip __attribute_used__, short wlocal_port __attribute_used__)
 {
 
 	// Check for consistency.
@@ -904,7 +909,11 @@ osip_message_t * SIP::sip_okay_SMS( osip_message_t * inv, const char * sip_usern
 }
 
 
-osip_message_t * SIP::sip_info(unsigned info, const char *dialed_number, short rtp_port, const char * sip_username, short wlocal_port, const char * local_ip, const char * proxy_ip, const char * from_tag, const char * via_branch, const osip_call_id_t *call_id_header, int cseq) {
+osip_message_t * SIP::sip_info(unsigned info, const char *dialed_number, short rtp_port __attribute_used__,
+	const char *sip_username, short wlocal_port, const char *local_ip,
+	const char *proxy_ip, const char *from_tag, const char *via_branch,
+	const osip_call_id_t *call_id_header, int cseq)
+{
 
 	char local_port[10];
 	sprintf(local_port, "%i", wlocal_port);
@@ -982,7 +991,3 @@ osip_message_t * SIP::sip_info(unsigned info, const char *dialed_number, short r
 
 	return request;	
 }
-
-
-
-// vim: ts=4 sw=4

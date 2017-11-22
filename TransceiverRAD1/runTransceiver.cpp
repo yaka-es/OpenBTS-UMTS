@@ -64,12 +64,14 @@ int main(int argc, char *argv[])
 
   gFactoryCalibration.readEEPROM();
 
+/*
   int numARFCN=1;
   if (argc>1) numARFCN = atoi(argv[1]);
 
 #ifdef SINGLEARFCN
   numARFCN=1;
 #endif
+*/
 
   srandom(time(NULL));
 
@@ -115,7 +117,7 @@ int main(int argc, char *argv[])
   usrp->loadBurst(finalVecShort,finalVec.size());
 */
   trx->start();
-  int i = 0;
+  //int i = 0;
   while(!gbShutdown) { sleep(1); } // i++; if (i==60) exit(1);}
 
   cout << "Shutting down transceiver..." << endl;

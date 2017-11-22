@@ -27,7 +27,7 @@
 
 using namespace UMTS;
 
-const float RadioModem::mRACHThreshold = 10.0;
+const float UMTS::RadioModem::mRACHThreshold = 10.0;
 
 UMTS::Time TxBitsQueue::nextTime() const
 {
@@ -654,7 +654,7 @@ bool RadioModem::detectRACHPreamble(signalVector &wBurst, UMTS::Time wTime, floa
   for (int i = 0; i < 12; i++) {
     if (!mRACHSubchannelMask[i]) continue;
     bool validSlot = (accessSlotSet1 && (gRACHSubchannels[i][wTime.FN() % 8]*2 == (int) wTime.TN())) || 
-                     (accessSlotSet2 && ((gRACHSubchannels[i][wTime.FN() % 8]*2 % gFrameSlots) == (int) wTime.TN()));
+                     (accessSlotSet2 && ((long)(gRACHSubchannels[i][wTime.FN() % 8]*2 % gFrameSlots) == (long)wTime.TN()));
     if (!validSlot) continue;
 
     // correlate against preamble, is the max above the threshold?

@@ -246,7 +246,7 @@ void URlcRecv::rlcSendHighSide(URlcUpSdu *sdu)
 // nope: We're going to use CNF for both Confirmation and Discard requests.
 void URlcTrans::rlcWriteHighSide(ByteVector &data, bool DiscardReq, unsigned MUI,string descr)
 {
-	RLCLOG("rlcWriteHighSide sizebytes=%d rbid=%d descr=%s",
+	RLCLOG("rlcWriteHighSide sizebytes=%zu rbid=%d descr=%s",
 		data.size(),mrbid,descr.c_str());
 
 	// pat 12-17: Changed the GGSN to pre-allocate this so we dont have to do it here.
@@ -457,7 +457,7 @@ bool URlcTransAmUm::fillPduData(URlcPdu *result,
 			break;
 		}
 		if (licnt == 100) break;
-		RLCLOG("fillpdu resultsize:%d sdusize=%d sdufinalbytes=%d remaining=%d",result->size(),sdusize,sdufinalbytes,remaining);
+		RLCLOG("fillpdu resultsize:%zu sdusize=%d sdufinalbytes=%d remaining=%d",result->size(),sdusize,sdufinalbytes,remaining);
 	} // for sdu
 
 	if (remaining >= libytes) {
@@ -479,9 +479,9 @@ bool URlcTransAmUm::fillPduData(URlcPdu *result,
 		for (int i = 0; i < licnt; i++) {
 			result->appendLIandE(vli[i],i != licnt-1,libytes);
 		}
-		RLCLOG("fillpdu after adding li, headersize:%d",result->size()); 
+		RLCLOG("fillpdu after adding li, headersize:%zu",result->size()); 
 	} else {
-		RLCLOG("fillpdu no li, headersize:%d",result->size()); 
+		RLCLOG("fillpdu no li, headersize:%zu",result->size()); 
 	}
 
 	// Step two: add the data from sducnt SDUs to the result PDU.
@@ -504,12 +504,12 @@ bool URlcTransAmUm::fillPduData(URlcPdu *result,
 			//printf("sdu->sduData(): %0x\n",sdu->sduData());
 			sdu->sduData()->trimLeft(sdufinalbytes);
 			mSplitSdu = sdu;
-			RLCLOG("fillpdu appending (partial) %d sdu bytes, result=%d bytes",
+			RLCLOG("fillpdu appending (partial) %u sdu bytes, result=%zu bytes",
 				sdufinalbytes, result->size());
 		} else {
 			// Copy the entire SDU.
 			result->append(sdu->sduData());
-			RLCLOG("fillpdu appending %d sdu bytes, result=%d bytes",
+			RLCLOG("fillpdu appending %zu sdu bytes, result=%zu bytes",
 				sdu->sduData()->size(), result->size());
 			mVTSDU++;
 			sdu->free();
@@ -546,7 +546,7 @@ URlcBasePdu *URlcTransAmUm::rlcReadLowSide()
 		pdu = readLowSidePdu();
 		wasqueued = false;
 	}
-	if (pdu) RLCLOG("readlLowSide(q=%d,sizebytes=%d,payloadsize=%d,descr=%s,rb=%d header=%s)",
+	if (pdu) RLCLOG("readlLowSide(q=%d,sizebytes=%zu,payloadsize=%d,descr=%s,rb=%d header=%s)",
 		wasqueued,pdu->size(),pdu->getPayloadSize(),
 		pdu->mDescr.c_str(),mrbid,pdu->segment(0,2).hexstr().c_str());
 
@@ -564,7 +564,7 @@ URlcBasePdu *URlcTransTm::rlcReadLowSide()
 		if (sdu->mDiscarded) {
 			sdu->free();
 		} else {
-			RLCLOG("readlLowSide(sizebits=%d,descr=%s,rb=%d)",
+			RLCLOG("readlLowSide(sizebits=%zu,descr=%s,rb=%d)",
 				sdu->sizeBits(), sdu->mDescr.c_str(),mrbid);
 			return sdu;
 		}
@@ -585,8 +585,10 @@ void URlcTransAmUm::rlcPullLowSide(unsigned amt)
 		//LOG(INFO) << "amt: " << amt << " sz: " << mPduOutQ.totalSize();
 	}
 
-	if (cnt) LOG(INFO) << format("rlcPullLowSide rb%d amt=%d sent %d pdus, pduq=%d(%dB), sduq=%d(%dB)",
-				mrbid,amt,cnt,mPduOutQ.size(),mPduOutQ.totalSize(),mSduTxQ.size(),mSduTxQ.totalSize());
+	if (cnt) LOG(INFO) << format("rlcPullLowSide rb%d amt=%d sent %d pdus, pduq=%zu(%zuB), sduq=%u(%uB)",
+				mrbid, amt, cnt,
+				mPduOutQ.size(), mPduOutQ.totalSize(),
+				mSduTxQ.size(), mSduTxQ.totalSize());
 }
 
 URlcPdu *URlcTransUm::readLowSidePdu()
@@ -603,7 +605,7 @@ URlcPdu *URlcTransUm::readLowSidePdu()
 	if (mSduDiscarded && mConfig.mRlcDiscard.mSduDiscardMode != TransmissionRlcDiscard::NotConfigured) {
 		incSN(mVTUS);	// Informs peer that a discard occurred.
 	}
-	RLCLOG("readLowSidePdu sizebytes=%d",result->size());
+	RLCLOG("readLowSidePdu sizebytes=%zu",result->size());
 	return result;
 }
 
@@ -624,9 +626,9 @@ URlcPdu *URlcTransAm::getDataPdu()
         //LOG(INFO) << "fPD done " << gNodeB.clock().get();
 	result->setAmSN(mVTS);
 	result->setAmP(0);	// Until we know better.
-	RLCLOG("getDataPdu VTS=%d,VTA=%d bytes=%d header=%s dc=%d sn=%u",
-		(int)mVTS,(int)mVTA,result->sizeBytes(),result->segment(0,2).hexstr().c_str(),
-		result->getBit(0),(int)result->getField(1,12));
+	RLCLOG("getDataPdu VTS=%d,VTA=%d bytes=%zu header=%s dc=%d sn=%u",
+		(int)mVTS ,(int)mVTA, result->sizeBytes(), result->segment(0,2).hexstr().c_str(),
+		result->getBit(0), (int)result->getField(1,12));
 	if (mPduTxQ[mVTS]) {
 		RLCERR("RLC-AM internal error: PduTxQ at %d not empty",(int)mVTS);
 		delete mPduTxQ[mVTS];
@@ -1651,8 +1653,8 @@ void URlcRecvAmUm::parsePduData(URlcPdu &pdu,
 				return;
 			}
 			if (lenbytes > payload.size()) {
-				RLCERR("Incoming piggy-back status LI size=%d less than PDU length=%d",
-						lenbytes,payload.size());
+				RLCERR("Incoming piggy-back status LI size=%d less than PDU length=%zu",
+						lenbytes, payload.size());
 				return;
 			}
 			payload.trimLeft(lenbytes);
@@ -1684,7 +1686,7 @@ void URlcRecvAmUm::parsePduData(URlcPdu &pdu,
 
 		// sanity check.
 		if (lenbytes > payload.size()) {
-			RLCERR("Incoming PDU LI size=%d less than PDU length=%d", lenbytes,payload.size());
+			RLCERR("Incoming PDU LI size=%d less than PDU length=%zu", lenbytes, payload.size());
 			n = licnt;	// End loop after this iteration.
 			lenbytes = payload.size();	// Should probably discard this.
 		}
@@ -1714,8 +1716,8 @@ void URlcRecvAm::rlcWriteLowSide(const BitVector &pdubits)
 
 		std::ostringstream foo;
 		pdubits.hex(foo);
-		RLCLOG("rlcWriteLowSide(control,sizebits=%d,pdutype=%d,payload=%s) mVRR=%d",
-				pdubits.size(),pdutype,foo.str().c_str(),(int)mVRR);
+		RLCLOG("rlcWriteLowSide(control,sizebits=%zu,pdutype=%d,payload=%s) mVRR=%d",
+				pdubits.size(), pdutype, foo.str().c_str(), (int)mVRR);
 
 		switch (pdutype) {
 			case PDUTYPE_STATUS: {
@@ -1758,8 +1760,8 @@ void URlcRecvAm::rlcWriteLowSide(const BitVector &pdubits)
 
 		std::ostringstream foo;
 		pdubits.hex(foo);
-		RLCLOG("rlcWriteLowSide(data,sizebits=%d,sn=%d,payload=%s) mVRR=%d",
-				pdubits.size(),(int)sn,foo.str().c_str(),(int)mVRR);
+		RLCLOG("rlcWriteLowSide(data,sizebits=%zu,sn=%d,payload=%s) mVRR=%d",
+				pdubits.size(), (int)sn, foo.str().c_str(), (int)mVRR);
 
 		if (deltaSN(sn,mVRR) < 0) {
 			// The other transmitter sent us a block we have already processed

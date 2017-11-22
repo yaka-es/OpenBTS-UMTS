@@ -353,8 +353,8 @@ void Transceiver::driveReceiveFIFO()
 {
 
   radioVector *rxBurst = NULL;
-  int RSSI;
-  int TOA;  // in 1/256 of a symbol
+  int RSSI = 0; /* FIXME */
+  //int TOA;  // in 1/256 of a symbol
   UMTS::Time burstTime;
 
   mRadioInterface->driveReceiveRadio(1024+mDelaySpread);

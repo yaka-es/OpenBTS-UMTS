@@ -251,7 +251,9 @@ bool rad1LoadFirmware (libusb_device_handle *udh, const char *filename,
   int i;
 
   while (!feof(f)){
-    fgets(s, sizeof (s), f); /* we should not use more than 263 bytes normally */
+    if (fgets(s, sizeof (s), f) == NULL) { /* we should not use more than 263 bytes normally */
+      goto fail;
+    }
     if(s[0]!=':'){
       LOG(ERR) "File " << filename << " has invalid line: " << s;
       goto fail;
@@ -488,8 +490,8 @@ bool rad1_load_standard_bits (int nth, bool force,
 {
   rad1LoadStatus    s;
   const char            *filename;
-  const char            *proto_filename;
-  int hw_rev;
+  //const char            *proto_filename;
+  //int hw_rev;
 
   // start by loading the firmware
   s = rad1LoadFirmwareNth (nth, firmware_filename.data(), force, ctx);

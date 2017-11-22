@@ -91,7 +91,7 @@ rnrad1Rx::~rnrad1Rx()
   delete mDevHandle;
   
   // initialize registers that are common to rx and tx
-  bool result= write9862(REG_RX_PWR_DN,0x1);
+  write9862(REG_RX_PWR_DN, 0x1);
   
 }
 
@@ -235,7 +235,7 @@ bool rnrad1Rx::setPga (int amp, double gain)
   
   gain = std::min(pgaMax(), std::max(pgaMin(), gain));
   int intGain = (int) rint((gain - pgaMin()) / pgaDbPerStep());
-  int reg = (amp & 1 == 0) ? REG_RX_A : REG_RX_B;
+  int reg = ((amp & 1) == 0) ? REG_RX_A : REG_RX_B;
   // read current value to get input buffer bypass flag.
   unsigned char curRx;
   if (!read9862(reg, &curRx))
@@ -249,7 +249,7 @@ bool rnrad1Rx::setPga (int amp, double gain)
 double rnrad1Rx::pga (int amp) const
 {
   if (amp < 0 || amp > 1) return READ_FAILED;
-  int reg = (amp & 1 == 0) ? REG_RX_A : REG_RX_B;
+  int reg = ((amp & 1) == 0) ? REG_RX_A : REG_RX_B;
   unsigned char v;
   if (!read9862 (reg, &v)) return READ_FAILED;
   return (pgaDbPerStep() * (v & 0x1f)) + pgaMin();

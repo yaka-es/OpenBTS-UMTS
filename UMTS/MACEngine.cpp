@@ -212,7 +212,7 @@ void macUnHookupDch(UEInfo *uep)
 	MacdBase *mac = uep->mUeMac;
 	if (mac) { gMacSwitch.rmMac(mac); }	// stops downstream communcation.
 	if (dch) {
-        	printf("unhooking DCH %0x\n",dch);
+        	printf("unhooking DCH %p\n", dch);
 
 		dch->close();		// closes physical channel and removes from gActiveDch.
 						// Note: Channel can be reallocated immediately.

@@ -1044,9 +1044,9 @@ bool analyzeTrafficBurst(signalVector &rxBurst,
   assert(TOA);
   assert(gMidambles[TSC]);
 
-  if (maxTOA < 3*samplesPerSymbol) maxTOA = 3*samplesPerSymbol;
+  if ((int)maxTOA < 3*samplesPerSymbol) maxTOA = 3*samplesPerSymbol;
   unsigned spanTOA = maxTOA;
-  if (spanTOA < 5*samplesPerSymbol) spanTOA = 5*samplesPerSymbol;
+  if ((int)spanTOA < 5*samplesPerSymbol) spanTOA = 5*samplesPerSymbol;
 
   unsigned startIx = (66-spanTOA)*samplesPerSymbol;
   unsigned endIx = (66+16+spanTOA)*samplesPerSymbol;
@@ -1386,7 +1386,7 @@ bool designDFE(signalVector &channelResponse,
 
   signalVector *L[Nf];
   signalVector::iterator Lptr;
-  float d;
+  float d = NAN;
   for(int i = 0; i < Nf; i++) {
     d = G0.begin()->norm2() + G1.begin()->norm2();
     L[i] = new signalVector(Nf+nu);

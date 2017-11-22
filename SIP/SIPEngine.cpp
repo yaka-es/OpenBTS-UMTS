@@ -153,7 +153,7 @@ void SIPEngine::saveResponse(osip_message_t *response)
 
 
 
-void SIPEngine::saveBYE(const osip_message_t *BYE, bool mine)
+void SIPEngine::saveBYE(const osip_message_t *BYE, bool mine __attribute_used__)
 {
 	// Instead of cloning, why not just keep the old one?
 	// Because that doesn't work in all calling contexts.
@@ -953,8 +953,3 @@ bool SIPEngine::sendINFOAndWaitForOK(unsigned wInfo)
 	}
 
 };
-
-
-
-
-// vim: ts=4 sw=4

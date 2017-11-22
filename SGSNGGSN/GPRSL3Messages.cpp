@@ -1188,6 +1188,7 @@ void L3GmmMsgAuthenticationResponse::gmmParseBody(L3GmmFrame &src, size_t &rp)
 {
 	// 9.4.10 of 24.008
         unsigned char ACrefnum = src.readByte(rp); // ignore for now
+	ACrefnum = ACrefnum; /* unused */
         ByteVector SRES(4);
 
         // optional ieis:
@@ -1450,4 +1451,4 @@ void GMMRoutingAreaIdIE::raLoad()
 	mMNC[2] = wMNC[2] ? (wMNC[2]-'0') : 0xf;
 }
 
-};	// namespace
+}; /* namespace SGSN */

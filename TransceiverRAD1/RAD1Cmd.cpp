@@ -160,9 +160,9 @@ int
 main (int argc, char **argv)
 {
   int		ch;
-  bool		verbose = false;
+  //bool		verbose = false;
   int		which_board = 0;
-  bool		fx2_ok_p = false;
+  //bool		fx2_ok_p = false;
   
   set_progname (argv[0]);
   
@@ -170,7 +170,7 @@ main (int argc, char **argv)
     switch (ch){
 
     case 'v':
-      verbose = true;
+      //verbose = true;
       break;
       
     case 'w':
@@ -178,7 +178,7 @@ main (int argc, char **argv)
       break;
       
     case 'x':
-      fx2_ok_p = true;
+      //fx2_ok_p = true;
       break;
       
     default:
@@ -197,7 +197,7 @@ main (int argc, char **argv)
   gLogInit("openbts",NULL,LOG_LOCAL7);
 
 
-#define CHKARGS(n) if (nopts != n) usage (); else
+#define CHKARGS(n) if (nopts != n) usage();
 
   // The load_standard_bits is part of the RAD1Device construction.
   if (strcmp (cmd, "load_standard_bits") == 0){

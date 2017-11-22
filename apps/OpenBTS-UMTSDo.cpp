@@ -27,17 +27,19 @@
 
 int main(int argc, char *argv[])
 {
-	const char* cmdPath = DEFAULT_CMD_PATH;
-	if (argc!=1) {
+	int retcode = 0;
+
+	const char *cmdPath = DEFAULT_CMD_PATH;
+	if (argc != 1) {
 		cmdPath = argv[1];
 	}
 
 	char rspPath[200];
-	sprintf(rspPath,"/tmp/OpenBTS-UMTS.do.%d",getpid());
+	sprintf(rspPath, "/tmp/OpenBTS-UMTS.do.%d", getpid());
 
 	// the socket
-	int sock = socket(AF_UNIX,SOCK_DGRAM,0);
-	if (sock<0) {
+	int sock = socket(AF_UNIX, SOCK_DGRAM, 0);
+	if (sock < 0) {
 		perror("opening datagram socket");
 		exit(1);
 	}
@@ -45,45 +47,62 @@ int main(int argc, char *argv[])
 	// destination address
 	struct sockaddr_un cmdSockName;
 	cmdSockName.sun_family = AF_UNIX;
-	strcpy(cmdSockName.sun_path,cmdPath);
+	strcpy(cmdSockName.sun_path, cmdPath);
 
 	// locally bound address
 	struct sockaddr_un rspSockName;
 	rspSockName.sun_family = AF_UNIX;
-	char rmcmd[strlen(rspPath)+10];
-	sprintf(rmcmd,"rm -f %s",rspPath);
-	system(rmcmd);
 	strcpy(rspSockName.sun_path,rspPath);
+
+	unlink(rspPath);
+
 	if (bind(sock, (struct sockaddr *) &rspSockName, sizeof(struct sockaddr_un))) {
 		perror("binding name to datagram socket");
 		exit(1);
 	}
 
+	size_t input_buffer_size = 4096;
+	char *inbuf = (char*)malloc(input_buffer_size);
+	char *cmd = fgets(inbuf, input_buffer_size - 1, stdin);
 
-	char *inbuf = (char*)malloc(200);
-	char *cmd = fgets(inbuf,199,stdin);
-	if (!cmd) exit(0);
-	cmd[strlen(cmd)-1] = '\0';
+	ssize_t nsent, nrecv;
+	size_t bufsz;
+	char *resbuf;
 
-	if (sendto(sock,cmd,strlen(cmd)+1,0,(struct sockaddr*)&cmdSockName,sizeof(cmdSockName))<0) {
+	if (cmd == NULL)
+		goto done;
+
+	cmd[strlen(cmd) - 1] = '\0';
+
+	nsent = sendto(sock, cmd, strlen(cmd) + 1, 0,
+		(const struct sockaddr *)&cmdSockName, sizeof(cmdSockName));
+
+	if (nsent < 0) {
 		perror("sending datagram");
-		exit(1);
+		retcode = 1;
+		goto done;
 	}
 
 	// buffer to be sized as necessary to accomodate config data length
-	const int bufsz = 8500;
-	char resbuf[bufsz];
-	int nread = recv(sock,resbuf,bufsz-1,0);
-	if (nread<0) {
-		perror("receiving response");
-		exit(1);
-	}
-	resbuf[nread] = '\0';
-	printf("%s\n",resbuf);
+	bufsz = 128 * 1024;
+	resbuf = (char *)malloc(bufsz);
+	nrecv = recv(sock, resbuf, bufsz - 1, 0);
 
+	if (nrecv < 0) {
+		perror("receiving response");
+		retcode = 1;
+		goto done;
+	}
+
+	resbuf[nrecv] = '\0';
+	printf("%s\n", resbuf);
+
+	free(resbuf);
+
+done:
 	close(sock);
 
-	// Delete the path to limit clutter in /tmp.
-	sprintf(rmcmd,"rm -f %s",rspPath);
-	system(rmcmd);
+	unlink(rspPath);
+
+	return retcode;
 }

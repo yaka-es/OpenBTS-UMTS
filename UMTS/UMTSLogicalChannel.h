@@ -191,7 +191,7 @@ public:
 		Any payload is discarded.  Block indefinitely, no timeout.
 		@param primitive The primitive to wait for.
 	*/
-	void waitForPrimitive(GSM::Primitive primitive) {} ; // FIXME: stubbed out
+	void waitForPrimitive(GSM::Primitive primitive __attribute_used__) {} // FIXME: stubbed out
 
 	/**
 		Block on a channel until a given primitive arrives.
@@ -200,7 +200,7 @@ public:
 		@param timeout_ms The timeout in milliseconds.
 		@return True on success, false on timeout.
 	*/
-	bool waitForPrimitive(GSM::Primitive primitive, unsigned timeout_ms) {return false;} //FIXME: stubbed out
+	bool waitForPrimitive(GSM::Primitive primitive __attribute_used__, unsigned timeout_ms __attribute_used__) { return false; } //FIXME: stubbed out
 
 
 
@@ -309,7 +309,7 @@ class DCCHLogicalChannel : public LogicalChannel
 
 	ChannelTypeL3 type() const { return DCCHType; }
 
-	bool multiframeMode(unsigned SAPI) const {return true;} // FIXME: stubbed out
+	bool multiframeMode(unsigned SAPI __attribute_used__) const { return true; } // FIXME: stubbed out
 };
 
 
@@ -326,13 +326,13 @@ class DTCHLogicalChannel : public LogicalChannel {
 
 	ChannelTypeL3 type() const { return DTCHType; }
 
-	void sendTCH(const unsigned char* frame) {}// FIXME: stubbed out
+	void sendTCH(const unsigned char *frame __attribute_used__) {} // FIXME: stubbed out
 
-	unsigned char* recvTCH() { return NULL;} // FIXME: stubbed out
+	unsigned char* recvTCH() { return NULL; } // FIXME: stubbed out
 
 	unsigned queueSize() const { return 0; } // FIXME: stubbed out
 
-	bool radioFailure() const {return false;} // FIXME: stubbed out
+	bool radioFailure() const {return false; } // FIXME: stubbed out
 };
 
 

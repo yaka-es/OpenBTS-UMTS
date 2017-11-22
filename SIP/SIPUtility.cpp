@@ -88,8 +88,6 @@ void SIP::make_branch( char * branch )
 {
 	uint64_t r1 = random();
 	uint64_t r2 = random();
-	uint64_t val = (r1<<32) + r2;
-	sprintf(branch,"z9hG4bKobts28%llx", val);
+	uint64_t val = (r1 << 32) + r2;
+	sprintf(branch,"z9hG4bKobts28%llx", (unsigned long long)val);
 }
-
-// vim: ts=4 sw=4

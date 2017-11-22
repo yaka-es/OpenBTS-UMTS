@@ -36,9 +36,11 @@ namespace ASN {
 //#include "RRCConnectionRequest.h"
 //#include "RRCConnectionSetup.h"
 };
-extern FILE *gLogToFile;
+
+extern FILE *gLogFile;
 
 namespace UMTS {
+
 void handleRrcConnectionRequest(ASN::RRCConnectionRequest_t *msg);	// This kinda sucks.
 
 // Return rand in the range 0..maxval inclusive.
@@ -56,8 +58,8 @@ extern int gFecTestMode;
 class MacTester : public MacEngine
 {
 	void writeLowSide(const TransportBlock&tb) {
-		printf("Received uplink TB size %d\n",tb.size());
-		std::cout <<"tb="<<(ByteVector)tb;
+		printf("Received uplink TB size %lu\n", (unsigned long)tb.size());
+		std::cout << "tb=" << (ByteVector)tb;
 	}
 
 	void macService(int fn) {}
@@ -169,7 +171,9 @@ static unsigned rlcRun(URlcPair *pair1,URlcPair *pair2,int percentloss, bool sta
 int rlcTest(int argc, char** argv, ostream& os)
 {
 	gLogToConsole = true;
-	if (gLogToFile == NULL) { gLogToFile = fopen("debug.log","w"); }
+	if (gLogFile == NULL) {
+		gLogFile = fopen("debug.log", "w");
+	}
 
 	int argi = 1;   // The number of arguments consumed so far; argv[0] was name of cmd
 	URlcMode mode = URlcModeAm; //URlcModeTm, URlcModeUm,
@@ -364,7 +368,7 @@ int rrcTest(int argc, char** argv, ostream& os)
 	if (argc <= 1) { return 1; }
 
 	//gLogToConsole = true;
-	//if (gLogToFile == NULL) { gLogToFile = fopen("debug.log","w"); }
+	//if (gLogFile == NULL) { gLogFile = fopen("debug.log","w"); }
 
 	int argi = 1;   // The number of arguments consumed so far; argv[0] was name of cmd
 	char *subcmd = argv[argi++];
@@ -452,7 +456,7 @@ int rrcTest(int argc, char** argv, ostream& os)
 			printf("failed to encode %s\n",help);
 			return 0;
 		}
-		printf("==== RRCConnectionRequest sizebits=%d\n",pdu.sizeBits());
+		printf("==== RRCConnectionRequest sizebits=%lu\n", (unsigned long)pdu.sizeBits());
 
 		// Try decoding immediately:
 		ASN::UL_CCCH_Message *msg1 = (ASN::UL_CCCH_Message*)
@@ -534,4 +538,4 @@ int rrcTest(int argc, char** argv, ostream& os)
 	return 0;	// aka SUCCESS
 }
 
-};
+}; /* namespace UMTS */

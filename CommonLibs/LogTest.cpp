@@ -26,15 +26,15 @@ ConfigurationTable gConfig;
 
 void printAlarms()
 {
-    std::ostream_iterator<std::string> output( std::cout, "\n" );
-    std::list<std::string> alarms = gGetLoggerAlarms();
-    std::cout << "# alarms = " << alarms.size() << std::endl;
-    std::copy( alarms.begin(), alarms.end(), output );
+	std::ostream_iterator<std::string> output( std::cout, "\n" );
+	std::list<std::string> alarms = gGetLoggerAlarms();
+	std::cout << "# alarms = " << alarms.size() << std::endl;
+	std::copy( alarms.begin(), alarms.end(), output );
 }
 
 int main(int argc, char *argv[])
 {
-	gLogInit("LogTest","NOTICE",LOG_LOCAL7);
+	gLogInit("LogTest", "NOTICE", LOG_LOCAL7);
 
 	LOG(EMERG) << " testing the logger.";
 	LOG(ALERT) << " testing the logger.";
@@ -44,17 +44,14 @@ int main(int argc, char *argv[])
 	LOG(NOTICE) << " testing the logger.";
 	LOG(INFO) << " testing the logger.";
 	LOG(DEBUG) << " testing the logger.";
-    std::cout << "\n\n\n";
-    std::cout << "testing Alarms\n";
-    std::cout << "you should see three lines:" << std::endl;
-    printAlarms();
-    std::cout << "----------- generating 20 alarms ----------" << std::endl;
-    for (int i = 0 ; i < 20 ; ++i) {
-        LOG(ALERT) << i;
-    }
-    std::cout << "you should see ten lines with the numbers 10..19:" << std::endl;
-    printAlarms();
+	std::cout << "\n\n\n";
+	std::cout << "testing Alarms\n";
+	std::cout << "you should see three lines:" << std::endl;
+	printAlarms();
+	std::cout << "----------- generating 20 alarms ----------" << std::endl;
+	for (int i = 0 ; i < 20 ; ++i) {
+		LOG(ALERT) << i;
+	}
+	std::cout << "you should see ten lines with the numbers 10..19:" << std::endl;
+	printAlarms();
 }
-
-
-

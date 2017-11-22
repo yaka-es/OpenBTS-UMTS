@@ -260,6 +260,7 @@ class MacEngine
 	L1CCTrCh * mccDownstream;
 	public:
 	MacEngine() : mDownstream(0), mccDownstream(0) { }
+	virtual ~MacEngine() {}
 	void macSetDownstream(TrCHFEC *wDownstream) { mDownstream = wDownstream; }
 	void macSetDownstream(L1CCTrCh *wccDownstream) { mccDownstream = wccDownstream; }
 	unsigned macGetDlNumRadioFrames() const;

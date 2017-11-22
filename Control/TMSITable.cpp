@@ -30,7 +30,7 @@ using namespace std;
 using namespace Control;
 
 
-static const char* createTMSITable = {
+static const char* createTMSITable =
 	"CREATE TABLE IF NOT EXISTS TMSI_TABLE ("
 		"TMSI INTEGER PRIMARY KEY AUTOINCREMENT, "
 		"CREATED INTEGER NOT NULL, "	// Unix time of record creation
@@ -51,8 +51,7 @@ static const char* createTMSITable = {
 		"DEG_LAT FLOAT, "				// RRLP result
 		"DEG_LONG FLOAT, "				// RRLP result
 		"kc varchar(33) default '' "
-	")"
-};
+	")";
 
 
 
@@ -238,7 +237,9 @@ void TMSITable::putAuthTokens(const char* IMSI, uint64_t upperRAND, uint64_t low
 {
 	char query[300];
 	sprintf(query,"UPDATE TMSI_TABLE SET RANDUPPER=%llu,RANDLOWER=%llu,SRES=%u,ACCESSED=%u WHERE IMSI=\"%s\"",
-		upperRAND,lowerRAND,SRES,(unsigned)time(NULL),IMSI);
+		(unsigned long long)upperRAND,
+		(unsigned long long)lowerRAND,
+		SRES, (unsigned)time(NULL), IMSI);
 	if (!sqlite3_command(mDB,query)) {
 		LOG(ALERT) << "cannot write to TMSI table";
 	}
@@ -314,7 +315,3 @@ unsigned TMSITable::nextL3TI(const char* IMSI)
 	}
 	return next;
 }
-
-
-
-// vim: ts=4 sw=4

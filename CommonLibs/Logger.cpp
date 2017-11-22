@@ -25,21 +25,14 @@
 #include "Logger.h"
 #include "Threads.h"	// pat added
 
-
 using namespace std;
-
-// Reference to a global config table, used all over the system.
-extern ConfigurationTable gConfig;
-
 
 /**@ The global alarms table. */
 //@{
-Mutex           alarmsLock;
-list<string>    alarmsList;
-void            addAlarm(const string&);
+static Mutex alarms_mutex;
+static list<string> alarms_list;
+static void addAlarm(const string &s);
 //@}
-
-
 
 // (pat) If Log messages are printed before the classes in this module are inited
 // (which happens when static classes have constructors that do work)
@@ -47,34 +40,36 @@ void            addAlarm(const string&);
 // Prevent that by setting sLoggerInited to true when this module is inited.
 static bool sLoggerInited = 0;
 static struct CheckLoggerInitStatus {
-	CheckLoggerInitStatus() { sLoggerInited = 1; }
+	CheckLoggerInitStatus() {
+		sLoggerInited = 1;
+	}
 } sCheckloggerInitStatus;
 
 
-
 /** Names of the logging levels. */
-const char *levelNames[] = {
+static const char *level_names[] = {
 	"EMERG", "ALERT", "CRIT", "ERR", "WARNING", "NOTICE", "INFO", "DEBUG"
 };
-int numLevels = 8;
+static int num_levels = 8;
+static Mutex log_mutex;
 bool gLogToConsole = 0;
-FILE *gLogToFile = NULL;
-Mutex gLogToLock;
+FILE *gLogFile = NULL;
 
 
 int levelStringToInt(const string& name)
 {
 	// Reverse search, since the numerically larger levels are more common.
-	for (int i=numLevels-1; i>=0; i--) {
-		if (name == levelNames[i]) return i;
+	for (int i = num_levels - 1; i >= 0; i--) {
+		if (name == level_names[i])
+			return i;
 	}
 
 	// Common substitutions.
-	if (name=="INFORMATION") return 6;
-	if (name=="WARN") return 4;
-	if (name=="ERROR") return 3;
-	if (name=="CRITICAL") return 2;
-	if (name=="EMERGENCY") return 0;
+	if (name == "INFORMATION") return 6;
+	if (name == "WARN") return 4;
+	if (name == "ERROR") return 3;
+	if (name == "CRITICAL") return 2;
+	if (name == "EMERGENCY") return 0;
 
 	// Unknown level.
 	return -1;
@@ -149,31 +144,32 @@ int gGetLoggingLevel(const char* filename)
 	return level;
 }
 
-
-
-
-
 // copies the alarm list and returns it. list supposed to be small.
 list<string> gGetLoggerAlarms()
 {
-    alarmsLock.lock();
-    list<string> ret;
-    // excuse the "complexity", but to use std::copy with a list you need
-    // an insert_iterator - copy technically overwrites, doesn't insert.
-    insert_iterator< list<string> > ii(ret, ret.begin());
-    copy(alarmsList.begin(), alarmsList.end(), ii);
-    alarmsLock.unlock();
-    return ret;
+	alarms_mutex.lock();
+	list<string> ret;
+	// excuse the "complexity", but to use std::copy with a list you need
+	// an insert_iterator - copy technically overwrites, doesn't insert.
+	insert_iterator< list<string> > ii(ret, ret.begin());
+	copy(alarms_list.begin(), alarms_list.end(), ii);
+	alarms_mutex.unlock();
+	return ret;
 }
 
 /** Add an alarm to the alarm list. */
-void addAlarm(const string& s)
+static void addAlarm(const string &s)
 {
-    alarmsLock.lock();
-    alarmsList.push_back(s);
+	alarms_mutex.lock();
+
+	alarms_list.push_back(s);
+
 	unsigned maxAlarms = gConfig.getNum("Log.Alarms.Max");
-    while (alarmsList.size() > maxAlarms) alarmsList.pop_front();
-    alarmsLock.unlock();
+
+	while (alarms_list.size() > maxAlarms)
+		alarms_list.pop_front();
+
+	alarms_mutex.unlock();
 }
 
 
@@ -183,29 +179,30 @@ Log::~Log()
 	// Anything at or above LOG_CRIT is an "alarm".
 	// Save alarms in the local list and echo them to stderr.
 	if (mPriority <= LOG_CRIT) {
-		if (sLoggerInited) addAlarm(mStream.str().c_str());
+		if (sLoggerInited)
+			addAlarm(mStream.str().c_str());
 		cerr << mStream.str() << endl;
 	}
 	// Current logging level was already checked by the macro.
 	// So just log.
 	syslog(mPriority, "%s", mStream.str().c_str());
 	// pat added for easy debugging.
-	if (gLogToConsole||gLogToFile) {
+	if (gLogToConsole||gLogFile) {
 		int mlen = mStream.str().size();
 		int neednl = (mlen==0 || mStream.str()[mlen-1] != '\n');
-		gLogToLock.lock();
+		log_mutex.lock();
 		if (gLogToConsole) {
 			// The COUT() macro prevents messages from stomping each other but adds uninteresting thread numbers,
 			// so just use std::cout.
 			std::cout << mStream.str();
 			if (neednl) std::cout<<"\n";
 		}
-		if (gLogToFile) {
-			fputs(mStream.str().c_str(),gLogToFile);
-			if (neednl) {fputc('\n',gLogToFile);}
-			fflush(gLogToFile);
+		if (gLogFile) {
+			fputs(mStream.str().c_str(),gLogFile);
+			if (neednl) {fputc('\n',gLogFile);}
+			fflush(gLogFile);
 		}
-		gLogToLock.unlock();
+		log_mutex.unlock();
 	}
 }
 
@@ -219,39 +216,44 @@ Log::Log(const char* name, const char* level, int facility)
 
 ostringstream& Log::get()
 {
-	assert(mPriority<numLevels);
-	mStream << levelNames[mPriority] <<  ' ';
+	assert(mPriority<num_levels);
+	mStream << level_names[mPriority] <<  ' ';
 	return mStream;
 }
 
 
 
-void gLogInit(const char* name, const char* level, int facility)
+void gLogInit(const std::string &name, const std::string &level, int facility)
 {
 	// Set the level if one has been specified.
-	if (level) {
-		gConfig.set("Log.Level",level);
+	if (!level.empty()) {
+		gConfig.set("Log.Level", level);
 	}
 
 	// Pat added, tired of the syslog facility.
 	// Both the transceiver and OpenBTS use this same facility, but only OpenBTS/OpenBTS-UMTS may use this log file:
-	string str = gConfig.getStr("Log.File");
-	if (gLogToFile==0 && str.length() && 0==strncmp(gCmdName,"Open",4)) {
-		const char *fn = str.c_str();
-		if (fn && *fn && strlen(fn)>3) {	// strlen because a garbage char is getting in sometimes.
-			gLogToFile = fopen(fn,"w"); // New log file each time we start.
-			if (gLogToFile) {
+	string logfile = gConfig.getStr("Log.File");
+
+	bool this_app_is_openbts = (strncmp(gCmdName, "OpenBTS", 7) == 0);
+
+	if ((gLogFile == 0) && !logfile.empty() && this_app_is_openbts) {
+		const char *fn = logfile.c_str();
+
+		if (fn && *fn && (strlen(fn) > 3)) {	// strlen because a garbage char is getting in sometimes.
+			gLogFile = fopen(fn, "w");	// New log file each time we start.
+
+			if (gLogFile) {
 				time_t now;
 				time(&now);
-				fprintf(gLogToFile,"Starting at %s",ctime(&now));
-				fflush(gLogToFile);
+				fprintf(gLogFile, "Starting at %s\n", ctime(&now));
+				fflush(gLogFile);
 				std::cout << "Logging to file: " << fn << "\n";
 			}
 		}
 	}
 
 	// Open the log connection.
-	openlog(name,0,facility);
+	openlog(name.c_str(), 0, facility);
 }
 
 
@@ -263,5 +265,3 @@ void gLogEarly(int level, const char *fmt, ...)
 	vsyslog(level | LOG_USER, fmt, args);
 	va_end(args);
 }
-
-// vim: ts=4 sw=4

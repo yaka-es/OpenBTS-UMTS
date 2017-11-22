@@ -816,7 +816,7 @@ void RrcTfs::DynamicTFInfoList::toAsnCommon(ASN::CommonDynamicTF_InfoList *thing
 
 void RrcTfs::toAsnTfs(ASN::TransportFormatSet *result, bool isDownlink)
 {
-	memset(result,0,sizeof(result));
+	memset(result,0,sizeof(*result));
 	result->present = mPresent;
 	// Both choices have identical SemiStatic information, but in different places
 	// in the structure.  This wasn't really the cleverest way to encode this.

@@ -37,8 +37,8 @@ using namespace std;
 int ::ARFCNManager::sendCommandPacket(const char* command, char* response)
 {
 	int msgLen = 0;
-	char cmdNameTest[15];
-	int status;
+	//char cmdNameTest[15];
+	//int status;
 	int timeout = 6000;
 	response[0] = '\0';
 
@@ -470,7 +470,7 @@ void ::ARFCNManager::transmitLoop(void)
         int32_t currFN = gNodeB.clock().FN();
         while (1) {
           bool underrun;
-          unsigned fnbefore = gNodeB.clock().FN();
+          //unsigned fnbefore = gNodeB.clock().FN();
           usleep(UMTS::gFrameMicroseconds/10);
           //LOG(INFO) << "transmitLoop"<<LOGVAR(currFN)<<LOGVAR(fnbefore)<<LOGVAR2("clock.FN",gNodeB.clock().FN()) <<LOGVAR2("mLastTransmitTime",mRadioModem.mLastTransmitTime);
           // (pat) I moved the test from after to before this loop, which prevents it from running ahead.

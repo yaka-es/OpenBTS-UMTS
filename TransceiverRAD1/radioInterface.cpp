@@ -184,7 +184,7 @@ bool started = false;
 
 void RadioInterface::pushBuffer(void) {
 
-  if (sendCursor < 2*INCHUNK*samplesPerSymbol) return;
+  if ((int)sendCursor < 2*INCHUNK*samplesPerSymbol) return;
 
   // send resampleVector
   int samplesWritten = mRadio->writeSamples(sendBuffer,
@@ -195,7 +195,7 @@ void RadioInterface::pushBuffer(void) {
    
   writeTimestamp += (TIMESTAMP) samplesWritten;
 
-  if (sendCursor > 2*samplesWritten) 
+  if ((int)sendCursor > 2*samplesWritten) 
     memcpy(sendBuffer,sendBuffer+samplesWritten*2,sizeof(short)*(sendCursor-2*samplesWritten));
   sendCursor = sendCursor - 2*samplesWritten;
 }

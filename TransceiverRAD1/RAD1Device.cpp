@@ -588,7 +588,7 @@ bool RAD1Device::updateAlignment(TIMESTAMP timestamp)
 {
 #ifndef SWLOOPBACK 
   short data[] = {0x00,0x02,0x00,0x00};
-  uint32_t *wordPtr = (uint32_t *) data;
+  //uint32_t *wordPtr = (uint32_t *) data;
   bool tmpUnderrun;
   if (writeSamples((short *) data,1,&tmpUnderrun,timestamp & 0x0ffffffffll,true)) {
     pingTimestamp = timestamp;
@@ -602,6 +602,7 @@ bool RAD1Device::updateAlignment(TIMESTAMP timestamp)
 
 bool RAD1Device::setVCTCXO(unsigned int freq_cal) {
   m_uRx->writeAuxDac(2,freq_cal << 4);
+  return true;
 }
 
 #ifndef SWLOOPBACK 
