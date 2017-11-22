@@ -4810,10 +4810,10 @@ install: all
 # the second override of asn_SET_OF still breaks 0.9.24
 .PHONY: bugfixes
 bugfixes:
-	-rm -f $O/BOOLEAN.c
-	cd $O && ln -s ../range_BOOLEAN.c BOOLEAN.c
-	-rm -f $O/asn_SET_OF.h
-	cd $O && ln -s ../asn_SET_OF.h asn_SET_OF.h
+#	-rm -f $O/BOOLEAN.c
+#	cd $O && ln -s ../range_BOOLEAN.c BOOLEAN.c
+#	-rm -f $O/asn_SET_OF.h
+#	cd $O && ln -s ../asn_SET_OF.h asn_SET_OF.h
 
 # This appears to be courtesy DAB.
 $(LIBTARGET): ${OBJS}
@@ -4856,7 +4856,7 @@ regen: $O/$(KEYFILE)
 
 $O/$(KEYFILE):
 	-mkdir $O
-	cd $O && asn1c -fcompound-names -pdu=auto -gen-PER ../rrc.asn1
+	cd $O && asn1c -fwide-types -fcompound-names -pdu=auto -gen-PER ../rrc.asn1
 
 
 Makefile: ./sample.makefile.regen ./rrc.asn1

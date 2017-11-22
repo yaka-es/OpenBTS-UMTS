@@ -27,6 +27,8 @@
 
 using namespace UMTS;
 
+const float RadioModem::mRACHThreshold = 10.0;
+
 UMTS::Time TxBitsQueue::nextTime() const
 {
   UMTS::Time retVal;

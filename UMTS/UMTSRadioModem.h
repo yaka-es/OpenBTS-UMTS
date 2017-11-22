@@ -178,7 +178,7 @@ public:
         friend void *RACHLoopAdapter(RadioModem*);
         friend void *DCHLoopAdapter(DCHLoopInfo*);
 
-        static const float mRACHThreshold = 10.0;
+        static const float mRACHThreshold;
 
 
 private:
