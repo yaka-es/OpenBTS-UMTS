@@ -1,15 +1,15 @@
 /**@file Declarations for common-use control-layer functions. */
 
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2008, 2009, 2010 Free Software Foundation, Inc.
  * Copyright 2010 Kestrel Signal Processing, Inc.
  * Copyright 2011, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
@@ -19,36 +19,33 @@
 #ifndef CONTROLCOMMON_H
 #define CONTROLCOMMON_H
 
-
 #include <stdio.h>
+
 #include <list>
 
-#include <Logger.h>
-#include <Interthread.h>
-#include <Timeval.h>
-
-
-#include <GSML3CommonElements.h>
-#include <GSML3MMElements.h>
-#include <GSML3CCElements.h>
-#include <GSML3RRMessages.h>
-#include <SIPEngine.h>
+#include <CommonLibs/Interthread.h>
+#include <CommonLibs/Logger.h>
+#include <CommonLibs/Timeval.h>
+#include <GSM/GSML3CCElements.h>
+#include <GSM/GSML3CommonElements.h>
+#include <GSM/GSML3MMElements.h>
+#include <GSM/GSML3RRMessages.h>
+#include <SIP/SIPEngine.h>
 
 #include "TMSITable.h"
-
 
 // Enough forward refs to prevent "kitchen sick" includes and circularity.
 
 namespace GSM {
 class L3Message;
 class L3CMServiceRequest;
-};
+}; // namespace GSM
 
 namespace UMTS {
 class LogicalChannel;
 class DCCHLogicalChannel;
 class DTCHLogicalChannel;
-}
+} // namespace UMTS
 
 /**@namespace Control This namepace is for use by the control layer. */
 namespace Control {
@@ -59,29 +56,26 @@ class TransactionTable;
 /**@name Call control time-out values (in ms) from ITU-T Q.931 Table 9-1 and GSM 04.08 Table 11.4. */
 //@{
 #ifndef RACETEST
-const unsigned T301ms=60000;		///< recv ALERT --> recv CONN
-const unsigned T302ms=12000;		///< send SETUP ACK --> any progress
-const unsigned T303ms=10000;		///< send SETUP --> recv CALL CONF or REL COMP
-const unsigned T304ms=20000;		///< recv SETUP ACK --> any progress
-const unsigned T305ms=30000;		///< send DISC --> recv REL or DISC
-const unsigned T308ms=30000;		///< send REL --> rev REL or REL COMP
-const unsigned T310ms=30000;		///< recv CALL CONF --> recv ALERT, CONN, or DISC
-const unsigned T313ms=30000;		///< send CONNECT --> recv CONNECT ACK
+const unsigned T301ms = 60000; ///< recv ALERT --> recv CONN
+const unsigned T302ms = 12000; ///< send SETUP ACK --> any progress
+const unsigned T303ms = 10000; ///< send SETUP --> recv CALL CONF or REL COMP
+const unsigned T304ms = 20000; ///< recv SETUP ACK --> any progress
+const unsigned T305ms = 30000; ///< send DISC --> recv REL or DISC
+const unsigned T308ms = 30000; ///< send REL --> rev REL or REL COMP
+const unsigned T310ms = 30000; ///< recv CALL CONF --> recv ALERT, CONN, or DISC
+const unsigned T313ms = 30000; ///< send CONNECT --> recv CONNECT ACK
 #else
 // These are reduced values to force testing of poor network behavior.
-const unsigned T301ms=18000;		///< recv ALERT --> recv CONN
-const unsigned T302ms=1200;		///< send SETUP ACK --> any progress
-const unsigned T303ms=400;			///< send SETUP --> recv CALL CONF or REL COMP
-const unsigned T304ms=2000;		///< recv SETUP ACK --> any progress
-const unsigned T305ms=3000;		///< send DISC --> recv REL or DISC
-const unsigned T308ms=3000;		///< send REL --> rev REL or REL COMP
-const unsigned T310ms=3000;		///< recv CALL CONF --> recv ALERT, CONN, or DISC
-const unsigned T313ms=3000;		///< send CONNECT --> recv CONNECT ACK
+const unsigned T301ms = 18000; ///< recv ALERT --> recv CONN
+const unsigned T302ms = 1200;  ///< send SETUP ACK --> any progress
+const unsigned T303ms = 400;   ///< send SETUP --> recv CALL CONF or REL COMP
+const unsigned T304ms = 2000;  ///< recv SETUP ACK --> any progress
+const unsigned T305ms = 3000;  ///< send DISC --> recv REL or DISC
+const unsigned T308ms = 3000;  ///< send REL --> rev REL or REL COMP
+const unsigned T310ms = 3000;  ///< recv CALL CONF --> recv ALERT, CONN, or DISC
+const unsigned T313ms = 3000;  ///< send CONNECT --> recv CONNECT ACK
 #endif
 //@}
-
-
-
 
 /**@name Common-use functions from the control layer. */
 //@{
@@ -96,23 +90,21 @@ const unsigned T313ms=3000;		///< send CONNECT --> recv CONNECT ACK
 	@return Pointer to message.
 */
 // FIXME -- This needs an adjustable timeout.
-GSM::L3Message* getMessage(UMTS::LogicalChannel* LCH, unsigned SAPI=0);
+GSM::L3Message *getMessage(UMTS::LogicalChannel *LCH, unsigned SAPI = 0);
 //}
 
-//void DCCHDispatchMessage(const GSM::L3Message* msg, UMTS::DCCHLogicalChannel* DCCH);
+// void DCCHDispatchMessage(const GSM::L3Message* msg, UMTS::DCCHLogicalChannel* DCCH);
 //@}
 
-//namespace Control {
+// namespace Control {
 
 /**@name Dispatch controllers for specific channel types. */
 //@{
 void FACCHDispatcher(UMTS::DTCHLogicalChannel *TCHFACCH);
 void SDCCHDispatcher(UMTS::DCCHLogicalChannel *SDCCH);
-//void DCCHDispatcher(UMTS::DCCHLogicalChannel *DCCH);
+// void DCCHDispatcher(UMTS::DCCHLogicalChannel *DCCH);
 void DCCHDispatcher(void);
 //@}
-
-
 
 /**
 	Resolve a mobile ID to an IMSI.
@@ -122,26 +114,19 @@ void DCCHDispatcher(void);
 	@param LCH The Dm channel to the mobile.
 	@return A TMSI value from the TMSITable or zero if non found.
 */
-unsigned  resolveIMSI(bool sameLAI, GSM::L3MobileIdentity& mobID, UMTS::LogicalChannel* LCH);
+unsigned resolveIMSI(bool sameLAI, GSM::L3MobileIdentity &mobID, UMTS::LogicalChannel *LCH);
 
 /**
 	Resolve a mobile ID to an IMSI.
 	@param mobID A mobile ID, that may be modified by the function.
 	@param LCH The Dm channel to the mobile.
 */
-void  resolveIMSI(GSM::L3MobileIdentity& mobID, UMTS::LogicalChannel* LCH);
-
-
-
+void resolveIMSI(GSM::L3MobileIdentity &mobID, UMTS::LogicalChannel *LCH);
 
 /**
 	SMSCB sender function
 */
-void *SMSCBSender(void*);
-
-
-
-
+void *SMSCBSender(void *);
 
 /**@name Control-layer exceptions. */
 //@{
@@ -152,66 +137,48 @@ void *SMSCBSender(void*);
 */
 class ControlLayerException {
 
-	private:
-
+private:
 	unsigned mTransactionID;
 
-	public:
-
-	ControlLayerException(unsigned wTransactionID=0)
-		:mTransactionID(wTransactionID)
-	{}
+public:
+	ControlLayerException(unsigned wTransactionID = 0) : mTransactionID(wTransactionID) {}
 
 	unsigned transactionID() { return mTransactionID; }
 };
 
 /** Thrown when the control layer gets the wrong message */
 class UnexpectedMessage : public ControlLayerException {
-	public:
-	UnexpectedMessage(unsigned wTransactionID=0)
-		:ControlLayerException(wTransactionID)
-	{}
+public:
+	UnexpectedMessage(unsigned wTransactionID = 0) : ControlLayerException(wTransactionID) {}
 };
 
 /** Thrown when recvL3 returns NULL */
 class ChannelReadTimeout : public ControlLayerException {
-	public:
-	ChannelReadTimeout(unsigned wTransactionID=0)
-		:ControlLayerException(wTransactionID)
-	{}
+public:
+	ChannelReadTimeout(unsigned wTransactionID = 0) : ControlLayerException(wTransactionID) {}
 };
 
 /** Thrown when L3 can't parse an incoming message */
 class UnsupportedMessage : public ControlLayerException {
-	public:
-	UnsupportedMessage(unsigned wTransactionID=0)
-		:ControlLayerException(wTransactionID)
-	{}
+public:
+	UnsupportedMessage(unsigned wTransactionID = 0) : ControlLayerException(wTransactionID) {}
 };
 
 /** Thrown when the control layer gets the wrong primitive */
 class UnexpectedPrimitive : public ControlLayerException {
-	public:
-	UnexpectedPrimitive(unsigned wTransactionID=0)
-		:ControlLayerException(wTransactionID)
-	{}
+public:
+	UnexpectedPrimitive(unsigned wTransactionID = 0) : ControlLayerException(wTransactionID) {}
 };
 
 /**  Thrown when a T3xx expires */
 class Q931TimerExpired : public ControlLayerException {
-	public:
-	Q931TimerExpired(unsigned wTransactionID=0)
-		:ControlLayerException(wTransactionID)
-	{}
+public:
+	Q931TimerExpired(unsigned wTransactionID = 0) : ControlLayerException(wTransactionID) {}
 };
-
 
 //@}
 
-
-}	//Control
-
-
+} // namespace Control
 
 /**@addtogroup Globals */
 //@{
@@ -219,8 +186,4 @@ class Q931TimerExpired : public ControlLayerException {
 extern Control::TransactionTable gTransactionTable;
 //@}
 
-
-
 #endif
-
-// vim: ts=4 sw=4

@@ -1,13 +1,13 @@
 /**@file UMTS MAC, 3GPP 25.321. */
 
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2011, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
@@ -17,15 +17,16 @@
 #ifndef L2MACENGINE_H
 #define L2MACENGINE_H
 
-
-#include <Interthread.h>
-//#include <Configuration.h>
-#include <ByteVector.h>
 #include <list>
-#include <Defines.h>
-#include "URRCDefs.h"
+
+#include <CommonLibs/ByteVector.h>
+#include <CommonLibs/Interthread.h>
+#include <Globals/Defines.h>
+
+#include "UMTSCommon.h" // For L1FEC_t
 #include "UMTSTransfer.h"
-#include "UMTSCommon.h"	// For L1FEC_t
+#include "URRCDefs.h"
+
 #define USE_CCCH_Q 0
 
 #if 0
@@ -35,10 +36,7 @@ o Rate Matching - UL can zero-pad messages, but DL cannot.
 o Who is doing the USIM L3 negotiation?
 #endif
 
-
-
 namespace UMTS {
-
 
 class MacEngine;
 class UEInfo;
@@ -53,17 +51,14 @@ class RACHFEC;
 class FACHFEC;
 typedef DCHFEC DCHFEC_t;
 
-
 extern unsigned macHeaderSize(TrChType trch, ChannelTypeL3 ltype, bool multiplexing);
 extern unsigned macHeaderSize(TrChType trch, int rbid, bool multiplexing);
 extern void macHookupRachFach(RACHFEC *rach, FACHFEC *fach, bool useForCcch);
 extern void macHookupDch(DCHFEC_t *dch, UEInfo *uep);
 extern void macUnHookupDch(UEInfo *uep);
 
-
-class MacTbDl : public TransportBlock
-{
-	public:
+class MacTbDl : public TransportBlock {
+public:
 	MacTbDl(unsigned wTBSize) : TransportBlock(wTBSize) {}
 };
 
@@ -72,49 +67,50 @@ class MacTbDl : public TransportBlock
 // it just uses TransportBlock directly, and bypasses RLC and MAC entirely.
 
 // Used for CCCH, which may be sent only on Mac-c: common channel SCCPCH.
-struct MaccTbDlCcch : public MacTbDl
-{
-	MaccTbDlCcch(unsigned trbksize,ByteVector *pdu);
+struct MaccTbDlCcch : public MacTbDl {
+	MaccTbDlCcch(unsigned trbksize, ByteVector *pdu);
 };
 
 // Used for DCCH or DTCH when sent on Mac-c: common channel SCCPCH.
-struct MaccTbDl : public MacTbDl
-{
-	MaccTbDl(unsigned trbksize,ByteVector *pdu, UEInfo *uep, RbId rbid);
+struct MaccTbDl : public MacTbDl {
+	MaccTbDl(unsigned trbksize, ByteVector *pdu, UEInfo *uep, RbId rbid);
 };
 
 // Used for DCCH or DTCH when sent on Mac-d: dedicated channel DCH.
-struct MacdTbDl : public MacTbDl
-{
+struct MacdTbDl : public MacTbDl {
 	MacdTbDl(unsigned trbksize, ByteVector *pdu, RbId rbid, bool multiplexed);
 };
 
 // Uninteresting class, but the name itself is documentation about which way it is traveling.
-struct MacTbUl : public TransportBlock
-{
-	MacTbUl(const TransportBlock &tb) : TransportBlock(tb) {}	// great language
+struct MacTbUl : public TransportBlock {
+	MacTbUl(const TransportBlock &tb) : TransportBlock(tb) {} // great language
 	MacTbUl(const MacTbUl &tb) : TransportBlock(static_cast<TransportBlock>(tb)) {}
 };
 
 // This accumulates the information for a Transport Format Combination match
 // when the MAC is trying to find a TFC that matches the data available to send in a UE.
-struct TfcMap
-{
+struct TfcMap {
 	RrcTfc *mtfc;
 	struct TcMap {
 		unsigned mNumTbAvail;
 		unsigned mChIdMap[RrcDefs::maxTbPerTrCh]; // Logical channel where TBs are coming from.
 	} mtc[RrcDefs::maxTrCh];
 	unsigned getNumTbAvail(TrChId tcid) { return mtc[tcid].mNumTbAvail; }
-	void tfcMapClear() {
+	void tfcMapClear()
+	{
 		mtfc = 0;
-		for (unsigned i = 0; i < RrcDefs::maxTrCh; i++) {mtc[i].mNumTbAvail = 0;}
+		for (unsigned i = 0; i < RrcDefs::maxTrCh; i++) {
+			mtc[i].mNumTbAvail = 0;
+		}
 	}
 	// Return true if the map is full so the caller can stop looking.
-	bool tfcMapAdd(TrChId tcid,int lcid,int numTB) {
+	bool tfcMapAdd(TrChId tcid, int lcid, int numTB)
+	{
 		TcMap *ptc = &mtc[tcid];
 		for (int i = 0; i < numTB; i++) {
-			if (ptc->mNumTbAvail >= RrcDefs::maxTbPerTrCh) { return true; }
+			if (ptc->mNumTbAvail >= RrcDefs::maxTbPerTrCh) {
+				return true;
+			}
 			ptc->mChIdMap[ptc->mNumTbAvail++] = lcid;
 		}
 		return false;
@@ -155,8 +151,8 @@ struct TfcMap
 // A TBS sent on Mac-C for FACH.
 // I dont think all the possible TfcMap possibilities are legal,
 // but this just does whatever is programmed by RRC.
-class MaccTbs : public MacTbs
-{	public:
+class MaccTbs : public MacTbs {
+public:
 	// Fill the TBS with data from this UE.
 	// The logical channel from which to send data is in the map.
 	MaccTbs(UEInfo *uep, TfcMap &map);
@@ -164,71 +160,64 @@ class MaccTbs : public MacTbs
 
 // A TBS consisting of a single TransportBlock on channel 0.
 // Used for CCCH.
-class MacTbsSingle : public MacTbs
-{	public:
+class MacTbsSingle : public MacTbs {
+public:
 	MacTbsSingle(RrcTfc *tfc, TransportBlock *tb);
 };
 #if MAC_IMPLEMENTATION
-	MacTbsSingle::MacTbsSingle(RrcTfc *tfc, TransportBlock *tb) : MacTbs(tfc) {
-		addTb(tb);
-	}
+MacTbsSingle::MacTbsSingle(RrcTfc *tfc, TransportBlock *tb) : MacTbs(tfc) { addTb(tb); }
 #endif
 
 // A TBS sent on Mac-D for DCH.
-class MacdTbs : public MacTbs
-{	public:
+class MacdTbs : public MacTbs {
+public:
 	// Fill the TBS with data from this UE.
 	// The logical channel from which to send data is in the map.
 	MacdTbs(UEInfo *uep, TfcMap &map);
 };
 
-
 // The low side of MAC uses TransportBlocks (possibly inside MacTbs) for uplink and downlink.
 // The high side of MAC uses ByteVectors for downlink (except for BCH, which bypasses MAC)
 // and BitVectors for uplink.  See URLC.h for explanation.
 // The data channels are all pulled from below on demand, with the exception of CCCH messages
-// which bypass RLC.  
+// which bypass RLC.
 
 // gMacSwitch is the only MacSwitch object.
-class MacSwitch
-{
-	typedef std::list<MaccBase*> CchList_t;	// For common channels.
-	//typedef std::list<MacdBase*> DchList_t;	// For dedicated channels.
+class MacSwitch {
+	typedef std::list<MaccBase *> CchList_t; // For common channels.
+	// typedef std::list<MacdBase*> DchList_t;	// For dedicated channels.
 
 	// A list of all the MAC entities that want service, and a lock for the list.
-	typedef std::list<MacEngine*> MacList_t;
+	typedef std::list<MacEngine *> MacList_t;
 	Mutex mMacListLock;
 	MacList_t mMacList;
 
-	Bool_z mStarted;	// Is the macServiceLoop running?
-	Thread macThread;	// The mac service loop thread.
+	Bool_z mStarted;  // Is the macServiceLoop running?
+	Thread macThread; // The mac service loop thread.
 	static void *macServiceLoop(void *arg);
 
+	CchList_t mCchList; // Common channels, ie, one RACH/FACH.  Might be only one.
+			    // This has to be an ordered list so we can pick the proper
+			    // FACH channel based on URNTI.
+			    // DchList_t mDchList;	// Not used. Dedicated channels, ie, associated with a UE.
 
-	CchList_t mCchList;	// Common channels, ie, one RACH/FACH.  Might be only one.
-						// This has to be an ordered list so we can pick the proper
-						// FACH channel based on URNTI.
-	//DchList_t mDchList;	// Not used. Dedicated channels, ie, associated with a UE.
-
-	public:
-
+public:
 	// Add, remove, macs from the list of active macs.
 	void addMac(MacEngine *mac, bool useForCcch);
 	void rmMac(MacEngine *mac);
 
 	MaccBase *pickFachMac(unsigned urnti);
 
-	void macWriteLowSideRach(const MacTbUl&tb);
+	void macWriteLowSideRach(const MacTbUl &tb);
 
-	//void writeHighSideBch(ByteVector *msg);  // Not used - MAC bypassed entirely.
+	// void writeHighSideBch(ByteVector *msg);  // Not used - MAC bypassed entirely.
 	void writeHighSideCcch(ByteVector &sdu, const std::string descr); // Goes out on a FACH channel.
 	// There is no writeHighSideDCCH or writeHighSideDTCH here.
 	// Those messages go directly to an RLC entitiy in the UEInfo
 	// Dont think we will use this here either:
-	//void writeLowSideDch(const MacTbUl &tb,UEInfo *uep);
+	// void writeLowSideDch(const MacTbUl &tb,UEInfo *uep);
 };
 extern MacSwitch gMacSwitch;
-
 
 // These little tiny MAC classes are for David to glue on to the top of the TrChFEC classes.
 // Note that the whole conceptual point of MAC is to switch data between different channels,
@@ -242,7 +231,7 @@ extern MacSwitch gMacSwitch;
 // o For DCH, tying MAC to a particular TrChFEC is ok, but the RLC engines are per-UE.
 
 // Defines the downstream interface to L1, a base class for TrCHFEC and L1CCTrCh
-//class MacL1FecInterface {
+// class MacL1FecInterface {
 //	public:
 //	virtual unsigned getNumRadioFrames() const;
 //	virtual void writeHighSide(const TransportBlock& frame);
@@ -252,14 +241,15 @@ extern MacSwitch gMacSwitch;
 static void shut_up_gcc(int) {}
 
 // This is the class referenced in class TrCHFEC.
-class MacEngine
-{
-	protected:
-	// Temporary hack: Use two downstream pointers while we are debugging the L1CCTrCh, and use whichever is non-NULL.
-	TrCHFEC * mDownstream;
-	L1CCTrCh * mccDownstream;
-	public:
-	MacEngine() : mDownstream(0), mccDownstream(0) { }
+class MacEngine {
+protected:
+	// Temporary hack: Use two downstream pointers while we are debugging the L1CCTrCh, and use whichever is
+	// non-NULL.
+	TrCHFEC *mDownstream;
+	L1CCTrCh *mccDownstream;
+
+public:
+	MacEngine() : mDownstream(0), mccDownstream(0) {}
 	virtual ~MacEngine() {}
 	void macSetDownstream(TrCHFEC *wDownstream) { mDownstream = wDownstream; }
 	void macSetDownstream(L1CCTrCh *wccDownstream) { mccDownstream = wccDownstream; }
@@ -269,80 +259,85 @@ class MacEngine
 
 	// There are two different writeLowSide methods depending on MAC complexity.
 	// They are only defined in their respective final classes.
-	virtual void macWriteLowSideTb(const TransportBlock&,TrChId tcid=0) { assert(0); shut_up_gcc(tcid); }
+	virtual void macWriteLowSideTb(const TransportBlock &, TrChId tcid = 0)
+	{
+		assert(0);
+		shut_up_gcc(tcid);
+	}
 	virtual void macService(int fn) = 0;
 };
 
 // Sends/receives TransportBlocks of just one size.
-class MacSimple : public virtual MacEngine
-{
-	public:
+class MacSimple : public virtual MacEngine {
+public:
 	// redundant: virtual void macWriteLowSideTb(const TransportBlock&tb) = 0;
 	void sendDownstreamTb(MacTbDl &tb);
 };
 
 // Sends/receives MacTbs [Transport Block Set] which includes a TFC [Transport Format Combination]
 // Also supports multiple TrCh, which was no extra effort.
-class MacWithTfc : public virtual MacEngine
-{	protected:
+class MacWithTfc : public virtual MacEngine {
+protected:
 	void findTbAvail(UEInfo *uep, TfcMap *map);
 	bool matchTfc(RrcTfc *tfc, UEInfo *uep, TfcMap *match);
-	public:
-	bool findTfcForUe(UEInfo *uep,TfcMap *result);
+
+public:
+	bool findTfcForUe(UEInfo *uep, TfcMap *result);
 	RrcTfc *findTfcOfTbSize(RrcTfcs *tfcs, TrChId tcid, unsigned tbsize);
 	void sendDownstreamTbs(MacTbs &tbs);
 };
 
-
 // MAC-d handles DCH.
 // The only point of it is to associate a UEInfo with an L1 TrCh processor.
 // (pat) TODO: This is not fully implemented yet.
-class MacdBase : public virtual MacEngine
-{	protected:
+class MacdBase : public virtual MacEngine {
+protected:
 	UEInfo *mUep;
-	//bool macMultiplexed[RrcDefs::maxTrCh];
-	//RbId macRbId[RrcDefs::maxTrCh];		// If multiplexed == false this is the rbid.
-	//Thread macThread;
+	// bool macMultiplexed[RrcDefs::maxTrCh];
+	// RbId macRbId[RrcDefs::maxTrCh];		// If multiplexed == false this is the rbid.
+	// Thread macThread;
 
 	// Flush any TransportBlocks in the UE associated with this DCH.
 	virtual bool flushUE() = 0;
 
-	public:
-	MacdBase(UEInfo *wUep) : mUep(wUep) {
-		//memset(macMultiplexed,0,sizeof(macMultiplexed));
-		//memset(macRbId,0,sizeof(macRbId));
+public:
+	MacdBase(UEInfo *wUep) : mUep(wUep)
+	{
+		// memset(macMultiplexed,0,sizeof(macMultiplexed));
+		// memset(macRbId,0,sizeof(macRbId));
 	}
 
 	// Same service loop works for both descendent classes.
-	//static void *macServiceLoop(void*);
-	//void macStart();
+	// static void *macServiceLoop(void*);
+	// void macStart();
 	void macService(int fn);
 };
 
-class MacdSimple : public MacdBase, public MacSimple
-{
+class MacdSimple : public MacdBase, public MacSimple {
 	// This class handles just a single TrCh.
 	// Either it is multiplexed or it is assigned to a specific rb.
 	// (pat) macRbId is not used.  If we are not multiplexed we will be using class MacdWithTfc.
 	bool flushUE();
-	bool macMultiplexed;	// We always use this multiplexed, so this is redundant.
-	RbId macRbId;			// This is not used.
-	public:
+	bool macMultiplexed; // We always use this multiplexed, so this is redundant.
+	RbId macRbId;	// This is not used.
+public:
 	MacdSimple(UEInfo *wUep, bool wMultiplexed, RbId wrbid) : MacdBase(wUep)
-		{ macMultiplexed = wMultiplexed; macRbId = wrbid; }
-	void macWriteLowSideTb(const TransportBlock&tb, TrChId tcid=0);
+	{
+		macMultiplexed = wMultiplexed;
+		macRbId = wrbid;
+	}
+	void macWriteLowSideTb(const TransportBlock &tb, TrChId tcid = 0);
 };
 
-class MacdWithTfc :  public MacdBase, public MacWithTfc
-{	public:
+class MacdWithTfc : public MacdBase, public MacWithTfc {
+public:
 	bool flushUE();
 	MacdWithTfc(UEInfo *wUep) : MacdBase(wUep) {}
-	void macWriteLowSideTb(const TransportBlock&tb, TrChId tcid=0);
+	void macWriteLowSideTb(const TransportBlock &tb, TrChId tcid = 0);
 };
 
-class MaccBase : public virtual MacEngine
-{
-	protected:
+class MaccBase : public virtual MacEngine {
+protected:
 	// Where is the RLC for CCCH messages?  Not clear.
 	// The MAC spec says that RLC is connected to the top of MAC
 	// per logical channel, which would imply there is one UM-RLC entity per RNC.
@@ -352,11 +347,11 @@ class MaccBase : public virtual MacEngine
 	// for the CCCH messages sent on that FACH, and here it is:
 	URlcTransUm *mCcchRlc;
 
-	//Thread macThread;
-	virtual bool flushUE()=0;
-	virtual bool flushQ()=0;
-	//static void *macServiceLoop(void*);
-	//void macStart();
+	// Thread macThread;
+	virtual bool flushUE() = 0;
+	virtual bool flushQ() = 0;
+	// static void *macServiceLoop(void*);
+	// void macStart();
 	void macService(int fn);
 
 #if USE_CCCH_Q // Not using this now - using mCcchRlc instead.
@@ -372,11 +367,11 @@ class MaccBase : public virtual MacEngine
 	InterthreadQueue<MaccTbDlCcch> mTxCcchQ;
 #endif
 
-	public:
+public:
 	// TODO: Constructor?
 
 	// Write a CCCH message to this channel.
-	//void writeHighSideCcch(MaccTbDlCcch *tb);
+	// void writeHighSideCcch(MaccTbDlCcch *tb);
 	void writeHighSideCcch(ByteVector &sdu, const std::string descr);
 };
 
@@ -398,32 +393,31 @@ class MaccBase : public virtual MacEngine
 //
 // The simplified MaccSimple assumes all pdus are the same size, ignores priority.
 // It may have a TFC with just two entries to indicate presence or absence.
-class MaccSimple : public MaccBase, public MacSimple
-{
+class MaccSimple : public MaccBase, public MacSimple {
 	bool flushUE();
 	bool flushQ();
-	void macWriteLowSideTb(const TransportBlock&tb, TrChId tcid=0);
-	public:
+	void macWriteLowSideTb(const TransportBlock &tb, TrChId tcid = 0);
+
+public:
 	MaccSimple(unsigned trbksize);
 };
 
-class MaccWithTfc : public MaccBase, public MacWithTfc
-{
+class MaccWithTfc : public MaccBase, public MacWithTfc {
 	bool flushUE();
 	bool flushQ();
 
-	public:
-        MaccWithTfc(unsigned trbksize);
+public:
+	MaccWithTfc(unsigned trbksize);
 	// Check all the UEs that can use this FACH to see if they have something to send.
-        void macWriteLowSideTb(const TransportBlock&tb, TrChId tcid=0);
-	void macWriteLowSideTbs(const MacTbs&/*tbs*/) {
+	void macWriteLowSideTb(const TransportBlock &tb, TrChId tcid = 0);
+	void macWriteLowSideTbs(const MacTbs & /*tbs*/)
+	{
 		// TODO.  We may never use  this.
 	}
 };
 
-
 // We dont need a Mac-b class - BCH bypasses MAC entirely.
-//class MACbEngine : public virtual MacEngine {
+// class MACbEngine : public virtual MacEngine {
 //	virtual void writeHighSide(const RLCSDU&);
 //	void macWriteLowSide(const TransportBlock&) { assert(0); }
 //};
@@ -490,7 +484,6 @@ class MaccWithTfc : public MaccBase, public MacWithTfc
 // if Transport Channel Type == Common Transport channels
 //		much the same as above.
 
-
 // 10.2.39 RRC Connection Request
 
 // 10.2.40 RRC Connection Setup
@@ -505,7 +498,6 @@ class MaccWithTfc : public MaccBase, public MacWithTfc
 //	RRC Connection Request includes IE "Domain Indicator" for PS or CS
 //	UTRAN returns RRC Connection Setup message.
 
-
 // Primitives:
 // TrCH id 10.3.5.18 integer(1..32)
 // TFC integer(0..1023)
@@ -515,7 +507,6 @@ class MaccWithTfc : public MaccBase, public MacWithTfc
 // RAB Identity 10.3.1.14 - string(8) identifies RAB to CN.
 // No: This is used only for MAC-hs:
 //		MAC-d Flow Id 25.331 10.3.5.7b : integer(0..7)  Used in 10.3.4.21 RB Mapping Info for MAC-hs only.
-
 
 // RANAP GSM25.413:
 //	RANAP functions:
@@ -529,6 +520,5 @@ class MaccWithTfc : public MaccBase, public MacWithTfc
 // the RAB ASSIGNMENT REQUEST message is received. When a
 // RAB ID already in use over that particular Iu instance is used,
 // the procedure is considered as modification of that RAB.
-
 
 #endif

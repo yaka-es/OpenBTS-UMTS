@@ -4,7 +4,7 @@
  *
  * Copyright 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
+ * This software is distributed under the terms of the GNU Affero General
  * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
@@ -14,17 +14,22 @@
 
 #ifndef URLC_H
 #define URLC_H
-#include "MemoryLeak.h"
-#include "Utils.h"
-#include "ByteVector.h"
-#include "ScalarTypes.h"
-#include "Threads.h"
-#include "Interthread.h"
-#include "GSMCommon.h"
-#include "URRCTrCh.h"
-#include "URRCRB.h"
-#include "UMTSTransfer.h"
+
 #include <list>
+
+#include <CommonLibs/ByteVector.h>
+#include <CommonLibs/Configuration.h>
+#include <CommonLibs/Interthread.h>
+#include <CommonLibs/MemoryLeak.h>
+#include <CommonLibs/ScalarTypes.h>
+#include <CommonLibs/Threads.h>
+#include <CommonLibs/Utils.h>
+#include <GSM/GSMCommon.h>
+
+#include "UMTSTransfer.h"
+#include "URRCRB.h"
+#include "URRCTrCh.h"
+
 typedef GSM::Z100Timer Z100;
 
 // Notes on this code:
@@ -100,7 +105,7 @@ using namespace std;
 namespace UMTS {
 // URlcSN is intrinsically unsigned, but we often due arithmetic on them
 // including subtraction, so use signed.
-typedef Int_z URlcSN;	// A modulo mSNS number.
+typedef Int_z URlcSN; // A modulo mSNS number.
 class UEInfo;
 extern unsigned computeDlRlcSize(RBInfo *rb, RrcTfs *dltfs);
 typedef void (*URlcHighSideFuncType)(ByteVector &sdu, RbId rbid);
@@ -116,7 +121,6 @@ void l2RlcStart();
 //			the RLC Size and the mapping of RB to logical channel (for RLC use)
 //			and transport channel (for MAC use).
 //			Note that there are multiple RLC sizes in this struct for different channels.
-
 
 // 25.322 8.1 Parameters
 // AM-DATA, UM-DATA TM-DATA, :
@@ -155,10 +159,8 @@ void l2RlcStart();
 //		SN_delivery
 //		There are more that are applicable only to the UE see paragraph 11.
 
-static const int AmSNS = 4096;		// 12 bits wide
-static const int UmSNS = 128;		// 7 bits wide
-
-
+static const int AmSNS = 4096; // 12 bits wide
+static const int UmSNS = 128;  // 7 bits wide
 
 // This is the config as used by the URLC classes.
 // The URLC Config is specified primarily in 25.322 8.2 Primitive Parameters,
@@ -166,15 +168,14 @@ static const int UmSNS = 128;		// 7 bits wide
 // and paragraph 12 for TM_parameters.
 // Parameters that are implemented in the common URlcTransAmUm or URlcRecvAmUm classes
 // are defined in the ConfigCommon class even if they only apply to one mode.
-struct URlcConfigAmUm
-{
+struct URlcConfigAmUm {
 	// 25.331 RRC 10.3.4.25 Transmission RLC Discard IE
 	///<@name RLC SDU Discard Mode 25.322 9.7.3
 	// For TM and UM only TimerBasedWithoutExplicitSignaling, which is irrelevant
 	// to us because our TM and UM implementation just ignores this field.
 	// For AM the only AM mode we support is NoDiscard.
 	// So this whole DiscardMode is currently irrelevant.
-	//TransmissionRlcDiscard::SduDiscardMode mDiscardMode;
+	// TransmissionRlcDiscard::SduDiscardMode mDiscardMode;
 	TransmissionRlcDiscard mRlcDiscard;
 	// For Am, the pdu size is specifed in the RlcInfo IE, and Um uses any of the
 	// pdu sizes specified in the TransferFormatSet.
@@ -190,8 +191,8 @@ struct URlcConfigAmUm
 	// indirectly from the largest PDU in the TransferFormatSet using rules
 	// in 25.322 (RLC) 9.2.2.8 (Length Indicator)
 	unsigned mUlLiSizeBytes, mUlLiSizeBits;
-	unsigned mDlLiSizeBytes, mDlLiSizeBits;	// 9.2.2.8
-	Bool_z mIsSharedRlc;	// This is the special RLC to run CCCH.
+	unsigned mDlLiSizeBytes, mDlLiSizeBits; // 9.2.2.8
+	Bool_z mIsSharedRlc;			// This is the special RLC to run CCCH.
 
 	URlcConfigAmUm(URlcMode rlcMode, URlcInfo &rlcInfo, RrcTfs &dltfs, unsigned dlPduSize);
 
@@ -199,21 +200,21 @@ struct URlcConfigAmUm
 	struct {
 		// This is post-REL-6 and is not in our ASN spec.
 		// For AM mode, it should always be FALSE.
-		Bool_z mSN_Delivery;	// This config option causes SN indications to be passed to higher layers
-						// in UM mode, and further indicates not to concatenate SDUs in a PDU.
+		Bool_z mSN_Delivery; // This config option causes SN indications to be passed to higher layers
+				     // in UM mode, and further indicates not to concatenate SDUs in a PDU.
 		// Must be FALSE for AM mode.
-		Bool_z mAltEBitInterpretation;	// 9.2.2.5
+		Bool_z mAltEBitInterpretation; // 9.2.2.5
 	} UM;
 
 	static const unsigned mMaxSduSize = 1502;
 };
 #if URLC_IMPLEMENTATION
-URlcConfigAmUm::URlcConfigAmUm(URlcMode rlcMode, URlcInfo &rlcInfo, RrcTfs &dltfs, unsigned dlPduSize):
-	mRlcDiscard(rlcInfo.mul.mTransmissionRlcDiscard)
+URlcConfigAmUm::URlcConfigAmUm(URlcMode rlcMode, URlcInfo &rlcInfo, RrcTfs &dltfs, unsigned dlPduSize)
+	: mRlcDiscard(rlcInfo.mul.mTransmissionRlcDiscard)
 {
 	if (rlcMode == URlcModeAm) {
 		//	We dont need this, and I dont think it is even defined in our REL of the ASN description.
-		//if (mRlcPduSizeFlexible) {
+		// if (mRlcPduSizeFlexible) {
 		//	mDlPduSizeBytes = dltfs.getLargestPduSize();
 		//	mUlLiSize = mDlLiSizeBits = rlcInfo.mdl.u.AM.mLengthIndicatorSize;
 		//} else
@@ -223,33 +224,44 @@ URlcConfigAmUm::URlcConfigAmUm(URlcMode rlcMode, URlcInfo &rlcInfo, RrcTfs &dltf
 			// We are going to figure out the RLC size directly
 			// for AM and UM mode from the TB size and Mac header bits and pass it in
 			// through the configuration constructors.
-			//mDlPduSizeBytes = rlcInfo.mdl.u.AM.mDlRlcPduSize;
+			// mDlPduSizeBytes = rlcInfo.mdl.u.AM.mDlRlcPduSize;
 			mDlPduSizeBytes = dlPduSize;
 			mUlLiSizeBits = mDlLiSizeBits = (mDlPduSizeBytes <= 126) ? 7 : 15;
-			//mUlLiSizeBits = 7;
+			// mUlLiSizeBits = 7;
 		}
 	} else {
 		mDlPduSizeBytes = dlPduSize;
 		// TODO: Our version of ASN does not transmit mDlUmRlcLISize, and no one ever set it.
 		// TODO: The RLC size should be determined from the TFS.
-		//mDlLiSizeBits = rlcInfo.mdl.u.UM.mDlUmRlcLISize;
-		// 8.6.4.9 of 25.331 says that Downlink UM LI is 7 bits unless explicitly indicated, regardless of PDU size
+		// mDlLiSizeBits = rlcInfo.mdl.u.UM.mDlUmRlcLISize;
+		// 8.6.4.9 of 25.331 says that Downlink UM LI is 7 bits unless explicitly indicated, regardless of PDU
+		// size
 		mDlLiSizeBits = 7; //(mDlPduSizeBytes <= 125) ? 7 : 15;
 		mUlLiSizeBits = (mDlPduSizeBytes <= 125) ? 7 : 15;
-		//mUlLiSizeBits = 7;
+		// mUlLiSizeBits = 7;
 	}
 	switch (mDlLiSizeBits) {
-		case 7: mDlLiSizeBytes = 1; break;
-		case 15: mDlLiSizeBytes = 2; break;
-		default: assert(0);
+	case 7:
+		mDlLiSizeBytes = 1;
+		break;
+	case 15:
+		mDlLiSizeBytes = 2;
+		break;
+	default:
+		assert(0);
 	}
 	switch (mUlLiSizeBits) {
-		case 7: mUlLiSizeBytes = 1; break;
-		case 15: mUlLiSizeBytes = 2; break;
-		default: assert(0);
+	case 7:
+		mUlLiSizeBytes = 1;
+		break;
+	case 15:
+		mUlLiSizeBytes = 2;
+		break;
+	default:
+		assert(0);
 	}
-	//printf("mode=%s pdusize=%d dllibits=%d dllibytes=%d\n", rlcMode == URlcModeAm?"AM":"UM",
-		//mDlPduSizeBytes,mDlLiSizeBits,mDlLiSizeBytes);
+	// printf("mode=%s pdusize=%d dllibits=%d dllibytes=%d\n", rlcMode == URlcModeAm?"AM":"UM",
+	// mDlPduSizeBytes,mDlLiSizeBits,mDlLiSizeBytes);
 }
 #endif
 
@@ -261,21 +273,21 @@ URlcConfigAmUm::URlcConfigAmUm(URlcMode rlcMode, URlcInfo &rlcInfo, RrcTfs &dltf
 // TransportSet, for example the Max RLC pdu size.
 // Therefore we will copy the subset of parameters that we actually use from the RRC IEs
 // into this structure when we create an RLC entity.
-struct URlcConfigAm : public /*virtual*/ URlcConfigAmUm	// AM only config stuff.
+struct URlcConfigAm : public /*virtual*/ URlcConfigAmUm // AM only config stuff.
 {
 	bool mInSequenceDeliveryIndication;
 	///<@name RLC Protocol Parameters, 3GPP 25.322 9.6
 	unsigned mMaxDAT;
-	//unsigned mPoll_Window;
-	unsigned mMaxRST;	// Max-1 number of RESET PDUs, upper limit for VTRST
+	// unsigned mPoll_Window;
+	unsigned mMaxRST; // Max-1 number of RESET PDUs, upper limit for VTRST
 	unsigned mConfigured_Tx_Window_Size;
 	unsigned mConfigured_Rx_Window_Size;
-	//unsigned mMaxMRW;		// unimplemented
+	// unsigned mMaxMRW;		// unimplemented
 	///<@name RLC Timer values 25.322 9.5
 	// Timer_Poll, Timer_Poll_Prohibit, Timer_Poll_Periodic - see PollingInfo
 	// mTimer_Discard;	Not implemented yet, but we probably want it.
 	// Timer_Status_Prohibit, Timer_Status_Periodic  - see RLC Status Triggers.
-	unsigned mTimerRSTValue;	// 11.4.2
+	unsigned mTimerRSTValue; // 11.4.2
 	// Timer_MRW not implemented.
 	///<@name RLC Polling Triggers 25.322 9.7.1
 	RrcPollingInfo mPoll;
@@ -290,54 +302,52 @@ struct URlcConfigAm : public /*virtual*/ URlcConfigAmUm	// AM only config stuff.
 	///<@name RLC Send MRW.
 	// WONT DO: unsigned mSendMRW;
 
-	//unsigned mHFN;		
+	// unsigned mHFN;
 
 	URlcConfigAm(URlcInfo &rlcInfo, RrcTfs &dltfs, unsigned dlPduSize);
 };
 #if URLC_IMPLEMENTATION
-URlcConfigAm::URlcConfigAm(URlcInfo &rlcInfo, RrcTfs &dltfs, unsigned dlPduSize) :
-		URlcConfigAmUm(URlcModeAm,rlcInfo,dltfs,dlPduSize),
-		mInSequenceDeliveryIndication(rlcInfo.mdl.u.AM.mInSequenceDelivery),
-		mMaxDAT(rlcInfo.mul.mTransmissionRlcDiscard.mMaxDAT),
-		mMaxRST(rlcInfo.mul.u.AM.mMaxRST),
-		mConfigured_Tx_Window_Size(rlcInfo.mdl.u.AM.mReceivingWindowSize),
-		mConfigured_Rx_Window_Size(rlcInfo.mul.u.AM.mTransmissionWindowSize),
-		mTimerRSTValue(rlcInfo.mul.u.AM.mTimerRST),
-		mPoll(rlcInfo.mul.u.AM.mPollingInfo),
-		mStatusDetectionOfMissingPDU(rlcInfo.mdl.u.AM.mDownlinkRlcStatusInfo.mMissingPduIndicator)
-		{}
+URlcConfigAm::URlcConfigAm(URlcInfo &rlcInfo, RrcTfs &dltfs, unsigned dlPduSize)
+	: URlcConfigAmUm(URlcModeAm, rlcInfo, dltfs, dlPduSize),
+	  mInSequenceDeliveryIndication(rlcInfo.mdl.u.AM.mInSequenceDelivery),
+	  mMaxDAT(rlcInfo.mul.mTransmissionRlcDiscard.mMaxDAT), mMaxRST(rlcInfo.mul.u.AM.mMaxRST),
+	  mConfigured_Tx_Window_Size(rlcInfo.mdl.u.AM.mReceivingWindowSize),
+	  mConfigured_Rx_Window_Size(rlcInfo.mul.u.AM.mTransmissionWindowSize),
+	  mTimerRSTValue(rlcInfo.mul.u.AM.mTimerRST), mPoll(rlcInfo.mul.u.AM.mPollingInfo),
+	  mStatusDetectionOfMissingPDU(rlcInfo.mdl.u.AM.mDownlinkRlcStatusInfo.mMissingPduIndicator)
+{
+}
 #endif
 
 // This contains both uplink and downlink config, although it is possible
 // to use one without the other.
-struct URlcConfigUm : public /*virtual*/ URlcConfigAmUm
-{
-	//unsigned largestUlUmdPduSize // 9.2.2.8  Computed from Transport Set  See mPduSize.
+struct URlcConfigUm : public /*virtual*/ URlcConfigAmUm {
+// unsigned largestUlUmdPduSize // 9.2.2.8  Computed from Transport Set  See mPduSize.
 #if RLC_OUT_OF_SEQ_OPTIONS
-	bool mOSD;	// Out of Sequence delivery.	// 11.2.3
-	bool mOSR;	// Out of Sequence reception.	// 11.2.3.1
+	bool mOSD; // Out of Sequence delivery.	// 11.2.3
+	bool mOSR; // Out of Sequence reception.	// 11.2.3.1
 
-	//bool mUseOSD;	// UM downlink only, use out-of-sequence-sdu-delivery
-	//unsigned mOSD_Window_Size;	// UM downlink only, only if UseOSD
-	//Z100 mTimerOSD 	// UM downlink only, only if UseOSD, to delete stored PDUs see 11.2.3.2
-	//bool SN_Delivery;	// REL-7 and up.  Used in OSD mode to indicate SDU SN to higher layers.
+	// bool mUseOSD;	// UM downlink only, use out-of-sequence-sdu-delivery
+	// unsigned mOSD_Window_Size;	// UM downlink only, only if UseOSD
+	// Z100 mTimerOSD 	// UM downlink only, only if UseOSD, to delete stored PDUs see 11.2.3.2
+	// bool SN_Delivery;	// REL-7 and up.  Used in OSD mode to indicate SDU SN to higher layers.
 #endif
 
 	// I dont understand why there are both Configured_Rx_Window_Size and OSD_Window_Size.
 	// I think they are the same thing.
-	//unsigned mConfigured_Rx_Window_Size;	// In UM only needed if UseOSD.
-	//unsigned mOSD_Window_Size;	// UM downlink only, only if UseOSD.
-	//bool mUseDAR;		// UM uplink only.
-	//unsigned mDAR_Window_Size;  // UM uplink only, only if DAR.
-	//Z100 mTimerDAR;  // UM uplink only, only if DAR.
-	URlcConfigUm(URlcInfo &rlcInfo, RrcTfs &dltfs, unsigned dlPduSize) :
-		URlcConfigAmUm(URlcModeUm, rlcInfo, dltfs, dlPduSize)
-		// More To Do
-	{}
+	// unsigned mConfigured_Rx_Window_Size;	// In UM only needed if UseOSD.
+	// unsigned mOSD_Window_Size;	// UM downlink only, only if UseOSD.
+	// bool mUseDAR;		// UM uplink only.
+	// unsigned mDAR_Window_Size;  // UM uplink only, only if DAR.
+	// Z100 mTimerDAR;  // UM uplink only, only if DAR.
+	URlcConfigUm(URlcInfo &rlcInfo, RrcTfs &dltfs, unsigned dlPduSize)
+		: URlcConfigAmUm(URlcModeUm, rlcInfo, dltfs, dlPduSize)
+	// More To Do
+	{
+	}
 };
 
-class URlcBase
-{
+class URlcBase {
 	// 25.322 9.7.6 RLC Stop mode.
 	// The RLC_STOP mode is supposed to block the RLC at the low end, both incoming and outgoing,
 	// but continues to accept SDUs at the high end.
@@ -346,17 +356,17 @@ class URlcBase
 	// I only implemented outgoing, then stopped - stopping incoming would need to a special queue
 	// and doesnt make any sense any way becaues the corresponding RLC entity in the UE
 	// has already changed its state, so we need to process the incoming PDUs.
-	public:
+public:
 	enum RlcState {
 		RLC_RUN,
 		RLC_STOP,
-		RLC_SUSPEND	// Not supported.
+		RLC_SUSPEND // Not supported.
 	} mRlcState;
 
 	void rlcStop() { mRlcState = RLC_STOP; }
 	void rlcResume() { mRlcState = RLC_RUN; }
 
-	enum SufiType {	// Used for AM only.
+	enum SufiType { // Used for AM only.
 		SUFI_NO_MORE = 0,
 		SUFI_WINDOW = 1,
 		SUFI_ACK = 2,
@@ -367,7 +377,7 @@ class URlcBase
 		SUFI_MRW_ACK = 7,
 		SUFI_POLL = 8
 	};
-	enum PduType {	// Used for AM only.
+	enum PduType { // Used for AM only.
 		PDUTYPE_STATUS = 0,
 		PDUTYPE_RESET = 1,
 		PDUTYPE_RESET_ACK = 2
@@ -375,10 +385,10 @@ class URlcBase
 
 	URlcMode mRlcMode;
 
-	unsigned mSNS;	// The Sequence Number Space for this RLC entity.
+	unsigned mSNS; // The Sequence Number Space for this RLC entity.
 
-	UEInfo *mUep;	// The UE that owns us.  May be NULL for RLC for CCCH .
-	RbId mrbid;	// The RadioBearer that we were created for.
+	UEInfo *mUep; // The UE that owns us.  May be NULL for RLC for CCCH .
+	RbId mrbid;   // The RadioBearer that we were created for.
 
 	URlcBase(URlcMode wRlcMode, UEInfo *wUep, RBInfo *wRbp);
 
@@ -395,66 +405,69 @@ class URlcBase
 	URlcSN maxSN(URlcSN sn1, URlcSN sn2);
 	void incSN(URlcSN &psn);
 	// Currently this is used only for debug messages:
-	virtual unsigned getRlcHeaderSize() { return 0; }	// If not over-ridden, return 0.
+	virtual unsigned getRlcHeaderSize() { return 0; } // If not over-ridden, return 0.
 };
 #if URLC_IMPLEMENTATION
-	URlcBase::URlcBase(URlcMode wRlcMode, UEInfo *wUep, RBInfo *wRbp) :
-		mRlcState(RLC_RUN), mRlcMode(wRlcMode), mUep(wUep), mrbid(wRbp->mRbId)
-	{
-		switch (wRlcMode) {
-			case URlcModeTm: mSNS = 0; break;
-			case URlcModeUm: mSNS = UmSNS; break;
-			case URlcModeAm: mSNS = AmSNS; break;
-			default: assert(0);
-		}
+URlcBase::URlcBase(URlcMode wRlcMode, UEInfo *wUep, RBInfo *wRbp)
+	: mRlcState(RLC_RUN), mRlcMode(wRlcMode), mUep(wUep), mrbid(wRbp->mRbId)
+{
+	switch (wRlcMode) {
+	case URlcModeTm:
+		mSNS = 0;
+		break;
+	case URlcModeUm:
+		mSNS = UmSNS;
+		break;
+	case URlcModeAm:
+		mSNS = AmSNS;
+		break;
+	default:
+		assert(0);
 	}
+}
 #endif
 
-
-DEFINE_MEMORY_LEAK_DETECTOR_CLASS(URlcPdu,MemCheckURlcPdu)
+DEFINE_MEMORY_LEAK_DETECTOR_CLASS(URlcPdu, MemCheckURlcPdu)
 // All purpose pdu between rlc and mac.
 // Note that only TM (transparent mode) is allowed to be non-byte aligned.
-class URlcBasePdu : public ByteVector, public MemCheckURlcPdu
-{
-	public:
-	string mDescr;		// For debugging, description of content.
+class URlcBasePdu : public ByteVector, public MemCheckURlcPdu {
+public:
+	string mDescr; // For debugging, description of content.
 	URlcBasePdu(unsigned size, string &wDescr);
 	URlcBasePdu(ByteVector &other, string &wDescr);
 	URlcBasePdu(const BitVector &bits, string &wDescr);
 };
 #if URLC_IMPLEMENTATION
-	URlcBasePdu::URlcBasePdu(ByteVector &other, string &wDescr) : ByteVector(other), mDescr(wDescr) {}
-	URlcBasePdu::URlcBasePdu(unsigned size, string &wDescr) : ByteVector(size), mDescr(wDescr) {}
-	URlcBasePdu::URlcBasePdu(const BitVector &bits, string &wDescr) :  ByteVector(bits), mDescr(wDescr) {}
+URlcBasePdu::URlcBasePdu(ByteVector &other, string &wDescr) : ByteVector(other), mDescr(wDescr) {}
+URlcBasePdu::URlcBasePdu(unsigned size, string &wDescr) : ByteVector(size), mDescr(wDescr) {}
+URlcBasePdu::URlcBasePdu(const BitVector &bits, string &wDescr) : ByteVector(bits), mDescr(wDescr) {}
 #endif
 
-DEFINE_MEMORY_LEAK_DETECTOR_CLASS(URlcDownSdu,MemCheckURlcDownSdu)
+DEFINE_MEMORY_LEAK_DETECTOR_CLASS(URlcDownSdu, MemCheckURlcDownSdu)
 // The Downlink SDU takes possession of the ByteVector in the most efficient way.
 // Note that there is no "priority" sent with the SDU because there are
 // different RBs for different purposes and the priority is implicit
 // in the RLC entity on which this is sent.
-//struct URlcDownSdu : ByteVector, public MemCheckURlcDownSdu
-struct URlcDownSdu : public URlcBasePdu
-{
+// struct URlcDownSdu : ByteVector, public MemCheckURlcDownSdu
+struct URlcDownSdu : public URlcBasePdu {
 	ByteVector *sduData() { return this; }
-	bool mDiscarded;	// Set if one or more SDUs were discarded at this SDU position.
-	bool mDiscardReq;	// Discard request from upper layer.
-	unsigned mMUI;		// SDU identifier, aka Message Unit Identifier.
+	bool mDiscarded;  // Set if one or more SDUs were discarded at this SDU position.
+	bool mDiscardReq; // Discard request from upper layer.
+	unsigned mMUI;    // SDU identifier, aka Message Unit Identifier.
 	string mDescr;
 
-	URlcDownSdu *mNext;	// The SDU can be placed in a SingleLinkedList
+	URlcDownSdu *mNext; // The SDU can be placed in a SingleLinkedList
 	URlcDownSdu *next() { return mNext; }
 	void setNext(URlcDownSdu *next) { mNext = next; }
 
-
-	URlcDownSdu(ByteVector &wData, bool wDR, unsigned wMUI, string wDescr) :
-		URlcBasePdu(wData,wDescr), mDiscarded(0), mDiscardReq(wDR),
-		mMUI(wMUI), mNext(0)
-		{}
+	URlcDownSdu(ByteVector &wData, bool wDR, unsigned wMUI, string wDescr)
+		: URlcBasePdu(wData, wDescr), mDiscarded(0), mDiscardReq(wDR), mMUI(wMUI), mNext(0)
+	{
+	}
 
 	// This class is always used by pointer and manually deleted, so no copy constructor
 	// is needed.
-	//void free() { if (mData) { delete mData; } delete this; }
+	// void free() { if (mData) { delete mData; } delete this; }
 	void free() { delete this; }
 	size_t size() { return mDiscarded ? 0 : ByteVector::size(); }
 };
@@ -476,49 +489,61 @@ typedef ByteVector URlcUpSdu;
 //		...
 //		Data
 //		Optional PAD
-//class URlcPdu : public ByteVector, public Text2Str, public MemCheckURlcPdu
-class URlcPdu : public URlcBasePdu
-{	public:
-	URlcBase *mOwner;	// The TM, UM or AM entity that owns this pdu.
+// class URlcPdu : public ByteVector, public Text2Str, public MemCheckURlcPdu
+class URlcPdu : public URlcBasePdu {
+public:
+	URlcBase *mOwner; // The TM, UM or AM entity that owns this pdu.
 
 	// For UM and AM data pdus:
-	unsigned mPaddingStart;	// Location of padding or 0, used for piggybacked status.
-	unsigned mPaddingLILocation;	// Location of LI indicator for padding, or 0.
+	unsigned mPaddingStart;      // Location of padding or 0, used for piggybacked status.
+	unsigned mPaddingLILocation; // Location of LI indicator for padding, or 0.
 
-	unsigned mVTDAT;	// For AM only, how many times PDU has been scheduled.
-	bool mNacked;		// true if pdu has been negatively acknowledged.
+	unsigned mVTDAT; // For AM only, how many times PDU has been scheduled.
+	bool mNacked;    // true if pdu has been negatively acknowledged.
 
 	// Fields so this can be placed in a SingleLinkList:
-	URlcPdu *mNext;	// The SDU can be placed in a SingleLinkedList
+	URlcPdu *mNext; // The SDU can be placed in a SingleLinkedList
 	URlcPdu *next() { return mNext; }
 	void setNext(URlcPdu *next) { mNext = next; }
 
-	URlcPdu(unsigned wSize, URlcBase *wOwner,string wDescr);
-	URlcPdu(const BitVector &bits, URlcBase *wOwner,string wDescr);
+	URlcPdu(unsigned wSize, URlcBase *wOwner, string wDescr);
+	URlcPdu(const BitVector &bits, URlcBase *wOwner, string wDescr);
 	explicit URlcPdu(URlcPdu *other);
 
 	// UM PDU fields:
-	void setUmE(unsigned ebit) { setBit(7,ebit); }
+	void setUmE(unsigned ebit) { setBit(7, ebit); }
 	unsigned getUmE() const { return getBit(7); }
-	void setUmSN(unsigned sn) { setField(0,sn,7); }
-	unsigned getUmSN() const { return getField(0,7); }
+	void setUmSN(unsigned sn) { setField(0, sn, 7); }
+	unsigned getUmSN() const { return getField(0, 7); }
 
 	// AM PDU fields:
-	void setAmSN(unsigned sn) { setField2(0,1,sn,12); }
-	unsigned getAmSN() const { return getField2(0,1,12); }
-	void setAmDC(bool isData) { setField2(0,0,isData,1); }
+	void setAmSN(unsigned sn) { setField2(0, 1, sn, 12); }
+	unsigned getAmSN() const { return getField2(0, 1, 12); }
+	void setAmDC(bool isData) { setField2(0, 0, isData, 1); }
 	int getAmDC() const { return getBit(0); }
 	static const int sPollBit = 13;
-	void setAmP(bool P) { setField2(1,(sPollBit-8),P,1); }
-	unsigned getAmP(bool P) const { return getField2(1,(sPollBit-8),1); }
-	unsigned getAmHE() const { return getField2(1,6,2); }	// but only the bottom bit of HE is used.
-	void setAmHE(unsigned HE) { setField2(1,6,HE,2); }
+	void setAmP(bool P) { setField2(1, (sPollBit - 8), P, 1); }
+	unsigned getAmP(bool P) const { return getField2(1, (sPollBit - 8), 1); }
+	unsigned getAmHE() const { return getField2(1, 6, 2); } // but only the bottom bit of HE is used.
+	void setAmHE(unsigned HE) { setField2(1, 6, HE, 2); }
 
 	// Common functions:
 	enum URlcMode rlcMode() const { return mOwner->mRlcMode; }
-	void setSN(unsigned sn) { if (rlcMode() == URlcModeUm) setUmSN(sn); else setAmSN(sn); }
+	void setSN(unsigned sn)
+	{
+		if (rlcMode() == URlcModeUm)
+			setUmSN(sn);
+		else
+			setAmSN(sn);
+	}
 	unsigned getSN() const { return (rlcMode() == URlcModeUm) ? getUmSN() : getAmSN(); }
-	void setEIndicator(bool ebit) { if (rlcMode() == URlcModeUm) setUmE(ebit); else setAmHE(ebit); }
+	void setEIndicator(bool ebit)
+	{
+		if (rlcMode() == URlcModeUm)
+			setUmE(ebit);
+		else
+			setAmHE(ebit);
+	}
 	bool getEIndicator() const { return (rlcMode() == URlcModeUm) ? getUmE() : getAmHE(); }
 
 	// For UM and AM data pdus:
@@ -526,38 +551,37 @@ class URlcPdu : public URlcBasePdu
 	void appendLIandE(unsigned licnt, unsigned E, unsigned lisize);
 
 	// For debugging:
-	unsigned getPayloadSize() const {
+	unsigned getPayloadSize() const
+	{
 		return (mPaddingStart ? mPaddingStart : size()) - mOwner->getRlcHeaderSize();
 	}
 	void text(std::ostream &os) const;
 };
 #if URLC_IMPLEMENTATION
-	URlcPdu::URlcPdu(unsigned wSize, URlcBase *wOwner, string wDescr)
-		: URlcBasePdu(wSize,wDescr), mOwner(wOwner),
-		mPaddingStart(0), mPaddingLILocation(0),
-		mVTDAT(0), mNacked(0), mNext(0)
-		{}
+URlcPdu::URlcPdu(unsigned wSize, URlcBase *wOwner, string wDescr)
+	: URlcBasePdu(wSize, wDescr), mOwner(wOwner), mPaddingStart(0), mPaddingLILocation(0), mVTDAT(0), mNacked(0),
+	  mNext(0)
+{
+}
 
-	URlcPdu::URlcPdu(const BitVector &bits, URlcBase *wOwner, string wDescr)
-		: URlcBasePdu(bits, wDescr), mOwner(wOwner),
-		mPaddingStart(0), mPaddingLILocation(0),
-		mVTDAT(0), mNacked(0), mNext(0)
-		{}
-	URlcPdu::URlcPdu(URlcPdu *other)
-		: URlcBasePdu(*other,other->mDescr), mOwner(other->mOwner),
-		mPaddingStart(other->mPaddingStart),
-		mPaddingLILocation(other->mPaddingLILocation),
-		mVTDAT(other->mVTDAT), mNacked(other->mNacked), mNext(0)
-		{}
-	//URlcPdu::URlcPdu(ByteVector *other, string wDescr)	// Used to manufacture URlcPdu from URlcDownSdu for RLC-TM.
-	//	: ByteVector(*other), mOwner(0), mDescr(wDescr),
-	//	mPaddingStart(0),
+URlcPdu::URlcPdu(const BitVector &bits, URlcBase *wOwner, string wDescr)
+	: URlcBasePdu(bits, wDescr), mOwner(wOwner), mPaddingStart(0), mPaddingLILocation(0), mVTDAT(0), mNacked(0),
+	  mNext(0)
+{
+}
+URlcPdu::URlcPdu(URlcPdu *other)
+	: URlcBasePdu(*other, other->mDescr), mOwner(other->mOwner), mPaddingStart(other->mPaddingStart),
+	  mPaddingLILocation(other->mPaddingLILocation), mVTDAT(other->mVTDAT), mNacked(other->mNacked), mNext(0)
+{
+}
+	// URlcPdu::URlcPdu(ByteVector *other, string wDescr)	// Used to manufacture URlcPdu from URlcDownSdu for
+	// RLC-TM. 	: ByteVector(*other), mOwner(0), mDescr(wDescr), 	mPaddingStart(0),
 	//	mPaddingLILocation(0),
 	//	mVTDAT(0), mNacked(0), mNext(0)
 	//	{}
 #endif
 
-//class URlcPduUm : public URlcPdu
+// class URlcPduUm : public URlcPdu
 //{	public:
 //	URlcPduUm(unsigned wsize,unsigned wlisize) : URlcPdu(wsize,wlisize) {}
 //	void setSN(unsigned sn) { setField(0,sn,7); }
@@ -572,7 +596,7 @@ class URlcPdu : public URlcBasePdu
 //					// 0 => succeeding octet contains data
 //					// 1 => succeeding octet contains LI+E
 //					// 2 => succeeding octet contains data and the last octet
-//					//	of the PDU is last octet of SDU, but only if 
+//					//	of the PDU is last octet of SDU, but only if
 //					// "Use special value of HE field" is configured.
 //					// 3 => reserved.
 //		LI:7 or 15;	// Has special encoding, see 9.2.2.8
@@ -583,7 +607,7 @@ class URlcPdu : public URlcBasePdu
 //		Data
 // 		Optional Piggybacked STATUS PDU.
 //		Optional PAD
-//class URlcPduAm : public URlcPdu
+// class URlcPduAm : public URlcPdu
 //{
 //	void setSN(unsigned sn) { setField2(0,1,sn,12); }
 //	unsigned getSN() { return getField2(0,1,12); }
@@ -611,11 +635,10 @@ class URlcPdu : public URlcBasePdu
 //		PAD
 
 typedef SingleLinkList<URlcDownSdu> SduList_t;
-typedef InterthreadQueue<URlcPdu, SingleLinkList<URlcPdu> > PduList_t;
+typedef InterthreadQueue<URlcPdu, SingleLinkList<URlcPdu>> PduList_t;
 
 // Any mode transmitter
-class URlcTrans : public virtual URlcBase
-{
+class URlcTrans : public virtual URlcBase {
 	friend class URlcTransTm;
 	friend class URlcTransAm;
 	friend class URlcTransUm;
@@ -623,7 +646,7 @@ class URlcTrans : public virtual URlcBase
 
 	// The SduTxQ consists of the complete vectors in the list, plus mSplitSdu,
 	// which is used only for UM and AM modes to save the SDU currently being processed.
-	Mutex mQLock;		// Lock for SduTxQ.
+	Mutex mQLock; // Lock for SduTxQ.
 	SduList_t mSduTxQ;
 	URlcDownSdu *mSplitSdu;
 
@@ -644,7 +667,7 @@ class URlcTrans : public virtual URlcBase
 	unsigned mTransmissionBufferSizeBytes;
 	string mRlcid;
 
-	public:
+public:
 	URlcTrans();
 
 	virtual unsigned rlcGetBytesAvail() = 0;
@@ -662,34 +685,34 @@ class URlcTrans : public virtual URlcBase
 	// further mutex protection beyond what the Q provides.
 	virtual unsigned rlcGetPduCnt() = 0;
 	virtual unsigned rlcGetFirstPduSizeBits() = 0;
-	virtual unsigned rlcGetDlPduSizeBytes() { return 0; }	// Not defined for RLC-TM, so return 0.
+	virtual unsigned rlcGetDlPduSizeBytes() { return 0; } // Not defined for RLC-TM, so return 0.
 
-	virtual void triggerReset() { }
+	virtual void triggerReset() {}
 	void textTrans(std::ostream &os);
 	const char *rlcid() { return mRlcid.c_str(); }
 	virtual void text(std::ostream &os) = 0;
 };
 #if URLC_IMPLEMENTATION
-	URlcTrans::URlcTrans() : mSplitSdu(0), mVTSDU(0) {
-		mTransmissionBufferSizeBytes = gConfig.getNum("UMTS.RLC.TransmissionBufferSize");
-	}
-	unsigned URlcTrans::rlcGetSduQBytesAvail() {
-		ScopedLock lock(mQLock);
-		unsigned partialsize = mSplitSdu ? mSplitSdu->size() : 0;
-		return mSduTxQ.totalSize() +  partialsize;
-	}
-	unsigned URlcTrans::getSduCnt() {
-		ScopedLock lock(mQLock);	// extra cautious
-		return mSduTxQ.size() + (mSplitSdu?1:0);
-	}
+URlcTrans::URlcTrans() : mSplitSdu(0), mVTSDU(0)
+{
+	mTransmissionBufferSizeBytes = gConfig.getNum("UMTS.RLC.TransmissionBufferSize");
+}
+unsigned URlcTrans::rlcGetSduQBytesAvail()
+{
+	ScopedLock lock(mQLock);
+	unsigned partialsize = mSplitSdu ? mSplitSdu->size() : 0;
+	return mSduTxQ.totalSize() + partialsize;
+}
+unsigned URlcTrans::getSduCnt()
+{
+	ScopedLock lock(mQLock); // extra cautious
+	return mSduTxQ.size() + (mSplitSdu ? 1 : 0);
+}
 #endif
 
-class URlcTransTm :
-	public virtual URlcBase, public URlcTrans
-{	public:
-	URlcTransTm(RBInfo *rbInfo, UEInfo *uep) :
-		URlcBase(URlcModeTm,uep,rbInfo)
-		{}
+class URlcTransTm : public virtual URlcBase, public URlcTrans {
+public:
+	URlcTransTm(RBInfo *rbInfo, UEInfo *uep) : URlcBase(URlcModeTm, uep, rbInfo) {}
 	// There is only an sduq, not a pduq, and reading a pdu comes straight from the sduq.
 	void rlcPullLowSide(unsigned amt) {}
 	unsigned rlcGetPduCnt() { return getSduCnt(); }
@@ -699,29 +722,41 @@ class URlcTransTm :
 	// Just turn the SDU into a PDU and send it along.
 	URlcBasePdu *rlcReadLowSide();
 	void text(std::ostream &os) { textTrans(os); }
-	bool pdusFinished() { assert(mSplitSdu == NULL); return getSduCnt() == 0; }
+	bool pdusFinished()
+	{
+		assert(mSplitSdu == NULL);
+		return getSduCnt() == 0;
+	}
 };
 #if URLC_IMPLEMENTATION
-	unsigned URlcTransTm::rlcGetFirstPduSizeBits() {
-		ScopedLock lock(mQLock);
-		if (mRlcState == RLC_STOP) {return 0;}
-		URlcDownSdu *sdu;
-		for (sdu = mSduTxQ.front(); sdu; sdu = sdu->next()) {
-			if (sdu->mDiscarded) { continue; }		// Ignoring deleted PDUs.
-			return sdu->sizeBits();
-		}
+unsigned URlcTransTm::rlcGetFirstPduSizeBits()
+{
+	ScopedLock lock(mQLock);
+	if (mRlcState == RLC_STOP) {
 		return 0;
 	}
-
-	unsigned URlcTransTm::rlcGetBytesAvail() {
-		if (mRlcState == RLC_STOP) {return 0;}
-		return rlcGetSduQBytesAvail();
+	URlcDownSdu *sdu;
+	for (sdu = mSduTxQ.front(); sdu; sdu = sdu->next()) {
+		if (sdu->mDiscarded) {
+			continue;
+		} // Ignoring deleted PDUs.
+		return sdu->sizeBits();
 	}
+	return 0;
+}
+
+unsigned URlcTransTm::rlcGetBytesAvail()
+{
+	if (mRlcState == RLC_STOP) {
+		return 0;
+	}
+	return rlcGetSduQBytesAvail();
+}
 #endif
 
 class URlcTransAmUm : // Transmit common to AM and UM modes.
-	public URlcTrans, public virtual URlcBase
-{
+		      public URlcTrans,
+		      public virtual URlcBase {
 	friend class URlcTransAm;
 	friend class URlcTransUm;
 
@@ -730,18 +765,17 @@ class URlcTransAmUm : // Transmit common to AM and UM modes.
 	PduList_t mPduOutQ;
 
 	// For Am and Um modes:
-	int mLILeftOver;	// Special case flag carried over from previous PDU.
-			// 1 => the previous sdu exactly filled the previous pdu.
-			// 2 => the previous sdu was one byte short of filling previous pdu.
+	int mLILeftOver; // Special case flag carried over from previous PDU.
+			 // 1 => the previous sdu exactly filled the previous pdu.
+			 // 2 => the previous sdu was one byte short of filling previous pdu.
 
 	// These vars are required for Am mode but we maintain them for all modes.
-	unsigned mVTPDU;	// Used when for Am mode "poll every Poll_PDU" is configured.
-			// Incremented for every PDU transmission of any kind.
-			// When == Poll_PDU, send a poll and set this to 0.
-			// mVTPDU is the absolute PDU count, not modulo arithmetic.
+	unsigned mVTPDU; // Used when for Am mode "poll every Poll_PDU" is configured.
+			 // Incremented for every PDU transmission of any kind.
+			 // When == Poll_PDU, send a poll and set this to 0.
+			 // mVTPDU is the absolute PDU count, not modulo arithmetic.
 
-
-	bool fillPduData(URlcPdu *pdu, unsigned pduHeaderSize,bool*newPdu);		// Fill the pdu with sdu data.
+	bool fillPduData(URlcPdu *pdu, unsigned pduHeaderSize, bool *newPdu); // Fill the pdu with sdu data.
 
 	void transDoReset();
 
@@ -755,11 +789,9 @@ class URlcTransAmUm : // Transmit common to AM and UM modes.
 	unsigned rlcGetPduCnt() { return mPduOutQ.size(); }
 	bool pdusFinished();
 
-	public:
+public:
 	// This class is not allocated alone; it is part of URlcTransAm or URlcTransUm.
-	URlcTransAmUm(URlcConfigAmUm *wConfig) :
-		mConfig(wConfig)
-		{ transDoReset(); }
+	URlcTransAmUm(URlcConfigAmUm *wConfig) : mConfig(wConfig) { transDoReset(); }
 
 	// MAC reads the low side with this.
 	URlcBasePdu *rlcReadLowSide();
@@ -769,26 +801,30 @@ class URlcTransAmUm : // Transmit common to AM and UM modes.
 	void textAmUm(std::ostream &os);
 };
 #if URLC_IMPLEMENTATION
-	unsigned URlcTransAmUm::rlcGetBytesAvail() {
-		if (mRlcState == RLC_STOP) {return 0;}
-		// Can the pdus move from one queue to the other in between the locks?
-		return rlcGetSduQBytesAvail() + mPduOutQ.totalSize();
+unsigned URlcTransAmUm::rlcGetBytesAvail()
+{
+	if (mRlcState == RLC_STOP) {
+		return 0;
 	}
+	// Can the pdus move from one queue to the other in between the locks?
+	return rlcGetSduQBytesAvail() + mPduOutQ.totalSize();
+}
 
-	// Return the size of the top PDU, or 0 if none.
-	unsigned URlcTransAmUm::rlcGetFirstPduSizeBits() {
-		if (mRlcState == RLC_STOP) {return 0;}
-		ByteVector *pdu = mPduOutQ.front();
-		return pdu ? pdu->sizeBits() : 0;
+// Return the size of the top PDU, or 0 if none.
+unsigned URlcTransAmUm::rlcGetFirstPduSizeBits()
+{
+	if (mRlcState == RLC_STOP) {
+		return 0;
 	}
-	// If mLILeftOver is non-zero then we still need to send another PDU.
-	bool URlcTransAmUm::pdusFinished() { return getSduCnt() == 0 && !mLILeftOver; }
+	ByteVector *pdu = mPduOutQ.front();
+	return pdu ? pdu->sizeBits() : 0;
+}
+// If mLILeftOver is non-zero then we still need to send another PDU.
+bool URlcTransAmUm::pdusFinished() { return getSduCnt() == 0 && !mLILeftOver; }
 #endif
 
 // Any mode receiver.
-class URlcRecv :
-	public virtual URlcBase
-{
+class URlcRecv : public virtual URlcBase {
 	friend class URlcRecvTm;
 	friend class URlcRecvAm;
 	friend class URlcRecvUm;
@@ -801,7 +837,7 @@ class URlcRecv :
 	// The SDU is allocated and must be deleted eventually.
 	void rlcSendHighSide(URlcUpSdu *sdu);
 
-	public:
+public:
 	// This is where pdus come in from the MAC via a routine in the UEInfo
 	// to map to the approriate RLC entity based on the RbId.
 	virtual void rlcWriteLowSide(const BitVector &pdu) = 0;
@@ -814,59 +850,59 @@ class URlcRecv :
 	virtual void text(std::ostream &os) = 0;
 };
 
-class URlcRecvTm :
-	public virtual URlcBase, public URlcRecv
-{	public:
+class URlcRecvTm : public virtual URlcBase, public URlcRecv {
+public:
 	URlcRecvTm(RBInfo *rbInfo, UEInfo *uep);
 	void rlcWriteLowSide(const BitVector &pdu);
 	void text(std::ostream &os) {}
 };
 #if URLC_IMPLEMENTATION
-	URlcRecvTm::URlcRecvTm(RBInfo *rbInfo, UEInfo *uep) :
-		URlcBase(URlcModeTm,uep,rbInfo)
-		{}
-	// TM Messages just pass through.
-	void URlcRecvTm::rlcWriteLowSide(const BitVector &pdu) {
-		URlcUpSdu *sdu = new ByteVector((pdu.size() + 7)/8);
-		pdu.pack(sdu->begin());
-		rlcSendHighSide(sdu);
-	}
+URlcRecvTm::URlcRecvTm(RBInfo *rbInfo, UEInfo *uep) : URlcBase(URlcModeTm, uep, rbInfo) {}
+// TM Messages just pass through.
+void URlcRecvTm::rlcWriteLowSide(const BitVector &pdu)
+{
+	URlcUpSdu *sdu = new ByteVector((pdu.size() + 7) / 8);
+	pdu.pack(sdu->begin());
+	rlcSendHighSide(sdu);
+}
 #endif
 
 class URlcRecvAmUm : // Receive common to AM and UM modes.
-	public URlcRecv, public virtual URlcBase
-{
+		     public URlcRecv,
+		     public virtual URlcBase {
 	friend class URlcRecvAm;
 	friend class URlcRecvUm;
 
 	URlcConfigAmUm *mConfig;
-	URlcUpSdu *mUpSdu;	// Partial SDU being assembled, or NULL.
-	void sendSdu();						// Enqueue a completed SDU.
+	URlcUpSdu *mUpSdu; // Partial SDU being assembled, or NULL.
+	void sendSdu();    // Enqueue a completed SDU.
 
-	bool mLostPdu;	// This is UM only, but easier to put in this class.
-					// It is set only in UM mode to indicate a lost pdu,
-					// so we have to continue to discard until we find the start of a new sdu.
+	bool mLostPdu; // This is UM only, but easier to put in this class.
+		       // It is set only in UM mode to indicate a lost pdu,
+		       // so we have to continue to discard until we find the start of a new sdu.
 
-
-	void addUpSdu(ByteVector &payload);	// Add to partially assembled SDU.
+	void addUpSdu(ByteVector &payload); // Add to partially assembled SDU.
 	void discardPartialSdu();
 	void ChopOneByteOffSdu(ByteVector &payload);
 	void parsePduData(URlcPdu &pdu, int headersize, bool Eindicator, bool statusOnly);
 
-	void recvDoReset() { discardPartialSdu(); mLostPdu = false; }
+	void recvDoReset()
+	{
+		discardPartialSdu();
+		mLostPdu = false;
+	}
 
-	public:
+public:
 	// This class is not allocated alone; it is part of URlcRecvAm or URlcRecvUm.
 	URlcRecvAmUm(URlcConfigAmUm *wConfig) : mConfig(wConfig), mUpSdu(0) {}
-	URlcRecvAmUm(): mUpSdu(0) {}
+	URlcRecvAmUm() : mUpSdu(0) {}
 	void textAmUm(std::ostream &os);
 };
 
 class URlcAm;
 class URlcRecvAm;
 
-class URlcTransAm :
-	public URlcTransAmUm	// UMTS RLC Acknowledged Mode Transmitter
+class URlcTransAm : public URlcTransAmUm // UMTS RLC Acknowledged Mode Transmitter
 {
 	friend class URlcAm;
 	friend class URlcRecvAm;
@@ -878,66 +914,66 @@ class URlcTransAm :
 	URlcPdu *readLowSidePdu2();
 
 	// GSM25.322 9.4: AM Send State Variables
-	URlcSN mVTS;	// SN of next AMD PDU to be transmitted for the first time.
-	URlcSN mVTA;	// SN+1 of last in-sequence positively acknowledged pdu.
-					// This is set by an incoming Ack SUFI 9.2.2.11.2
+	URlcSN mVTS; // SN of next AMD PDU to be transmitted for the first time.
+	URlcSN mVTA; // SN+1 of last in-sequence positively acknowledged pdu.
+		     // This is set by an incoming Ack SUFI 9.2.2.11.2
 
 	// SN of upper edge of transmission window = VTA + VTWS.
-	URlcSN VTMS()	{ return addSN(mVTA,mVTWS); }
+	URlcSN VTMS() { return addSN(mVTA, mVTWS); }
 
-	UInt_z mVTRST;	// Count number of RESET PDU sent before ack received.  See 11.4.2 and 11.4.5.1.
+	UInt_z mVTRST; // Count number of RESET PDU sent before ack received.  See 11.4.2 and 11.4.5.1.
 	// We will not use MRW.
 	// unsigned mVTMRW;	// Count number of MRW command transmitted.
-	URlcSN mVTWS;	// Window size.  Init to Configured_Tx_Window_size.
-			// (pat) The window size is how many unacked blocks you can send before stalling.
-			// Warning will robinson: it can theoretically be set up to SN-1,
-			// which if allowed would cause deltaSN(), etc to fail.
+	URlcSN mVTWS; // Window size.  Init to Configured_Tx_Window_size.
+		      // (pat) The window size is how many unacked blocks you can send before stalling.
+		      // Warning will robinson: it can theoretically be set up to SN-1,
+		      // which if allowed would cause deltaSN(), etc to fail.
 
-	Z100 mTimer_Poll;		// Set when a poll is sent, and stopped when the poll is answered.
-	URlcSN mTimer_Poll_VTS;	// Described in 25.322 9.5 paragraph a.
-	//unsigned mTimer_Poll_SN;	// The value of VTS at the time poll was sent; timer is
-			// stopped if ack is received for this and preceding SN.
+	Z100 mTimer_Poll;       // Set when a poll is sent, and stopped when the poll is answered.
+	URlcSN mTimer_Poll_VTS; // Described in 25.322 9.5 paragraph a.
+	// unsigned mTimer_Poll_SN;	// The value of VTS at the time poll was sent; timer is
+	// stopped if ack is received for this and preceding SN.
 	Z100 mTimer_Poll_Prohibit;
-	//Z100 mTimer_Discard;			unimplemented
-	Z100 mTimer_Poll_Periodic;	// How often to poll.
-	//Z100 mTimer_Status_Prohibit;	// How often to send unsolicited (unpolled) status reports.
-	//Z100 mTimer_Status_Periodic;	unimplemented
+	// Z100 mTimer_Discard;			unimplemented
+	Z100 mTimer_Poll_Periodic; // How often to poll.
+	// Z100 mTimer_Status_Prohibit;	// How often to send unsolicited (unpolled) status reports.
+	// Z100 mTimer_Status_Periodic;	unimplemented
 	Z100 mTimer_RST; // start when RESET PDU sent, stop when RESET ACK received.
-					// Upon expiry, resend RESET PDU with same RSN
-	//Z100 Timer_MRW - Resend MRW SUFI when expired.  We wont use MRW; it is unneeded.
+			 // Upon expiry, resend RESET PDU with same RSN
+	// Z100 Timer_MRW - Resend MRW SUFI when expired.  We wont use MRW; it is unneeded.
 
-	//URlcRecvAm *mRecv;	// Pointer to the paired receiving entity.
+	// URlcRecvAm *mRecv;	// Pointer to the paired receiving entity.
 
-	URlcPdu* mPduTxQ[AmSNS];		// PDU array, saved for possible retransmission.
-									// Note that only data pdus go in here, not control.
+	URlcPdu *mPduTxQ[AmSNS]; // PDU array, saved for possible retransmission.
+				 // Note that only data pdus go in here, not control.
 
 	// Variables pat added:
-	bool mNackedBlocksWaiting;	// True if mNackVS is valid.
-	URlcSN mVSNack;		// Next nacked block to be retransmitted.
+	bool mNackedBlocksWaiting; // True if mNackVS is valid.
+	URlcSN mVSNack;		   // Next nacked block to be retransmitted.
 
 	bool mPollTriggered;
 	bool mStatusTriggered;
-	bool mResetTriggered;	// This just triggers it.  An in-progress reset is indicated by mTimer_RST.active()
+	bool mResetTriggered; // This just triggers it.  An in-progress reset is indicated by mTimer_RST.active()
 	bool resetInProgress() { return mTimer_RST.active(); }
-	unsigned mResetTransRSN;		// RSN value we sent in our last reset pdu.
-	unsigned mResetAckRSN;			// RSN value of last received reset pdu, saved to put in RESET_ACK message.
-	//unsigned mResetTransCount;		// Total Number of resets transmitted.
-	unsigned mResetRecvCount;		// Total Number of resets received, ever.
-	//unsigned mResetAckRecvCount;	// Total number of reset ack received.
+	unsigned mResetTransRSN; // RSN value we sent in our last reset pdu.
+	unsigned mResetAckRSN;   // RSN value of last received reset pdu, saved to put in RESET_ACK message.
+	// unsigned mResetTransCount;		// Total Number of resets transmitted.
+	unsigned mResetRecvCount; // Total Number of resets received, ever.
+	// unsigned mResetAckRecvCount;	// Total number of reset ack received.
 	bool mSendResetAck;
 
-	unsigned mVTPDUPollTrigger;		// Next trigger for a poll if Poll_PDU option, or 0.
-	unsigned mVTSDUPollTrigger;		// Next trigger for a poll if Poll_SDU option, or 0.
+	unsigned mVTPDUPollTrigger; // Next trigger for a poll if Poll_PDU option, or 0.
+	unsigned mVTSDUPollTrigger; // Next trigger for a poll if Poll_SDU option, or 0.
 
-	public:
-	void transAmReset();	// Happens whenever we get a reset PDU.
-	void transAmInit();		// Happens once.
-	private:
-	URlcAm*parent();
-	URlcRecvAm*receiver();
+public:
+	void transAmReset(); // Happens whenever we get a reset PDU.
+	void transAmInit();  // Happens once.
+private:
+	URlcAm *parent();
+	URlcRecvAm *receiver();
 
 	bool stalled();
-	void setNAck(URlcSN sn);	// Set the nack indicator for queued block with this sequence number.
+	void setNAck(URlcSN sn); // Set the nack indicator for queued block with this sequence number.
 	URlcPdu *getDataPdu();
 	URlcPdu *getResetPdu(PduType type);
 	URlcPdu *getStatusPdu();
@@ -948,21 +984,18 @@ class URlcTransAm :
 	bool IsPollTriggered();
 	unsigned rlcGetDlPduSizeBytes() { return mConfig->mDlPduSizeBytes; }
 
-	public:
+public:
 	// This class is not allocated alone; it is part of URlcAm.
-	URlcTransAm(URlcConfigAm *wConfig) :
-		URlcTransAmUm(wConfig),
-		mConfig(wConfig)
-		{
-			mRlcid = format("AMT%d",mrbid);
-		}
+	URlcTransAm(URlcConfigAm *wConfig) : URlcTransAmUm(wConfig), mConfig(wConfig)
+	{
+		mRlcid = format("AMT%d", mrbid);
+	}
 	void text(std::ostream &os);
-	void triggerReset() { mResetTriggered = true; }	// for testing
+	void triggerReset() { mResetTriggered = true; } // for testing
 };
 
 class URlcRecvAm : // UMTS RLC Acknowledged Mode Receiver
-	public URlcRecvAmUm
-{
+		   public URlcRecvAmUm {
 	friend class URlcAm;
 	friend class URlcTransAm;
 	friend class URlcRecvAmUm;
@@ -970,16 +1003,16 @@ class URlcRecvAm : // UMTS RLC Acknowledged Mode Receiver
 	URlcConfigAm *mConfig;
 	// This class is not allocated alone; it is part of URlcAm.
 
-	//URlcTransAm *mTrans;	// Pointer to the paired transmitting entity.
+	// URlcTransAm *mTrans;	// Pointer to the paired transmitting entity.
 
 	// GSM25.322 9.4: AM Receive State Variables.
 	// The range from mVRR to mVRH is what we need to acknowledge to the peer.
 	// The LSN sent in the acknowledgment sufi is in the range VRR <= LSN <= VRH.
-	URlcSN mVRR;	// SN of the "last" in-sequence PDU received + 1, meaning
-					// that SN+1 is the first PDU not yet received.
-	URlcSN mVRH;	// SN+1 of any PDU received or identified to be missing.
-			// See 9.4 how to set it.  A PDU is "identified to be missing"
-			// by the POLL SUFI, which sends the VTS from the peer entity.
+	URlcSN mVRR; // SN of the "last" in-sequence PDU received + 1, meaning
+		     // that SN+1 is the first PDU not yet received.
+	URlcSN mVRH; // SN+1 of any PDU received or identified to be missing.
+		     // See 9.4 how to set it.  A PDU is "identified to be missing"
+		     // by the POLL SUFI, which sends the VTS from the peer entity.
 
 	// If the PDU size is small we may not be able to fit all the missing
 	// blocks in a single status report.  If you only send the oldest
@@ -991,41 +1024,41 @@ class URlcRecvAm : // UMTS RLC Acknowledged Mode Receiver
 	// This variable tells us where we are in the status reports.
 	URlcSN mStatusSN;
 
-	URlcSN VRMR() {
+	URlcSN VRMR()
+	{
 		// Maximum acceptable VRR: VRR + Configured_Rx_Window_size
-		return addSN(mVRR,mConfig->mConfigured_Rx_Window_Size);
+		return addSN(mVRR, mConfig->mConfigured_Rx_Window_Size);
 	}
 
-	URlcPdu *mPduRxQ[AmSNS];		// PDU array for reassembly.
+	URlcPdu *mPduRxQ[AmSNS]; // PDU array for reassembly.
 	// 11.4.3: Reception of RESET PDU resets all state variables to initial values except VTRST.
-	public:
-	void recvAmReset();	// Happens whenever we get a RESET PDU.
-	private:
-	void recvAmInit();	// Happens once.
-	URlcAm*parent();
-	URlcTransAm*transmitter();
+public:
+	void recvAmReset(); // Happens whenever we get a RESET PDU.
+private:
+	void recvAmInit(); // Happens once.
+	URlcAm *parent();
+	URlcTransAm *transmitter();
 	bool addAckNack(URlcPdu *pdu);
 	bool isReceiverOk();
 
-	public:
-	URlcRecvAm(URlcConfigAm *wConfig) : URlcRecvAmUm(wConfig), mConfig(wConfig) {
-		mRlcid = format("AMR%d",mrbid);
-	}
+public:
+	URlcRecvAm(URlcConfigAm *wConfig) : URlcRecvAmUm(wConfig), mConfig(wConfig) { mRlcid = format("AMR%d", mrbid); }
 
 	void rlcWriteLowSide(const BitVector &pdu);
 	void text(std::ostream &os);
 };
 
-class URlcAm : public URlcTransAm, public URlcRecvAm	// UMTS RLC Acknowledged Mode Entity
+class URlcAm : public URlcTransAm,
+	       public URlcRecvAm // UMTS RLC Acknowledged Mode Entity
 {
 	friend class URlcRecvAm;
 	friend class URlcTransAm;
 
-	void recvResetPdu(URlcPdu*pdu);
-	void recvResetAck(URlcPdu*pdu);
+	void recvResetPdu(URlcPdu *pdu);
+	void recvResetAck(URlcPdu *pdu);
 	unsigned getRlcHeaderSize() { return 2; }
 
-	URlcConfigAm mConfig;	// The one and only config for the entire class hierarchy.
+	URlcConfigAm mConfig; // The one and only config for the entire class hierarchy.
 
 	// Need a mutex only for RLC-AM.  The MAC pulls data from the transmitter
 	// in one thread, and the receiver may be driven asynchronously
@@ -1036,86 +1069,85 @@ class URlcAm : public URlcTransAm, public URlcRecvAm	// UMTS RLC Acknowledged Mo
 	string mAmid;
 	const char *rlcid() { return mAmid.c_str(); }
 
-	public:
-	URlcAm(RBInfo *rbInfo,RrcTfs *dltfs,UEInfo *uep,unsigned dlPduSize);
+public:
+	URlcAm(RBInfo *rbInfo, RrcTfs *dltfs, UEInfo *uep, unsigned dlPduSize);
 	// See 9.2.1.7 and 9.2.2.14
 	// HFN defined in 25.331 8.5.8 - 8.5.10, for RRC Message Integrity Protection.
-	UInt_z mULHFN;	// Security stuff.
+	UInt_z mULHFN; // Security stuff.
 	UInt_z mDLHFN;
 
-	//URlcTransAm *transmitter() { return static_cast<URlcTransAm*>(this); }
-	//URlcRecvAm *receiver() { return static_cast<URlcRecvAm*>(this); }
-
+	// URlcTransAm *transmitter() { return static_cast<URlcTransAm*>(this); }
+	// URlcRecvAm *receiver() { return static_cast<URlcRecvAm*>(this); }
 };
 #if URLC_IMPLEMENTATION
-	URlcAm::URlcAm(RBInfo *rbInfo,RrcTfs *dltfs,UEInfo *uep,unsigned dlPduSize) :
-		URlcBase(URlcModeAm,uep,rbInfo),
-		URlcTransAm(&mConfig),	// Warning, this is not set up yet, but gcc whines if you order correctly.
-		URlcRecvAm(&mConfig),
-		mConfig(*rbInfo,*dltfs,dlPduSize)
-	{
-		mAmid=format("AM%d",mrbid);
-		transAmInit(); recvAmInit();
-		if (mConfig.mMaxRST == 0) {
-			LOG(WARNING) << "Max_RESET not configured";
-		}
+URlcAm::URlcAm(RBInfo *rbInfo, RrcTfs *dltfs, UEInfo *uep, unsigned dlPduSize)
+	: URlcBase(URlcModeAm, uep, rbInfo),
+	  URlcTransAm(&mConfig), // Warning, this is not set up yet, but gcc whines if you order correctly.
+	  URlcRecvAm(&mConfig), mConfig(*rbInfo, *dltfs, dlPduSize)
+{
+	mAmid = format("AM%d", mrbid);
+	transAmInit();
+	recvAmInit();
+	if (mConfig.mMaxRST == 0) {
+		LOG(WARNING) << "Max_RESET not configured";
 	}
+}
 
-	// Have to wait until both classes are defined before defining these:
-	URlcAm* URlcTransAm::parent() { return static_cast<URlcAm*>(this); }
-	URlcRecvAm* URlcTransAm::receiver() { return static_cast<URlcRecvAm*>(parent()); }
-	URlcAm* URlcRecvAm::parent() { return static_cast<URlcAm*>(this); }
-	URlcTransAm* URlcRecvAm::transmitter() { return static_cast<URlcTransAm*>(parent()); }
+// Have to wait until both classes are defined before defining these:
+URlcAm *URlcTransAm::parent() { return static_cast<URlcAm *>(this); }
+URlcRecvAm *URlcTransAm::receiver() { return static_cast<URlcRecvAm *>(parent()); }
+URlcAm *URlcRecvAm::parent() { return static_cast<URlcAm *>(this); }
+URlcTransAm *URlcRecvAm::transmitter() { return static_cast<URlcTransAm *>(parent()); }
 #endif
 
 class URlcTransUm : // UMTS RLC Unacknowledged Mode Transmitter
-	public virtual URlcBase,
-	public URlcTransAmUm
-{
+		    public virtual URlcBase,
+		    public URlcTransAmUm {
 	URlcConfigUm mConfig;
 	// UM Send State Variables
-	URlcSN mVTUS;	// SN of next UM PDU to be transmitted.
-			// Note: For utran side initial value may not be 0?
+	URlcSN mVTUS; // SN of next UM PDU to be transmitted.
+		      // Note: For utran side initial value may not be 0?
 
-	URlcPdu *readLowSidePdu();	// Return a PDU to lower layers, or NULL if queue empty.
+	URlcPdu *readLowSidePdu(); // Return a PDU to lower layers, or NULL if queue empty.
 
-	public:
+public:
 	// We send the RBInfo to URlcConfigUm, but all it uses is the RlcInfo from it.
-	URlcTransUm(RBInfo *rbInfo, RrcTfs *dltfs, UEInfo *uep,unsigned dlPduSize, bool isShared=0) :
-		URlcBase(URlcModeUm,uep,rbInfo),
-		URlcTransAmUm(&mConfig),
-		mConfig(*rbInfo,*dltfs,dlPduSize),
-		mVTUS(0)
-		{mConfig.mIsSharedRlc = isShared;}
+	URlcTransUm(RBInfo *rbInfo, RrcTfs *dltfs, UEInfo *uep, unsigned dlPduSize, bool isShared = 0)
+		: URlcBase(URlcModeUm, uep, rbInfo), URlcTransAmUm(&mConfig), mConfig(*rbInfo, *dltfs, dlPduSize),
+		  mVTUS(0)
+	{
+		mConfig.mIsSharedRlc = isShared;
+	}
 	unsigned getRlcHeaderSize() { return 1; }
 	unsigned rlcGetDlPduSizeBytes() { return mConfig.mDlPduSizeBytes; }
 	void text(std::ostream &os);
 };
 
 class URlcRecvUm : // UMTS RLC Unacknowledged Mode Receiver
-	public virtual URlcBase,
-	public URlcRecvAmUm
-{	public:
+		   public virtual URlcBase,
+		   public URlcRecvAmUm {
+public:
 	URlcConfigUm mConfig;
-	URlcSN mVRUS; 	// SN+1 of last UM PDU received
+	URlcSN mVRUS; // SN+1 of last UM PDU received
 
-	URlcRecvUm(RBInfo *rbInfo, RrcTfs *dltfs, UEInfo *uep) :
-		URlcBase(URlcModeUm,uep,rbInfo),
-		URlcRecvAmUm(&mConfig),
-		mConfig(*rbInfo,*dltfs,0), // No downlink pdu size needed in uplink RLC.
-		mVRUS(0)
-		{}
+	URlcRecvUm(RBInfo *rbInfo, RrcTfs *dltfs, UEInfo *uep)
+		: URlcBase(URlcModeUm, uep, rbInfo), URlcRecvAmUm(&mConfig),
+		  mConfig(*rbInfo, *dltfs, 0), // No downlink pdu size needed in uplink RLC.
+		  mVRUS(0)
+	{
+	}
 
 	void rlcWriteLowSide(const BitVector &pdu);
 #if RLC_OUT_OF_SEQ_OPTIONS
-	//unsigned VRUDR;	// Expected next SN for DAR (duplicate avoidance and reordering.)
-	//unsigned VRUDH;	// Highest received SN for DAR
-	//unsigned VRUDT;	// Timer for DAR
-	//Z100 mTimer_DAR;	// For UM duplicate avoidance and reordering. // see 9.7.10
-	//unsigned VRUOH;	// Highest SN received.  Inited per 11.2.3.2
+	// unsigned VRUDR;	// Expected next SN for DAR (duplicate avoidance and reordering.)
+	// unsigned VRUDH;	// Highest received SN for DAR
+	// unsigned VRUDT;	// Timer for DAR
+	// Z100 mTimer_DAR;	// For UM duplicate avoidance and reordering. // see 9.7.10
+	// unsigned VRUOH;	// Highest SN received.  Inited per 11.2.3.2
 	// Only used for out-of-sequence-delivery
-	unsigned VRUM() {	// SN of first UM PDU that shall be rejected.
-		return addSN(mVRUS,mConfig->mConfigured_Rx_Window_Size);
+	unsigned VRUM()
+	{ // SN of first UM PDU that shall be rejected.
+		return addSN(mVRUS, mConfig->mConfigured_Rx_Window_Size);
 	}
 #endif
 	void text(std::ostream &os);
@@ -1129,7 +1161,7 @@ class URlcRecvUm : // UMTS RLC Unacknowledged Mode Receiver
 struct URlcPair {
 	class URlcTrans *mDown;
 	class URlcRecv *mUp;
-	TrChId mTcid;	// The transport channel to which this RLC is attached.
+	TrChId mTcid; // The transport channel to which this RLC is attached.
 	URlcPair(RBInfo *rb, RrcTfs *dltfs, UEInfo *uep, TrChId tcid);
 	~URlcPair();
 };

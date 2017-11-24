@@ -1,37 +1,42 @@
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
  * See the LEGAL file in the main directory for details.
  */
 
-#include "BitVector.h"
-#include "Logger.h"
-#include "URRCDefs.h"
-//#include "UMTSL1FEC.h"
+#include <math.h> // for ceil, round
+
+#include <CommonLibs/BitVector.h>
+#include <CommonLibs/Logger.h>
+#include <CommonLibs/Utils.h>
+
 #include "RateMatch.h"
-#include "Utils.h"
-#include <math.h>	// for ceil, round
 
 namespace UMTS {
 
 #if RATE_MATCH_TEST
 // Define some funcs we need so we dont have to link with the entire OpenBTS-UMTS
-unsigned TTICode2NumFrames(TTICodes ttiCode)	// return 1,2,4,8
+unsigned TTICode2NumFrames(TTICodes ttiCode) // return 1,2,4,8
 {
 	switch (ttiCode) {
-	case TTI10ms: return 1;
-	case TTI20ms: return 2;
-	case TTI40ms: return 4;
-	case TTI80ms: return 8;
-	default: assert(0);
+	case TTI10ms:
+		return 1;
+	case TTI20ms:
+		return 2;
+	case TTI40ms:
+		return 4;
+	case TTI80ms:
+		return 8;
+	default:
+		assert(0);
 	}
 }
 int gcd(int x, int y)
@@ -44,14 +49,14 @@ int gcd(int x, int y)
 }
 #endif
 
-	// 25.212 4.2.5.2 table 4: Inter-Column permutation pattern for 1st interleaving:
-	// TODO: Dont duplicate this table from the FEC stack.
-	static char sInter1Perm[4][8] = {
-		{0}, // TTI = 10ms
-		{0, 1}, // TTI = 20ms
-		{0, 2, 1, 3}, // TTI = 40ms
-		{0, 4, 2, 6, 1, 5, 3, 7} // TTI = 80ms
-	};
+// 25.212 4.2.5.2 table 4: Inter-Column permutation pattern for 1st interleaving:
+// TODO: Dont duplicate this table from the FEC stack.
+static char sInter1Perm[4][8] = {
+	{0},			 // TTI = 10ms
+	{0, 1},			 // TTI = 20ms
+	{0, 2, 1, 3},		 // TTI = 40ms
+	{0, 4, 2, 6, 1, 5, 3, 7} // TTI = 80ms
+};
 
 char *inter1Perm(TTICodes tticode)
 {
@@ -59,8 +64,8 @@ char *inter1Perm(TTICodes tticode)
 	return sInter1Perm[(unsigned)tticode];
 }
 
-// 3GPP 25.212 4.2.7 Rate Matching.
-// We only support convolutionally encoded vectors, not turbo-coded.
+	// 3GPP 25.212 4.2.7 Rate Matching.
+	// We only support convolutionally encoded vectors, not turbo-coded.
 	// Star notation:
 	//		X* = Y ::= for all x do Xx = Y;
 	//		Y = X* ::= for any x do Y = Xx
@@ -109,7 +114,7 @@ char *inter1Perm(TTICodes tticode)
 	// 4.2.7.1.2 Determination of Parameters needed for calculating the rate matching pattern.
 	// We can ignore this.
 	// 4.2.7.1.2.1 Convolutionally coded TrCh.
-	// R = deltaNi,j positive mod Ni,j 
+	// R = deltaNi,j positive mod Ni,j
 	// Note that the the mod only does something if delta > Ni,j, ie, bits repeated twice.
 	//
 	// DOWNLINK RATE MATCHING PARAMETERS:
@@ -180,19 +185,22 @@ void rateMatchFunc(BitVector &in,BitVector &out, int eini)
 #endif
 
 // Compute eplus and eminus for TrCh that compute it from the current TF vector sizes.
-void rateMatchComputeEplus(int nin, int nout, int *eplus, int *eminus) {
-	*eplus = 2 * nin;				// eplus = a * Ni,j
-	*eminus = 2 * (nout - nin);	// eminus = a * abs(deltaNi,j)
-	if (*eminus < 0) { *eminus = - *eminus; }
+void rateMatchComputeEplus(int nin, int nout, int *eplus, int *eminus)
+{
+	*eplus = 2 * nin;	   // eplus = a * Ni,j
+	*eminus = 2 * (nout - nin); // eminus = a * abs(deltaNi,j)
+	if (*eminus < 0) {
+		*eminus = -*eminus;
+	}
 }
 
 // Uplink only.  In downlink, eini == 1.
 // Output goes into: int einis[numRadioFrames]
 // The insize and outsize are for each radio frame, which would be the same sizes
 // fed to the rateMatchFunc, not the the total number of bits in whole the TTI.
-void rateMatchComputeUlEini(int insize, int outsize, TTICodes tticode,int *einis)
+void rateMatchComputeUlEini(int insize, int outsize, TTICodes tticode, int *einis)
 {
-	int numRadioFrames = (int) TTICode2NumFrames(tticode);	// return 1,2,4,8
+	int numRadioFrames = (int)TTICode2NumFrames(tticode); // return 1,2,4,8
 	int debug = 0;
 	// 4.2.7.1.2.1 verbatim.
 	// This is massive way overkill, because for the common cases we could just use:
@@ -201,48 +209,54 @@ void rateMatchComputeUlEini(int insize, int outsize, TTICodes tticode,int *einis
 	int Nij = insize;
 	int deltaNij = outsize - insize;
 
-	if (insize == 0 && outsize == 0) { 
-          for (int ni = 0; ni < numRadioFrames; ni++) einis[ni] = 0;
-	  return;
-        }
-
+	if (insize == 0 && outsize == 0) {
+		for (int ni = 0; ni < numRadioFrames; ni++)
+			einis[ni] = 0;
+		return;
+	}
 
 	// Compute R
 	int R = deltaNij % Nij;
-	while (R < 0) {R += Nij;}
+	while (R < 0) {
+		R += Nij;
+	}
 
 	// Compute q
 	int q;
-	if (R && 2*R <= Nij) {
-		q = ceil((double)Nij/R);
+	if (R && 2 * R <= Nij) {
+		q = ceil((double)Nij / R);
 	} else {
-		q = ceil((double)Nij/(R-Nij));
+		q = ceil((double)Nij / (R - Nij));
 	}
 
 	// Compute qprime
 	double qprime;
-	int qpos = q > 0 ? q : - q;
+	int qpos = q > 0 ? q : -q;
 	// Compute greatest common divisor.
 	int gcdq;
-	if ((qpos&1) == 0) { // if q is even
-		gcdq = gcd(abs(q),numRadioFrames);
-		qprime = q + (double)gcdq/numRadioFrames;
+	if ((qpos & 1) == 0) { // if q is even
+		gcdq = gcd(abs(q), numRadioFrames);
+		qprime = q + (double)gcdq / numRadioFrames;
 	} else {
 		qprime = q;
 	}
 
-	if (debug) { printf("R=%d q=%d gcd=%d qprime=%g\n",R,q,gcdq,qprime); }
+	if (debug) {
+		printf("R=%d q=%d gcd=%d qprime=%g\n", R, q, gcdq, qprime);
+	}
 
 	// Compute S
 	// For TTI=10 and 20, it is an identity function.
 	int S[8];
 	for (int x = 0; x < numRadioFrames; x++) {
-		int tmp1 = abs((int) floor(x*qprime));
+		int tmp1 = abs((int)floor(x * qprime));
 		int tmp3 = tmp1 % numRadioFrames;
 		S[tmp3] = tmp1 / numRadioFrames;
-		if (debug) printf("S[%d]=%d ",tmp3,tmp1/numRadioFrames);
+		if (debug)
+			printf("S[%d]=%d ", tmp3, tmp1 / numRadioFrames);
 	}
-	if (debug) printf("\n");
+	if (debug)
+		printf("\n");
 
 	// Get P1Fi(ni)
 	char *P1F = inter1Perm(tticode);
@@ -255,11 +269,11 @@ void rateMatchComputeUlEini(int insize, int outsize, TTICodes tticode,int *einis
 	}
 }
 
-};	// namespace
+}; // namespace
 
 #if RATE_MATCH_TEST
-#include <stdlib.h>	// for rand
 #include "Configuration.h"
+#include <stdlib.h> // for rand
 using namespace UMTS;
 
 // Return rand in the range 0..maxval inclusive.
@@ -268,20 +282,22 @@ static int rangerand(int minval, int maxval, unsigned *pseed)
 	int range = maxval - minval;
 	// Note: Should be /(RAND_MAX+1) but that overflows, but we will post-bound.
 	double randfrac = ((double)rand_r(pseed) / RAND_MAX); // range 0..1
-	int result = minval + (int) round(randfrac * range);
-	return RN_BOUND(result,minval,maxval);	// Double check that it is in range.
+	int result = minval + (int)round(randfrac * range);
+	return RN_BOUND(result, minval, maxval); // Double check that it is in range.
 }
 
 static void printdiff(BitVector &v1, BitVector &v2)
 {
 	int diffbit, v1size = v1.size();
-	for (diffbit=0; diffbit < v1size; diffbit++) {
-		if (v1.bit(diffbit) != v2.bit(diffbit)) { break; }
+	for (diffbit = 0; diffbit < v1size; diffbit++) {
+		if (v1.bit(diffbit) != v2.bit(diffbit)) {
+			break;
+		}
 	}
 	if (diffbit < v1size) {
-		//printf("vectors size %d differ at bit %d\n",v1.size(),diffbit);
-		//printf("1= %s\n",v1.hexstr().c_str());
-		//printf("2= %s\n",v2.hexstr().c_str());
+		// printf("vectors size %d differ at bit %d\n",v1.size(),diffbit);
+		// printf("1= %s\n",v1.hexstr().c_str());
+		// printf("2= %s\n",v2.hexstr().c_str());
 		printf("d=");
 		for (int i = 0; i < v1size; i++) {
 			if (v1.bit(i) != v2.bit(i)) {
@@ -296,69 +312,76 @@ static void printdiff(BitVector &v1, BitVector &v2)
 
 static void testRateMatchFunc(int insize, int outsize, int eini)
 {
-	//ByteVector *svectors[sMaxTestVectors];
+	// ByteVector *svectors[sMaxTestVectors];
 	int numTestVectors = 100;
 	int ntests = 0;
 	unsigned sseed = 1;
 	for (int n = 0; n < numTestVectors; n++) {
 		// Generate a random sized test vector.
-		//int len = rangerand(2,40,&sseed);	// 2..100 bytes.
+		// int len = rangerand(2,40,&sseed);	// 2..100 bytes.
 		int len = insize;
-		printf("vector %d size %d\n",n,len);
+		printf("vector %d size %d\n", n, len);
 		BitVector vtest(len);
 		for (int j = 0; j < len; j++) {
 			int val;
-			switch (n%4) {	// Lets do 4 different test vectors.
-			case 0: val = 0; break;
-			case 1: val = 1; break;
-			case 2: val = j & 1; break;
-			case 3: val = !(j&1); break;
+			switch (n % 4) { // Lets do 4 different test vectors.
+			case 0:
+				val = 0;
+				break;
+			case 1:
+				val = 1;
+				break;
+			case 2:
+				val = j & 1;
+				break;
+			case 3:
+				val = !(j & 1);
+				break;
 			}
-			vtest.fillField(j,val,1);
+			vtest.fillField(j, val, 1);
 		}
-		//svectors[n] = new ByteVector(len);
-		//svectors[n]->setField(0,n,16);
-		//for (int j = 2; j < len; j++) {
-			//svectors[n]->setByte(j,j); // Fill the rest of the test vec with numbers.
+		// svectors[n] = new ByteVector(len);
+		// svectors[n]->setField(0,n,16);
+		// for (int j = 2; j < len; j++) {
+		// svectors[n]->setByte(j,j); // Fill the rest of the test vec with numbers.
 		//}
 
 		// Now test with various puncturing and repetition...
 		int size = vtest.size();
-		//for (int diff = -size/2+1; diff < size; diff++) {
-		for (int diff = outsize-size; diff <= outsize-size; diff++) {
+		// for (int diff = -size/2+1; diff < size; diff++) {
+		for (int diff = outsize - size; diff <= outsize - size; diff++) {
 			ntests++;
-			BitVector there(size+diff);
+			BitVector there(size + diff);
 			BitVector andBackAgain(size);
-			UMTS::rateMatchFunc(vtest,there,eini);
-			UMTS::rateMatchFunc(there,andBackAgain,eini);
+			UMTS::rateMatchFunc(vtest, there, eini);
+			UMTS::rateMatchFunc(there, andBackAgain, eini);
 			if (!(vtest == andBackAgain)) {
-				printf("vector %d differs insize=%d outsize=%d %s %d\n",
-					n,vtest.size(),there.size(),diff < 0 ? "puncture" : "repeat",diff);
+				printf("vector %d differs insize=%d outsize=%d %s %d\n", n, vtest.size(), there.size(),
+					diff < 0 ? "puncture" : "repeat", diff);
 				if (1) {
-					std::cout<<"1="<<vtest<<"\n";
-					std::cout<<"2="<<there<<"\n";
-					std::cout<<"3="<<andBackAgain<<"\n";
+					std::cout << "1=" << vtest << "\n";
+					std::cout << "2=" << there << "\n";
+					std::cout << "3=" << andBackAgain << "\n";
 				} else {
-					printf("1=%s\n",vtest.hexstr().c_str());
-					printf("2=%s\n",there.hexstr().c_str());
-					printf("3=%s\n",andBackAgain.hexstr().c_str());
+					printf("1=%s\n", vtest.hexstr().c_str());
+					printf("2=%s\n", there.hexstr().c_str());
+					printf("3=%s\n", andBackAgain.hexstr().c_str());
 				}
-				printdiff(vtest,andBackAgain);
+				printdiff(vtest, andBackAgain);
 			}
 		}
 	}
-	printf("Ran %d tests\n",ntests);
+	printf("Ran %d tests\n", ntests);
 }
-
 
 static void testOneEini(int insize, int outsize, TTICodes tticode, int *eini)
 {
-	UMTS::rateMatchComputeUlEini(insize, outsize,tticode,eini);
-	int numRadioFrames = (int) TTICode2NumFrames(tticode);
-	printf("in=%d out=%d tti=%d ",insize,outsize,(int)tticode);
+	UMTS::rateMatchComputeUlEini(insize, outsize, tticode, eini);
+	int numRadioFrames = (int)TTICode2NumFrames(tticode);
+	printf("in=%d out=%d tti=%d ", insize, outsize, (int)tticode);
 	printf("eini=");
 	for (int i = 0; i < numRadioFrames; i++) {
-		printf(" %d",eini[i]);
+		printf(" %d", eini[i]);
 	}
 	printf("\n");
 }
@@ -366,26 +389,25 @@ static void testOneEini(int insize, int outsize, TTICodes tticode, int *eini)
 static void testEini()
 {
 	for (int size = 8; size < 100; size++) {
-		for (int diff = -size/2+1; diff < size; diff++) {
+		for (int diff = -size / 2 + 1; diff < size; diff++) {
 			for (int tti = 0; tti <= 3; tti++) {
 				int eini[8];
-				testOneEini(size,size+diff,(TTICodes)tti,eini);
+				testOneEini(size, size + diff, (TTICodes)tti, eini);
 			}
 		}
 	}
 }
 
-
-ConfigurationTable gConfig;	// geesh
+ConfigurationTable gConfig; // geesh
 int main(int argc, char **argv)
 {
 	int eini[8];
 	int insize = 5904;
 	int outsize = 9600;
-	testOneEini(insize,outsize,TTI10ms,eini);
-	//testOneEini(144,150,TTI20ms);
-	testRateMatchFunc(insize,outsize,eini[0]);
-	//testEini();
+	testOneEini(insize, outsize, TTI10ms, eini);
+	// testOneEini(144,150,TTI20ms);
+	testRateMatchFunc(insize, outsize, eini[0]);
+	// testEini();
 	return 0;
 }
 #endif

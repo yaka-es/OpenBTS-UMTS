@@ -1,15 +1,15 @@
 /**@file SMS Control (L3), GSM 03.40, 04.11. */
 
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2008, 2009 Free Software Foundation, Inc.
  * Copyright 2010 Kestrel Signal Processing, Inc.
  * Copyright 2011, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
@@ -32,41 +32,37 @@
 
 */
 
-
 #include <stdio.h>
+
 #include <sstream>
-#include <GSML3MMMessages.h>
-#include "SMSControl.h"
+
+#include <CommonLibs/Logger.h>
+#include <CommonLibs/Regexp.h>
+#include <GSM/GSML3MMMessages.h>
+#include <SIP/SIPEngine.h>
+#include <SIP/SIPInterface.h>
+#include <SIP/SIPMessage.h>
+#include <SIP/SIPUtility.h>
+#include <SMS/SMSMessages.h>
+#include <UMTS/UMTSLogicalChannel.h>
+
 #include "ControlCommon.h"
+#include "SMSControl.h"
 #include "TransactionTable.h"
-#include <Regexp.h>
 
-#include <UMTSLogicalChannel.h>
-
-
-using namespace std;
 using namespace Control;
-
-#include "SMSMessages.h"
-using namespace SMS;
-
-#include "SIPInterface.h"
-#include "SIPUtility.h"
-#include "SIPMessage.h"
-#include "SIPEngine.h"
 using namespace SIP;
-
-#include <Logger.h>
-#undef WARNING
+using namespace SMS;
+using namespace std;
 
 /**
 	Read an L3Frame from SAP3.
 	Throw exception on failure.  Will NOT return a NULL pointer.
 */
-GSM::L3Frame* getFrameSMS(UMTS::DCCHLogicalChannel *LCH, GSM::Primitive primitive=GSM::DATA)
+GSM::L3Frame *getFrameSMS(UMTS::DCCHLogicalChannel *LCH, GSM::Primitive primitive = GSM::DATA)
 {
 	// FIXME -- We need to determine a correct timeout value here.
-	GSM::L3Frame *retVal = LCH->recv(20000,3);
+	GSM::L3Frame *retVal = LCH->recv(20000, 3);
 	if (!retVal) {
 		LOG(NOTICE) << "channel read time out on " << *LCH << " SAP3";
 		throw ChannelReadTimeout();
@@ -83,8 +79,7 @@ GSM::L3Frame* getFrameSMS(UMTS::DCCHLogicalChannel *LCH, GSM::Primitive primitiv
 	return retVal;
 }
 
-
-bool sendSIP(TransactionEntry *transaction, const char* address, const char* body, const char* contentType)
+bool sendSIP(TransactionEntry *transaction, const char *address, const char *body, const char *contentType)
 {
 	// Steps:
 	// 1 -- Complete transaction record.
@@ -97,16 +92,16 @@ bool sendSIP(TransactionEntry *transaction, const char* address, const char* bod
 	GSM::L3CalledPartyBCDNumber calledParty(address);
 	// Attach calledParty and message body to the transaction.
 	transaction->called(calledParty);
-	transaction->message(body,strlen(body));
+	transaction->message(body, strlen(body));
 
 	// Step 2 -- Send the message to the server.
-	transaction->MOSMSSendMESSAGE(address,gConfig.getStr("SIP.Local.IP").c_str(),contentType);
+	transaction->MOSMSSendMESSAGE(address, gConfig.getStr("SIP.Local.IP").c_str(), contentType);
 
 	// Step 3 -- Wait for OK or ACCEPTED.
 	SIPState state = transaction->MOSMSWaitForSubmit();
 
 	// Step 4 -- Done
-	return state==SIP::Cleared;
+	return state == SIP::Cleared;
 }
 
 /**
@@ -115,52 +110,50 @@ bool sendSIP(TransactionEntry *transaction, const char* address, const char* bod
 	@param RPDU The RPDU to process.
 	@return true if successful.
 */
-bool handleRPDU(TransactionEntry *transaction, const RLFrame& RPDU)
+bool handleRPDU(TransactionEntry *transaction, const RLFrame &RPDU)
 {
 	LOG(DEBUG) << "SMS: handleRPDU MTI=" << RPDU.MTI();
 	switch ((RPMessage::MessageType)RPDU.MTI()) {
-		case RPMessage::Data: {
-			string contentType = gConfig.getStr("SMS.MIMEType");
-			ostringstream body;
+	case RPMessage::Data: {
+		string contentType = gConfig.getStr("SMS.MIMEType");
+		ostringstream body;
 
-			if (contentType == "text/plain") {
-				// TODO: Clean this mess up!
-				RPData data;
-				data.parse(RPDU);
-				TLSubmit submit;
-				submit.parse(data.TPDU());
-				
-				body << submit.UD().decode();
-			} else if (contentType == "application/vnd.3gpp.sms") {
-				RPDU.hex(body);
-			} else {
-				LOG(ALERT) << "\"" << contentType << "\" is not a valid SMS payload type";
-			}
-			const char* address = NULL;
-			if (gConfig.defines("SIP.SMSC")) address = gConfig.getStr("SIP.SMSC").c_str();
+		if (contentType == "text/plain") {
+			// TODO: Clean this mess up!
+			RPData data;
+			data.parse(RPDU);
+			TLSubmit submit;
+			submit.parse(data.TPDU());
 
-			/* The SMSC is not defined, we are using an older version */
-			if (address == NULL) {
-				RPData data;
-				data.parse(RPDU);
-				TLSubmit submit;
-				submit.parse(data.TPDU());
-
-				address = submit.DA().digits();
-			}
-			return sendSIP(transaction, address, body.str().data(),contentType.c_str());
+			body << submit.UD().decode();
+		} else if (contentType == "application/vnd.3gpp.sms") {
+			RPDU.hex(body);
+		} else {
+			LOG(ALERT) << "\"" << contentType << "\" is not a valid SMS payload type";
 		}
-		case RPMessage::Ack:
-		case RPMessage::SMMA:
-			return true;
-		case RPMessage::Error:
-		default:
-			return false;
+		const char *address = NULL;
+		if (gConfig.defines("SIP.SMSC"))
+			address = gConfig.getStr("SIP.SMSC").c_str();
+
+		/* The SMSC is not defined, we are using an older version */
+		if (address == NULL) {
+			RPData data;
+			data.parse(RPDU);
+			TLSubmit submit;
+			submit.parse(data.TPDU());
+
+			address = submit.DA().digits();
+		}
+		return sendSIP(transaction, address, body.str().data(), contentType.c_str());
+	}
+	case RPMessage::Ack:
+	case RPMessage::SMMA:
+		return true;
+	case RPMessage::Error:
+	default:
+		return false;
 	}
 }
-
-
-
 
 void Control::MOSMSController(const GSM::L3CMServiceRequest *req, UMTS::DCCHLogicalChannel *LCH)
 {
@@ -174,10 +167,10 @@ void Control::MOSMSController(const GSM::L3CMServiceRequest *req, UMTS::DCCHLogi
 	// If we got a TMSI, find the IMSI.
 	// Note that this is a copy, not a reference.
 	GSM::L3MobileIdentity mobileID = req->mobileID();
-	resolveIMSI(mobileID,LCH);
+	resolveIMSI(mobileID, LCH);
 
 	// Create a transaction record.
-	TransactionEntry *transaction = new TransactionEntry(gConfig.getStr("SIP.Proxy.SMS").c_str(),mobileID,LCH);
+	TransactionEntry *transaction = new TransactionEntry(gConfig.getStr("SIP.Proxy.SMS").c_str(), mobileID, LCH);
 	gTransactionTable.add(transaction);
 	LOG(DEBUG) << "MOSMS: transaction: " << *transaction;
 
@@ -203,14 +196,14 @@ void Control::MOSMSController(const GSM::L3CMServiceRequest *req, UMTS::DCCHLogi
 	LCH->send(GSM::L3CMServiceAccept());
 	// Wait for SAP3 to connect.
 	// The first read on SAP3 is the ESTABLISH primitive.
-	delete getFrameSMS(LCH,GSM::ESTABLISH);
+	delete getFrameSMS(LCH, GSM::ESTABLISH);
 
 	// Step 1
 	// Now get the first message.
 	// Should be CP-DATA, containing RP-DATA.
 	GSM::L3Frame *CM = getFrameSMS(LCH);
 	LOG(DEBUG) << "data from MS " << *CM;
-	if (CM->MTI()!=CPMessage::DATA) {
+	if (CM->MTI() != CPMessage::DATA) {
 		LOG(NOTICE) << "unexpected SMS CP message with TI=" << CM->MTI();
 		throw UnexpectedMessage();
 	}
@@ -221,7 +214,7 @@ void Control::MOSMSController(const GSM::L3CMServiceRequest *req, UMTS::DCCHLogi
 	// Respond with CP-ACK.
 	// This just means that we got the message.
 	LOG(INFO) << "sending CPAck";
-	LCH->send(CPAck(L3TI),3);
+	LCH->send(CPAck(L3TI), 3);
 
 	// Parse the message in CM and process RP part.
 	// This is where we actually parse the message and send it out.
@@ -238,15 +231,13 @@ void Control::MOSMSController(const GSM::L3CMServiceRequest *req, UMTS::DCCHLogi
 		// Transfer out the RPDU -> TPDU -> delivery.
 		ref = data.RPDU().reference();
 		// This handler invokes higher-layer parsers, too.
-		success = handleRPDU(transaction,data.RPDU());
-	}
-	catch (SMSReadError) {
+		success = handleRPDU(transaction, data.RPDU());
+	} catch (SMSReadError) {
 		LOG(WARNING) << "SMS parsing failed (above L3)";
 		// Cause 95, "semantically incorrect message".
-		LCH->send(CPData(L3TI,RPError(95,ref)),3);
+		LCH->send(CPData(L3TI, RPError(95, ref)), 3);
 		throw UnexpectedMessage();
-	}
-	catch (GSM::L3ReadError) {
+	} catch (GSM::L3ReadError) {
 		LOG(WARNING) << "SMS parsing failed (in L3)";
 		throw UnsupportedMessage();
 	}
@@ -255,18 +246,18 @@ void Control::MOSMSController(const GSM::L3CMServiceRequest *req, UMTS::DCCHLogi
 	// Send CP-DATA containing RP-ACK and message reference.
 	if (success) {
 		LOG(INFO) << "sending RPAck in CPData";
-		LCH->send(CPData(L3TI,RPAck(ref)),3);
+		LCH->send(CPData(L3TI, RPAck(ref)), 3);
 	} else {
 		LOG(INFO) << "sending RPError in CPData";
 		// Cause 127 is "internetworking error, unspecified".
 		// See GSM 04.11 Table 8.4.
-		LCH->send(CPData(L3TI,RPError(127,ref)),3);
+		LCH->send(CPData(L3TI, RPError(127, ref)), 3);
 	}
 
 	// Step 4
 	// Get CP-ACK from the MS.
 	CM = getFrameSMS(LCH);
-	if (CM->MTI()!=CPMessage::ACK) {
+	if (CM->MTI() != CPMessage::ACK) {
 		LOG(NOTICE) << "unexpected SMS CP message with TI=" << CM->MTI();
 		throw UnexpectedMessage();
 	}
@@ -281,18 +272,16 @@ void Control::MOSMSController(const GSM::L3CMServiceRequest *req, UMTS::DCCHLogi
 	LOG(INFO) << "closing the Um channel";
 }
 
-
-
-
-bool Control::deliverSMSToMS(const char *callingPartyDigits, const char* message, const char* contentType, unsigned L3TI, UMTS::DCCHLogicalChannel *LCH)
+bool Control::deliverSMSToMS(const char *callingPartyDigits, const char *message, const char *contentType,
+	unsigned L3TI, UMTS::DCCHLogicalChannel *LCH)
 {
 	if (!LCH->multiframeMode(3)) {
 		// Start ABM in SAP3.
-		LCH->send(GSM::ESTABLISH,3);
+		LCH->send(GSM::ESTABLISH, 3);
 		// Wait for SAP3 ABM to connect.
 		// The next read on SAP3 should the ESTABLISH primitive.
 		// This won't return NULL.  It will throw an exception if it fails.
-		delete getFrameSMS(LCH,GSM::ESTABLISH);
+		delete getFrameSMS(LCH, GSM::ESTABLISH);
 	}
 
 #if 0
@@ -314,12 +303,11 @@ bool Control::deliverSMSToMS(const char *callingPartyDigits, const char* message
 	unsigned reference = random() % 255;
 	RPData rp_data;
 
-	if (strncmp(contentType,"text/plain",10)==0) {
-		rp_data = RPData(reference,
-			RPAddress(gConfig.getStr("SMS.FakeSrcSMSC").c_str()),
-			TLDeliver(callingPartyDigits,message,0));
-	} else if (strncmp(contentType,"application/vnd.3gpp.sms",24)==0) {
-		BitVector RPDUbits(strlen(message)*4);
+	if (strncmp(contentType, "text/plain", 10) == 0) {
+		rp_data = RPData(reference, RPAddress(gConfig.getStr("SMS.FakeSrcSMSC").c_str()),
+			TLDeliver(callingPartyDigits, message, 0));
+	} else if (strncmp(contentType, "application/vnd.3gpp.sms", 24) == 0) {
+		BitVector RPDUbits(strlen(message) * 4);
 		if (!RPDUbits.unhex(message)) {
 			LOG(WARNING) << "Hex string parsing failed (in incoming SIP MESSAGE)";
 			throw UnexpectedMessage();
@@ -331,14 +319,12 @@ bool Control::deliverSMSToMS(const char *callingPartyDigits, const char* message
 
 			rp_data.parse(RPDU);
 			LOG(DEBUG) << "SMS RP-DATA " << rp_data;
-		}
-		catch (SMSReadError) {
+		} catch (SMSReadError) {
 			LOG(WARNING) << "SMS parsing failed (above L3)";
 			// Cause 95, "semantically incorrect message".
-			LCH->send(CPData(L3TI,RPError(95,reference)),3);
+			LCH->send(CPData(L3TI, RPError(95, reference)), 3);
 			throw UnexpectedMessage();
-		}
-		catch (GSM::L3ReadError) {
+		} catch (GSM::L3ReadError) {
 			LOG(WARNING) << "SMS parsing failed (in L3)";
 			// TODO:: send error back to the phone
 			throw UnsupportedMessage();
@@ -348,19 +334,19 @@ bool Control::deliverSMSToMS(const char *callingPartyDigits, const char* message
 		throw UnexpectedMessage();
 	}
 
-	CPData deliver(L3TI,rp_data);
+	CPData deliver(L3TI, rp_data);
 
 #endif
 
 	// Start ABM in SAP3.
-	//LCH->send(GSM::ESTABLISH,3);
+	// LCH->send(GSM::ESTABLISH,3);
 	// Wait for SAP3 ABM to connect.
 	// The next read on SAP3 should the ESTABLISH primitive.
 	// This won't return NULL.  It will throw an exception if it fails.
-	//delete getFrameSMS(LCH,GSM::ESTABLISH);
+	// delete getFrameSMS(LCH,GSM::ESTABLISH);
 
 	LOG(INFO) << "sending " << deliver;
-	LCH->send(deliver,3);
+	LCH->send(deliver, 3);
 
 	// Step 2
 	// Get the CP-ACK.
@@ -368,7 +354,7 @@ bool Control::deliverSMSToMS(const char *callingPartyDigits, const char* message
 	LOG(DEBUG) << "MTSMS: waiting for CP-ACK";
 	GSM::L3Frame *CM = getFrameSMS(LCH);
 	LOG(DEBUG) << "MTSMS: ack from MS " << *CM;
-	if (CM->MTI()!=CPMessage::ACK) {
+	if (CM->MTI() != CPMessage::ACK) {
 		LOG(WARNING) << "MS rejected our RP-DATA with CP message with TI=" << CM->MTI();
 		throw UnexpectedMessage();
 	}
@@ -378,7 +364,7 @@ bool Control::deliverSMSToMS(const char *callingPartyDigits, const char* message
 	LOG(DEBUG) << "MTSMS: waiting for RP-ACK";
 	CM = getFrameSMS(LCH);
 	LOG(DEBUG) << "MTSMS: data from MS " << *CM;
-	if (CM->MTI()!=CPMessage::DATA) {
+	if (CM->MTI() != CPMessage::DATA) {
 		LOG(NOTICE) << "Unexpected SMS CP message with TI=" << CM->MTI();
 		throw UnexpectedMessage();
 	}
@@ -391,14 +377,12 @@ bool Control::deliverSMSToMS(const char *callingPartyDigits, const char* message
 		data.parse(*CM);
 		delete CM;
 		LOG(DEBUG) << "CPData " << data;
-	}
-	catch (SMSReadError) {
+	} catch (SMSReadError) {
 		LOG(WARNING) << "SMS parsing failed (above L3)";
 		// Cause 95, "semantically incorrect message".
-		LCH->send(CPError(L3TI,95),3);
+		LCH->send(CPError(L3TI, 95), 3);
 		throw UnexpectedMessage();
-	}
-	catch (GSM::L3ReadError) {
+	} catch (GSM::L3ReadError) {
 		LOG(WARNING) << "SMS parsing failed (in L3)";
 		throw UnsupportedMessage();
 	}
@@ -406,7 +390,7 @@ bool Control::deliverSMSToMS(const char *callingPartyDigits, const char* message
 	// FIXME -- Check SMS reference.
 
 	bool success = true;
-	if (data.RPDU().MTI()!=RPMessage::Ack) {
+	if (data.RPDU().MTI() != RPMessage::Ack) {
 		LOG(WARNING) << "unexpected RPDU " << data.RPDU();
 		success = false;
 	}
@@ -414,12 +398,9 @@ bool Control::deliverSMSToMS(const char *callingPartyDigits, const char* message
 	// Step 4
 	// Send CP-ACK to the MS.
 	LOG(INFO) << "MTSMS: sending CPAck";
-	LCH->send(CPAck(L3TI),3);
+	LCH->send(CPAck(L3TI), 3);
 	return success;
 }
-
-
-
 
 void Control::MTSMSController(TransactionEntry *transaction, UMTS::DCCHLogicalChannel *LCH)
 {
@@ -438,18 +419,17 @@ void Control::MTSMSController(TransactionEntry *transaction, UMTS::DCCHLogicalCh
 	// The network side, i.e. the BSS will initiate SAPI3 establishment by a
 	// SABM command on the DCCH when the first CP-Data message is received
 	// from the MSC. If no hand over occurs, the link will stay up until the
-	// MSC has given the last CP-ack and invokes the clearing procedure. 
+	// MSC has given the last CP-ack and invokes the clearing procedure.
 	// """
 
-
 	// Attach the channel to the transaction and update the state.
-	LOG(DEBUG) << "transaction: "<< *transaction;
+	LOG(DEBUG) << "transaction: " << *transaction;
 	transaction->channel(LCH);
 	transaction->GSMState(GSM::SMSDelivering);
-	LOG(INFO) << "transaction: "<< *transaction;
+	LOG(INFO) << "transaction: " << *transaction;
 
-	bool success = deliverSMSToMS(transaction->calling().digits(),transaction->message(),
-								transaction->messageType(),transaction->L3TI(),LCH);
+	bool success = deliverSMSToMS(transaction->calling().digits(), transaction->message(),
+		transaction->messageType(), transaction->L3TI(), LCH);
 
 #if 0
 	// Close the Dm channel?
@@ -460,14 +440,12 @@ void Control::MTSMSController(TransactionEntry *transaction, UMTS::DCCHLogicalCh
 #endif
 
 	// Ack in SIP domain.
-	if (success) transaction->MTSMSSendOK();
+	if (success)
+		transaction->MTSMSSendOK();
 
 	// Done.
 	gTransactionTable.remove(transaction);
 }
-
-
-
 
 void Control::InCallMOSMSStarter(TransactionEntry *parallelCall)
 {
@@ -475,18 +453,14 @@ void Control::InCallMOSMSStarter(TransactionEntry *parallelCall)
 	assert(hostChan);
 	UMTS::DCCHLogicalChannel *DCCH = hostChan->DCCH();
 	assert(DCCH);
-	
+
 	// Create a partial transaction record.
-	TransactionEntry *newTransaction = new TransactionEntry(
-		gConfig.getStr("SIP.Proxy.SMS").c_str(),
-		parallelCall->subscriber(),
-		DCCH);
+	TransactionEntry *newTransaction =
+		new TransactionEntry(gConfig.getStr("SIP.Proxy.SMS").c_str(), parallelCall->subscriber(), DCCH);
 	gTransactionTable.add(newTransaction);
 }
 
-
-
-void Control::InCallMOSMSController(const CPData *cpData, TransactionEntry* transaction, UMTS::DCCHLogicalChannel *LCH)
+void Control::InCallMOSMSController(const CPData *cpData, TransactionEntry *transaction, UMTS::DCCHLogicalChannel *LCH)
 {
 	LOG(INFO) << *cpData;
 
@@ -501,7 +475,7 @@ void Control::InCallMOSMSController(const CPData *cpData, TransactionEntry* tran
 	// Respond with CP-ACK.
 	// This just means that we got the message.
 	LOG(INFO) << "sending CPAck";
-	LCH->send(CPAck(L3TI),3);
+	LCH->send(CPAck(L3TI), 3);
 
 	// Parse the message in CM and process RP part.
 	// This is where we actually parse the message and send it out.
@@ -517,15 +491,13 @@ void Control::InCallMOSMSController(const CPData *cpData, TransactionEntry* tran
 		// Transfer out the RPDU -> TPDU -> delivery.
 		ref = data.RPDU().reference();
 		// This handler invokes higher-layer parsers, too.
-		success = handleRPDU(transaction,data.RPDU());
-	}
-	catch (SMSReadError) {
+		success = handleRPDU(transaction, data.RPDU());
+	} catch (SMSReadError) {
 		LOG(WARNING) << "SMS parsing failed (above L3)";
 		// Cause 95, "semantically incorrect message".
-		LCH->send(CPData(L3TI,RPError(95,ref)),3);
+		LCH->send(CPData(L3TI, RPError(95, ref)), 3);
 		throw UnexpectedMessage(transaction->ID());
-	}
-	catch (GSM::L3ReadError) {
+	} catch (GSM::L3ReadError) {
 		LOG(WARNING) << "SMS parsing failed (in L3)";
 		throw UnsupportedMessage(transaction->ID());
 	}
@@ -534,18 +506,18 @@ void Control::InCallMOSMSController(const CPData *cpData, TransactionEntry* tran
 	// Send CP-DATA containing RP-ACK and message reference.
 	if (success) {
 		LOG(INFO) << "sending RPAck in CPData";
-		LCH->send(CPData(L3TI,RPAck(ref)),3);
+		LCH->send(CPData(L3TI, RPAck(ref)), 3);
 	} else {
 		LOG(INFO) << "sending RPError in CPData";
 		// Cause 127 is "internetworking error, unspecified".
 		// See GSM 04.11 Table 8.4.
-		LCH->send(CPData(L3TI,RPError(127,ref)),3);
+		LCH->send(CPData(L3TI, RPError(127, ref)), 3);
 	}
 
 	// Step 4
 	// Get CP-ACK from the MS.
-	GSM::L3Frame* CM = getFrameSMS(LCH);
-	if (CM->MTI()!=CPMessage::ACK) {
+	GSM::L3Frame *CM = getFrameSMS(LCH);
+	if (CM->MTI() != CPMessage::ACK) {
 		LOG(NOTICE) << "unexpected SMS CP message with MTI=" << CM->MTI() << " " << *CM;
 		throw UnexpectedMessage(transaction->ID());
 	}
@@ -556,5 +528,3 @@ void Control::InCallMOSMSController(const CPData *cpData, TransactionEntry* tran
 
 	gTransactionTable.remove(transaction);
 }
-
-// vim: ts=4 sw=4

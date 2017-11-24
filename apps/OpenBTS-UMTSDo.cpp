@@ -4,7 +4,7 @@
  *
  * Copyright 2011, 2012, 2013, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
+ * This software is distributed under the terms of the GNU Affero General
  * See the COPYING and NOTICE files in the current or main directory for
  * directory for licensing information.
  *
@@ -15,13 +15,13 @@
 // KEEP THIS FILE CLEAN FOR PUBLIC RELEASE.
 
 #include <sys/types.h>
-#include <unistd.h>
 #include <sys/socket.h>
 #include <sys/un.h>
+
+#include <limits.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <limits.h>
-
+#include <unistd.h>
 
 #define DEFAULT_CMD_PATH "/var/run/OpenBTS-UMTS-command"
 
@@ -52,17 +52,17 @@ int main(int argc, char *argv[])
 	// locally bound address
 	struct sockaddr_un rspSockName;
 	rspSockName.sun_family = AF_UNIX;
-	strcpy(rspSockName.sun_path,rspPath);
+	strcpy(rspSockName.sun_path, rspPath);
 
 	unlink(rspPath);
 
-	if (bind(sock, (struct sockaddr *) &rspSockName, sizeof(struct sockaddr_un))) {
+	if (bind(sock, (struct sockaddr *)&rspSockName, sizeof(struct sockaddr_un))) {
 		perror("binding name to datagram socket");
 		exit(1);
 	}
 
 	size_t input_buffer_size = 4096;
-	char *inbuf = (char*)malloc(input_buffer_size);
+	char *inbuf = (char *)malloc(input_buffer_size);
 	char *cmd = fgets(inbuf, input_buffer_size - 1, stdin);
 
 	ssize_t nsent, nrecv;
@@ -74,8 +74,7 @@ int main(int argc, char *argv[])
 
 	cmd[strlen(cmd) - 1] = '\0';
 
-	nsent = sendto(sock, cmd, strlen(cmd) + 1, 0,
-		(const struct sockaddr *)&cmdSockName, sizeof(cmdSockName));
+	nsent = sendto(sock, cmd, strlen(cmd) + 1, 0, (const struct sockaddr *)&cmdSockName, sizeof(cmdSockName));
 
 	if (nsent < 0) {
 		perror("sending datagram");

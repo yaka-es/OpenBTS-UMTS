@@ -1,15 +1,15 @@
 /**@file GSM/SIP Call Control -- GSM 04.08, ISDN ITU-T Q.931, SIP IETF RFC-3261, RTP IETF RFC-3550. */
 
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2008, 2009, 2010 Free Software Foundation, Inc.
  * Copyright 2010 Kestrel Signal Processing, Inc.
  * Copyright 2011, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
@@ -25,37 +25,29 @@
 	E-MOC -- Emergency Mobile Originated Connect (mobile calling out)
 */
 
+#include <CommonLibs/Logger.h>
+#include <GSM/GSMCommon.h>
+#include <GSM/GSML3CCMessages.h>
+#include <GSM/GSML3MMMessages.h>
+#include <GSM/GSML3RRMessages.h>
+#include <Globals/Globals.h>
+#include <SIP/SIPEngine.h>
+#include <SIP/SIPInterface.h>
+#include <SIP/SIPMessage.h>
+#include <SIP/SIPUtility.h>
+#include <UMTS/UMTSConfig.h>
+#include <UMTS/UMTSLogicalChannel.h>
 
-#include <Globals.h>
-
+#include "CallControl.h"
 #include "ControlCommon.h"
-#include "TransactionTable.h"
 #include "MobilityManagement.h"
 #include "SMSControl.h"
-#include "CallControl.h"
+#include "TransactionTable.h"
 
-#include <GSMCommon.h>
-#include <GSML3RRMessages.h>
-#include <GSML3MMMessages.h>
-#include <GSML3CCMessages.h>
-#include <UMTSConfig.h>
-#include <UMTSLogicalChannel.h>
-
-#include <SIPInterface.h>
-#include <SIPUtility.h>
-#include <SIPMessage.h>
-#include <SIPEngine.h>
-
-#include <Logger.h>
 #undef WARNING
 
 using namespace std;
 using namespace Control;
-
-
-
-
-
 
 /**
 	Return an even UDP port number for the RTP even/odd pair.
@@ -65,19 +57,18 @@ unsigned allocateRTPPorts()
 	// FIXME -- We need a real port allocator.
 	const unsigned base = gConfig.getNum("RTP.Start");
 	const unsigned range = gConfig.getNum("RTP.Range");
-	const unsigned top = base+range;
+	const unsigned top = base + range;
 	static Mutex lock;
 	// Pick a random starting point.
-	static unsigned port = base + 2*(random()%(range/2));
+	static unsigned port = base + 2 * (random() % (range / 2));
 	lock.lock();
 	unsigned retVal = port;
 	port += 2;
-	if (port>=top) port=base;
+	if (port >= top)
+		port = base;
 	lock.unlock();
 	return retVal;
 }
-
-
 
 /**
 	Force clearing on the GSM side.
@@ -85,13 +76,15 @@ unsigned allocateRTPPorts()
 	@param LCH The logical channel.
 	@param cause The L3 abort cause.
 */
-void forceGSMClearing(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH, const GSM::L3Cause& cause)
+void forceGSMClearing(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH, const GSM::L3Cause &cause)
 {
 	LOG(INFO) << "Q.931 state " << transaction->GSMState();
 	// Already cleared?
-	if (transaction->GSMState()==GSM::NullState) return;
+	if (transaction->GSMState() == GSM::NullState)
+		return;
 	// Clearing not started?  Start it.
-	if (!transaction->clearingGSM()) LCH->send(GSM::L3Disconnect(transaction->L3TI(),cause));
+	if (!transaction->clearingGSM())
+		LCH->send(GSM::L3Disconnect(transaction->L3TI(), cause));
 	// Force the rest.
 	LCH->send(GSM::L3ReleaseComplete(transaction->L3TI()));
 	LCH->send(GSM::L3ChannelRelease());
@@ -99,7 +92,6 @@ void forceGSMClearing(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *L
 	transaction->GSMState(GSM::NullState);
 	LCH->send(GSM::RELEASE);
 }
-
 
 /**
 	Force clearing on the SIP side.
@@ -109,8 +101,9 @@ void forceSIPClearing(TransactionEntry *transaction)
 {
 	SIP::SIPState state = transaction->SIPState();
 	LOG(INFO) << "SIP state " << state;
-	if (state==SIP::Cleared) return;
-	if (state!=SIP::MODClearing) {
+	if (state == SIP::Cleared)
+		return;
+	if (state != SIP::MODClearing) {
 		// This also changes the SIP state to "clearing".
 		transaction->MODSendBYE();
 	} else {
@@ -119,21 +112,19 @@ void forceSIPClearing(TransactionEntry *transaction)
 	transaction->MODWaitForOK();
 }
 
-
-
 /**
 	Abort the call.  Does not remove the transaction from the table.
 	@param transaction The call transaction record.
 	@param LCH The logical channel.
 	@param cause The L3 abort cause.
 */
-void abortCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH, const GSM::L3Cause& cause)
+void abortCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH, const GSM::L3Cause &cause)
 {
 	LOG(INFO) << "cause: " << cause << ", transction: " << *transaction;
-	if (LCH) forceGSMClearing(transaction,LCH,cause);
+	if (LCH)
+		forceGSMClearing(transaction, LCH, cause);
 	forceSIPClearing(transaction);
 }
-
 
 /**
 	Abort the call and remove the transaction.
@@ -141,16 +132,11 @@ void abortCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH, con
 	@param LCH The logical channel.
 	@param cause The L3 abort cause.
 */
-void abortAndRemoveCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH, const GSM::L3Cause& cause)
+void abortAndRemoveCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH, const GSM::L3Cause &cause)
 {
-	abortCall(transaction,LCH,cause);
+	abortCall(transaction, LCH, cause);
 	gTransactionTable.remove(transaction);
 }
-
-
-
-
-
 
 /**
 	Process a message received from the phone during a call.
@@ -161,20 +147,21 @@ void abortAndRemoveCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel 
 	@param message A pointer to the receiver message.
 	@return true If the call has been cleared and the channel released.
 */
-bool callManagementDispatchGSM(TransactionEntry *transaction, UMTS::DTCHLogicalChannel* LCH, const GSM::L3Message *message)
+bool callManagementDispatchGSM(
+	TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH, const GSM::L3Message *message)
 {
 	LOG(DEBUG) << "from " << transaction->subscriber() << " message " << *message;
 
 	// FIXME -- This dispatch section should be something more efficient with PD and MTI swtiches.
 
 	// Actually check state before taking action.
-	//if (transaction->SIPState()==SIP::Cleared) return true;
-	//if (transaction->GSMState()==GSM::NullState) return true;
+	// if (transaction->SIPState()==SIP::Cleared) return true;
+	// if (transaction->GSMState()==GSM::NullState) return true;
 
 	// Call connection steps.
 
 	// Connect Acknowledge
-	if (dynamic_cast<const GSM::L3ConnectAcknowledge*>(message)) {
+	if (dynamic_cast<const GSM::L3ConnectAcknowledge *>(message)) {
 		LOG(INFO) << "GSM Connect Acknowledge " << *transaction;
 		transaction->resetTimers();
 		transaction->GSMState(GSM::Active);
@@ -183,7 +170,7 @@ bool callManagementDispatchGSM(TransactionEntry *transaction, UMTS::DTCHLogicalC
 
 	// Connect
 	// GSM 04.08 5.2.2.5 and 5.2.2.6
-	if (dynamic_cast<const GSM::L3Connect*>(message)) {
+	if (dynamic_cast<const GSM::L3Connect *>(message)) {
 		LOG(INFO) << "GSM Connect " << *transaction;
 		transaction->resetTimers();
 		transaction->GSMState(GSM::Active);
@@ -193,7 +180,7 @@ bool callManagementDispatchGSM(TransactionEntry *transaction, UMTS::DTCHLogicalC
 	// Call Confirmed
 	// GSM 04.08 5.2.2.3.2
 	// "Call Confirmed" is the GSM MTC counterpart to "Call Proceeding"
-	if (dynamic_cast<const GSM::L3CallConfirmed*>(message)) {
+	if (dynamic_cast<const GSM::L3CallConfirmed *>(message)) {
 		LOG(INFO) << "GSM Call Confirmed " << *transaction;
 		transaction->resetTimer("303");
 		transaction->setTimer("301");
@@ -203,7 +190,7 @@ bool callManagementDispatchGSM(TransactionEntry *transaction, UMTS::DTCHLogicalC
 
 	// Alerting
 	// GSM 04.08 5.2.2.3.2
-	if (dynamic_cast<const GSM::L3Alerting*>(message)) {
+	if (dynamic_cast<const GSM::L3Alerting *>(message)) {
 		LOG(INFO) << "GSM Alerting " << *transaction;
 		transaction->resetTimer("310");
 		transaction->setTimer("301");
@@ -218,7 +205,7 @@ bool callManagementDispatchGSM(TransactionEntry *transaction, UMTS::DTCHLogicalC
 
 	// Disconnect (1st step of MOD)
 	// GSM 04.08 5.4.3.2
-	if (dynamic_cast<const GSM::L3Disconnect*>(message)) {
+	if (dynamic_cast<const GSM::L3Disconnect *>(message)) {
 		LOG(INFO) << "GSM Disconnect " << *transaction;
 		transaction->resetTimers();
 		LCH->send(GSM::L3Release(transaction->L3TI()));
@@ -230,7 +217,7 @@ bool callManagementDispatchGSM(TransactionEntry *transaction, UMTS::DTCHLogicalC
 	}
 
 	// Release (2nd step of MTD)
-	if (dynamic_cast<const GSM::L3Release*>(message)) {
+	if (dynamic_cast<const GSM::L3Release *>(message)) {
 		LOG(INFO) << "GSM Release " << *transaction;
 		transaction->resetTimers();
 		LCH->send(GSM::L3ReleaseComplete(transaction->L3TI()));
@@ -242,7 +229,7 @@ bool callManagementDispatchGSM(TransactionEntry *transaction, UMTS::DTCHLogicalC
 
 	// Release Complete (3nd step of MOD)
 	// GSM 04.08 5.4.3.4
-	if (dynamic_cast<const GSM::L3ReleaseComplete*>(message)) {
+	if (dynamic_cast<const GSM::L3ReleaseComplete *>(message)) {
 		LOG(INFO) << "GSM Release Complete " << *transaction;
 		transaction->resetTimers();
 		LCH->send(GSM::L3ChannelRelease());
@@ -252,54 +239,56 @@ bool callManagementDispatchGSM(TransactionEntry *transaction, UMTS::DTCHLogicalC
 	}
 
 	// IMSI Detach -- the phone is shutting off.
-	if (const GSM::L3IMSIDetachIndication* detach = dynamic_cast<const GSM::L3IMSIDetachIndication*>(message)) {
+	if (const GSM::L3IMSIDetachIndication *detach = dynamic_cast<const GSM::L3IMSIDetachIndication *>(message)) {
 		// The IMSI detach procedure will release the LCH.
 		LOG(INFO) << "GSM IMSI Detach " << *transaction;
-		IMSIDetachController(detach,LCH->DCCH());
+		IMSIDetachController(detach, LCH->DCCH());
 		forceSIPClearing(transaction);
 		return true;
 	}
 
 	// Start DTMF
 	// Transalate to RFC-2967 or RFC-2833.
-	if (const GSM::L3StartDTMF* startDTMF = dynamic_cast<const GSM::L3StartDTMF*>(message)) {
+	if (const GSM::L3StartDTMF *startDTMF = dynamic_cast<const GSM::L3StartDTMF *>(message)) {
 		char key = startDTMF->key().IA5();
-		LOG(INFO) << "DMTF key=" << key <<  ' ' << *transaction;
+		LOG(INFO) << "DMTF key=" << key << ' ' << *transaction;
 		bool success = false;
 		if (gConfig.defines("SIP.DTMF.RFC2833")) {
 			bool s = transaction->startDTMF(key);
-			if (!s) LOG(ERR) << "DTMF RFC-28333 failed.";
+			if (!s)
+				LOG(ERR) << "DTMF RFC-28333 failed.";
 			success |= s;
 		}
 		if (gConfig.defines("SIP.DTMF.RFC2967")) {
 			unsigned bcd = GSM::encodeBCDChar(key);
 			bool s = transaction->sendINFOAndWaitForOK(bcd);
-			if (!s) LOG(ERR) << "DTMF RFC-2967 failed.";
+			if (!s)
+				LOG(ERR) << "DTMF RFC-2967 failed.";
 			success |= s;
 		}
 		if (success) {
-			 LCH->send(GSM::L3StartDTMFAcknowledge(transaction->L3TI(),startDTMF->key()));
+			LCH->send(GSM::L3StartDTMFAcknowledge(transaction->L3TI(), startDTMF->key()));
 		} else {
-			LOG (CRIT) << "DTMF sending attempt failed; is any DTMF method defined?";
+			LOG(CRIT) << "DTMF sending attempt failed; is any DTMF method defined?";
 			// Cause 0x3f means "service or option not available".
-			LCH->send(GSM::L3StartDTMFReject(transaction->L3TI(),0x3f));
+			LCH->send(GSM::L3StartDTMFReject(transaction->L3TI(), 0x3f));
 		}
 		return false;
 	}
 
 	// Stop DTMF
 	// RFC-2967 or RFC-2833
-	if (dynamic_cast<const GSM::L3StopDTMF*>(message)) {
+	if (dynamic_cast<const GSM::L3StopDTMF *>(message)) {
 		transaction->stopDTMF();
 		LCH->send(GSM::L3StopDTMFAcknowledge(transaction->L3TI()));
 		return false;
 	}
 
 	// CM Service Request
-	if (const GSM::L3CMServiceRequest *cmsrq = dynamic_cast<const GSM::L3CMServiceRequest*>(message)) {
+	if (const GSM::L3CMServiceRequest *cmsrq = dynamic_cast<const GSM::L3CMServiceRequest *>(message)) {
 		// SMS submission?  The rest will happen on the SACCH.
 		if (cmsrq->serviceType().type() == GSM::L3CMServiceType::ShortMessage) {
-			LOG (INFO) << "in call SMS submission on " << *LCH;
+			LOG(INFO) << "in call SMS submission on " << *LCH;
 			InCallMOSMSStarter(transaction);
 			LCH->send(GSM::L3CMServiceAccept());
 			return false;
@@ -315,25 +304,22 @@ bool callManagementDispatchGSM(TransactionEntry *transaction, UMTS::DTCHLogicalC
 	// We need to answer the handset so it doesn't hang.
 
 	// Hold
-	if (dynamic_cast<const GSM::L3Hold*>(message)) {
+	if (dynamic_cast<const GSM::L3Hold *>(message)) {
 		LOG(NOTICE) << "rejecting hold request from " << transaction->subscriber();
 		// Default cause is 0x3f, option not available
-		LCH->send(GSM::L3HoldReject(transaction->L3TI(),0x3f));
+		LCH->send(GSM::L3HoldReject(transaction->L3TI(), 0x3f));
 		return false;
 	}
 
-	if (message)  { LOG(NOTICE) << "no support for message " << *message << " from " << transaction->subscriber(); }
-	else { LOG(NOTICE) << "no support for unrecognized message from " << transaction->subscriber(); }
-
+	if (message) {
+		LOG(NOTICE) << "no support for message " << *message << " from " << transaction->subscriber();
+	} else {
+		LOG(NOTICE) << "no support for unrecognized message from " << transaction->subscriber();
+	}
 
 	// If we got here, we're ignoring the message.
 	return false;
 }
-
-
-
-
-
 
 /**
 	Update vocoder data transfers in both directions.
@@ -358,7 +344,8 @@ bool updateCallTraffic(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *
 	// Transfer in the uplink direction (GSM->RTP).
 	// Flush FIFO to limit latency.
 	unsigned maxQ = gConfig.getNum("GSM.MaxSpeechLatency");
-	while (TCH->queueSize()>maxQ) delete[] TCH->recvTCH();
+	while (TCH->queueSize() > maxQ)
+		delete[] TCH->recvTCH();
 	if (unsigned char *txFrame = TCH->recvTCH()) {
 		activity = true;
 		// Send on RTP.
@@ -370,9 +357,6 @@ bool updateCallTraffic(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *
 	return activity;
 }
 
-
-
-
 /**
 	Check GSM signalling.
 	Can block for up to 52 GSM L1 frames (240 ms) because LCH::send is blocking.
@@ -380,21 +364,23 @@ bool updateCallTraffic(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *
 	@param LCH The call's logical channel (TCH/FACCH or SDCCH).
 	@return true If the call was cleared, but the transaction is still there.
 */
-bool updateGSMSignalling(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH, unsigned timeout=0)
+bool updateGSMSignalling(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH, unsigned timeout = 0)
 {
-	if (transaction->GSMState()==GSM::NullState) return true;
+	if (transaction->GSMState() == GSM::NullState)
+		return true;
 
 	// Any Q.931 timer expired?
 	if (transaction->anyTimerExpired()) {
 		// Cause 0x66, "recover on timer expiry"
-		abortCall(transaction,LCH,GSM::L3Cause(0x66));
+		abortCall(transaction, LCH, GSM::L3Cause(0x66));
 		return true;
 	}
 
 	// Look for a control message from MS side.
 	if (GSM::L3Frame *l3 = LCH->recv(timeout)) {
 		// Check for lower-layer error.
-		if (l3->primitive() == GSM::ERROR) return true;
+		if (l3->primitive() == GSM::ERROR)
+			return true;
 		// Parse and dispatch.
 		GSM::L3Message *l3msg = parseL3(*l3);
 		delete l3;
@@ -411,8 +397,6 @@ bool updateGSMSignalling(TransactionEntry *transaction, UMTS::DTCHLogicalChannel
 	return false;
 }
 
-
-
 /**
 	Check SIP signalling.
 	@param transaction The call's TransactionEntry.
@@ -425,7 +409,8 @@ bool updateSIPSignalling(TransactionEntry *transaction, UMTS::DTCHLogicalChannel
 
 	// The main purpose of this code is to initiate disconnects from the SIP side.
 
-	if (transaction->SIPState()==SIP::Cleared) return true;
+	if (transaction->SIPState() == SIP::Cleared)
+		return true;
 
 	bool GSMClearedOrClearing = GSMCleared || transaction->clearingGSM();
 
@@ -443,10 +428,8 @@ bool updateSIPSignalling(TransactionEntry *transaction, UMTS::DTCHLogicalChannel
 		}
 	}
 
-	return transaction->SIPState()==SIP::Cleared;
+	return transaction->SIPState() == SIP::Cleared;
 }
-
-
 
 /**
 	Check SIP and GSM signalling.
@@ -455,16 +438,13 @@ bool updateSIPSignalling(TransactionEntry *transaction, UMTS::DTCHLogicalChannel
 	@param LCH The call's logical channel (TCH/FACCH or SDCCH).
 	@return true If the call is cleared in both domains.
 */
-bool updateSignalling(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH, unsigned timeout=0)
+bool updateSignalling(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH, unsigned timeout = 0)
 {
 
-	bool GSMCleared = (updateGSMSignalling(transaction,LCH,timeout));
-	bool SIPCleared = updateSIPSignalling(transaction,LCH,GSMCleared);
+	bool GSMCleared = (updateGSMSignalling(transaction, LCH, timeout));
+	bool SIPCleared = updateSIPSignalling(transaction, LCH, GSMCleared);
 	return GSMCleared && SIPCleared;
 }
-
-
-
 
 /**
 	Poll for activity while in a call.
@@ -485,29 +465,30 @@ bool pollInCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *TCH)
 
 	// Process pending SIP and GSM signalling.
 	// If this returns true, it means the call is fully cleared.
-	if (updateSignalling(transaction,TCH)) return true;
+	if (updateSignalling(transaction, TCH))
+		return true;
 
 	// Did an outside process request a termination?
 	if (transaction->terminationRequested()) {
 		// Cause 25 is "pre-emptive clearing".
-		abortCall(transaction,TCH,25);
+		abortCall(transaction, TCH, 25);
 		// Do the hard release to short-cut the timers.
 		// If something else is requesting termination,
 		// it's probably because we need the channel for
 		// something else (like an emegency call) right away.
-		//TCH->send(GSM::HARDRELEASE);
+		// TCH->send(GSM::HARDRELEASE);
 		return true;
 	}
 
 	// Transfer vocoder data.
 	// If anything happened, then the call is still up.
-	if (updateCallTraffic(transaction,TCH)) return false;
+	if (updateCallTraffic(transaction, TCH))
+		return false;
 
 	// If nothing happened, sleep so we don't burn up the CPU cycles.
 	msleep(50);
 	return false;
 }
-
 
 /**
 	Pause for a given time while managing the connection.
@@ -523,12 +504,11 @@ bool waitInCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *TCH, un
 	Timeval targetTime(waitTime_ms);
 	LOG(DEBUG);
 	while (!targetTime.passed()) {
-		if (pollInCall(transaction,TCH)) return true;
+		if (pollInCall(transaction, TCH))
+			return true;
 	}
 	return false;
 }
-
-
 
 /**
 	This is the standard call manangement loop, regardless of the origination type.
@@ -536,23 +516,21 @@ bool waitInCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *TCH, un
 	@param transaction The transaction record for this call, will be cleared on exit.
 	@param TCH The TCH+FACCH for the call.
 */
-void callManagementLoop(TransactionEntry *transaction, UMTS::DTCHLogicalChannel* TCH)
+void callManagementLoop(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *TCH)
 {
 	LOG(INFO) << " call connected " << *transaction;
 	// poll everything until the call is cleared
-	while (!pollInCall(transaction,TCH)) { }
+	while (!pollInCall(transaction, TCH)) {
+	}
 	gTransactionTable.remove(transaction);
 }
 
-
-
-
 /**
-	This function starts MOC on the SDCCH to the point of TCH assignment. 
+	This function starts MOC on the SDCCH to the point of TCH assignment.
 	@param req The CM Service Request that started all of this.
 	@param LCH The logical used to initiate call setup.
 */
-void Control::MOCStarter(const GSM::L3CMServiceRequest* req, UMTS::DTCHLogicalChannel *LCH)
+void Control::MOCStarter(const GSM::L3CMServiceRequest *req, UMTS::DTCHLogicalChannel *LCH)
 {
 	assert(LCH);
 	assert(req);
@@ -561,8 +539,7 @@ void Control::MOCStarter(const GSM::L3CMServiceRequest* req, UMTS::DTCHLogicalCh
 	// If we got a TMSI, find the IMSI.
 	// Note that this is a copy, not a reference.
 	GSM::L3MobileIdentity mobileID = req->mobileID();
-	resolveIMSI(mobileID,LCH);
-
+	resolveIMSI(mobileID, LCH);
 
 	// FIXME -- At this point, verify the that subscriber has access to this service.
 	// If the subscriber isn't authorized, send a CM Service Reject with
@@ -578,8 +555,8 @@ void Control::MOCStarter(const GSM::L3CMServiceRequest* req, UMTS::DTCHLogicalCh
 
 	// Get the Setup message.
 	// GSM 04.08 5.2.1.2
-	GSM::L3Message* msg_setup = getMessage(LCH);
-	const GSM::L3Setup *setup = dynamic_cast<const GSM::L3Setup*>(msg_setup);
+	GSM::L3Message *msg_setup = getMessage(LCH);
+	const GSM::L3Setup *setup = dynamic_cast<const GSM::L3Setup *>(msg_setup);
 	if (!setup) {
 		if (msg_setup) {
 			LOG(WARNING) << "Unexpected message " << *msg_setup;
@@ -596,7 +573,7 @@ void Control::MOCStarter(const GSM::L3CMServiceRequest* req, UMTS::DTCHLogicalCh
 		// FIXME -- This is quick-and-dirty, not following GSM 04.08 5.
 		LOG(WARNING) << "MOC setup with no number";
 		// Cause 0x60 "Invalid mandatory information"
-		LCH->send(GSM::L3ReleaseComplete(L3TI,0x60));
+		LCH->send(GSM::L3ReleaseComplete(L3TI, 0x60));
 		LCH->send(GSM::L3ChannelRelease());
 		// The SIP side and transaction record don't exist yet.
 		// So we're done.
@@ -606,19 +583,14 @@ void Control::MOCStarter(const GSM::L3CMServiceRequest* req, UMTS::DTCHLogicalCh
 
 	LOG(DEBUG) << "SIP start engine";
 	// Get the users sip_uri by pulling out the IMSI.
-	//const char *IMSI = mobileID.digits();
+	// const char *IMSI = mobileID.digits();
 	// Pull out Number user is trying to call and use as the sip_uri.
 	const char *bcdDigits = setup->calledPartyBCDNumber().digits();
 
 	// Create a transaction table entry so the TCH controller knows what to do later.
 	// The transaction on the TCH will be a continuation of this one.
-	TransactionEntry *transaction = new TransactionEntry(
-		gConfig.getStr("SIP.Proxy.Speech").c_str(),
-		mobileID,
-		LCH,
-		req->serviceType(),
-		L3TI,
-		setup->calledPartyBCDNumber());
+	TransactionEntry *transaction = new TransactionEntry(gConfig.getStr("SIP.Proxy.Speech").c_str(), mobileID, LCH,
+		req->serviceType(), L3TI, setup->calledPartyBCDNumber());
 	LOG(DEBUG) << "transaction: " << *transaction;
 	gTransactionTable.add(transaction);
 
@@ -627,11 +599,11 @@ void Control::MOCStarter(const GSM::L3CMServiceRequest* req, UMTS::DTCHLogicalCh
 	// cleaned up on abort or clearing.
 
 	// Now start a call by contacting asterisk.
-	// Engine methods will return their current state.	
+	// Engine methods will return their current state.
 	// The remote party will start ringing soon.
-	LOG(DEBUG) << "starting SIP (INVITE) Calling "<<bcdDigits;
+	LOG(DEBUG) << "starting SIP (INVITE) Calling " << bcdDigits;
 	unsigned basePort = allocateRTPPorts();
-	transaction->MOCSendINVITE(bcdDigits,gConfig.getStr("SIP.Local.IP").c_str(),basePort,SIP::RTPGSM610);
+	transaction->MOCSendINVITE(bcdDigits, gConfig.getStr("SIP.Local.IP").c_str(), basePort, SIP::RTPGSM610);
 	LOG(DEBUG) << "transaction: " << *transaction;
 
 	// Once we can start SIP call setup, send Call Proceeding.
@@ -663,110 +635,108 @@ void Control::MOCStarter(const GSM::L3CMServiceRequest* req, UMTS::DTCHLogicalCh
 	delete msg_ack;
 	if (!modeOK) return abortAndRemoveCall(transaction,LCH,GSM::L3Cause(0x06));
 #endif
-	MOCController(transaction,dynamic_cast<UMTS::DTCHLogicalChannel*>(LCH));
+	MOCController(transaction, dynamic_cast<UMTS::DTCHLogicalChannel *>(LCH));
 }
-
-
-
-
 
 /**
 	Continue MOC process on the TCH.
 	@param transaction The call state and SIP interface.
 	@param TCH The traffic channel to be used.
 */
-void Control::MOCController(TransactionEntry *transaction, UMTS::DTCHLogicalChannel* TCH)
+void Control::MOCController(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *TCH)
 {
 	LOG(DEBUG) << "transaction: " << *transaction;
 	unsigned L3TI = transaction->L3TI();
-	assert(L3TI>7);
+	assert(L3TI > 7);
 	assert(TCH);
-
 
 	// Look for RINGING or OK from the SIP side.
 	// There's a T310 running on the phone now.
 	// The phone will initiate clearing if it expires.
 	// FIXME -- We should also have a SIP.Timer.B timeout on this end.
-	while (transaction->GSMState()!=GSM::CallReceived) {
+	while (transaction->GSMState() != GSM::CallReceived) {
 
-		if (updateGSMSignalling(transaction,TCH)) return;
-		if (transaction->clearingGSM()) return abortAndRemoveCall(transaction,TCH,GSM::L3Cause(0x7F));
+		if (updateGSMSignalling(transaction, TCH))
+			return;
+		if (transaction->clearingGSM())
+			return abortAndRemoveCall(transaction, TCH, GSM::L3Cause(0x7F));
 
 		LOG(INFO) << "wait for Ringing or OK";
 		SIP::SIPState state = transaction->MOCWaitForOK();
-		LOG(DEBUG) << "SIP state="<<state;
+		LOG(DEBUG) << "SIP state=" << state;
 		switch (state) {
-			case SIP::Busy:
-				LOG(INFO) << "SIP:Busy, abort";
-				return abortAndRemoveCall(transaction,TCH,GSM::L3Cause(0x11));
-			case SIP::Fail:
-				LOG(NOTICE) << "SIP:Fail, abort";
-				return abortAndRemoveCall(transaction,TCH,GSM::L3Cause(0x7F));
-			case SIP::Ringing:
-				LOG(INFO) << "SIP:Ringing, send Alerting and move on";
-				TCH->send(GSM::L3Alerting(L3TI));
-				transaction->GSMState(GSM::CallReceived);
-				break;
-			case SIP::Active:
-				LOG(DEBUG) << "SIP:Active, move on";
-				transaction->GSMState(GSM::CallReceived);
-				break;
-			case SIP::Proceeding:
-				LOG(DEBUG) << "SIP:Proceeding, send progress";
-				TCH->send(GSM::L3Progress(L3TI));
-				break;
-			case SIP::Timeout:
-				LOG(NOTICE) << "SIP:Timeout, reinvite";
-				state = transaction->MOCResendINVITE();
-				break;
-			default:
-				LOG(NOTICE) << "SIP unexpected state " << state;
-				break;
+		case SIP::Busy:
+			LOG(INFO) << "SIP:Busy, abort";
+			return abortAndRemoveCall(transaction, TCH, GSM::L3Cause(0x11));
+		case SIP::Fail:
+			LOG(NOTICE) << "SIP:Fail, abort";
+			return abortAndRemoveCall(transaction, TCH, GSM::L3Cause(0x7F));
+		case SIP::Ringing:
+			LOG(INFO) << "SIP:Ringing, send Alerting and move on";
+			TCH->send(GSM::L3Alerting(L3TI));
+			transaction->GSMState(GSM::CallReceived);
+			break;
+		case SIP::Active:
+			LOG(DEBUG) << "SIP:Active, move on";
+			transaction->GSMState(GSM::CallReceived);
+			break;
+		case SIP::Proceeding:
+			LOG(DEBUG) << "SIP:Proceeding, send progress";
+			TCH->send(GSM::L3Progress(L3TI));
+			break;
+		case SIP::Timeout:
+			LOG(NOTICE) << "SIP:Timeout, reinvite";
+			state = transaction->MOCResendINVITE();
+			break;
+		default:
+			LOG(NOTICE) << "SIP unexpected state " << state;
+			break;
 		}
 	}
 
 	// There's a question here of what entity is generating the "patterns"
-	// (ringing, busy signal, etc.) during call set-up.  For now, we're ignoring 
+	// (ringing, busy signal, etc.) during call set-up.  For now, we're ignoring
 	// that question and hoping the phone will make its own ringing pattern.
-
 
 	// Wait for the SIP session to start.
 	// There's a timer on the phone that will initiate clearing if it expires.
 	LOG(INFO) << "wait for SIP OKAY";
 	SIP::SIPState state = transaction->SIPState();
-	while (state!=SIP::Active) {
+	while (state != SIP::Active) {
 
 		LOG(DEBUG) << "wait for SIP session start";
 		state = transaction->MOCWaitForOK();
-		LOG(DEBUG) << "SIP state "<< state;
+		LOG(DEBUG) << "SIP state " << state;
 
 		// check GSM state
-		if (updateGSMSignalling(transaction,TCH)) return;
-		if (transaction->clearingGSM()) return abortAndRemoveCall(transaction,TCH,GSM::L3Cause(0x7F));
+		if (updateGSMSignalling(transaction, TCH))
+			return;
+		if (transaction->clearingGSM())
+			return abortAndRemoveCall(transaction, TCH, GSM::L3Cause(0x7F));
 
 		// parse out SIP state
 		switch (state) {
-			case SIP::Busy:
-				// Should this be possible at this point?
-				LOG(INFO) << "SIP:Busy, abort";
-				return abortAndRemoveCall(transaction,TCH,GSM::L3Cause(0x11));
-			case SIP::Fail:
-				LOG(INFO) << "SIP:Fail, abort";
-				return abortAndRemoveCall(transaction,TCH,GSM::L3Cause(0x7F));
-			case SIP::Proceeding:
-				LOG(DEBUG) << "SIP:Proceeding, NOT sending progress";
-				//TCH->send(GSM::L3Progress(L3TI));
-				break;
-			// For these cases, do nothing.
-			case SIP::Timeout:
-				// FIXME We should abort if this happens too often.
-				// For now, we are relying on the phone, which may have bugs of its own.
-			case SIP::Active:
-			default:
-				break;
+		case SIP::Busy:
+			// Should this be possible at this point?
+			LOG(INFO) << "SIP:Busy, abort";
+			return abortAndRemoveCall(transaction, TCH, GSM::L3Cause(0x11));
+		case SIP::Fail:
+			LOG(INFO) << "SIP:Fail, abort";
+			return abortAndRemoveCall(transaction, TCH, GSM::L3Cause(0x7F));
+		case SIP::Proceeding:
+			LOG(DEBUG) << "SIP:Proceeding, NOT sending progress";
+			// TCH->send(GSM::L3Progress(L3TI));
+			break;
+		// For these cases, do nothing.
+		case SIP::Timeout:
+			// FIXME We should abort if this happens too often.
+			// For now, we are relying on the phone, which may have bugs of its own.
+		case SIP::Active:
+		default:
+			break;
 		}
-	} 
-	
+	}
+
 	// Let the phone know the call is connected.
 	LOG(INFO) << "sending Connect to handset";
 	TCH->send(GSM::L3Connect(L3TI));
@@ -780,59 +750,57 @@ void Control::MOCController(TransactionEntry *transaction, UMTS::DTCHLogicalChan
 	// FIXME -- We need to watch for a repeated OK in case the ACK got lost.
 
 	// Get the Connect Acknowledge message.
-	while (transaction->GSMState()!=GSM::Active) {
+	while (transaction->GSMState() != GSM::Active) {
 		LOG(DEBUG) << "MOC Q.931 state=" << transaction->GSMState();
-		if (updateGSMSignalling(transaction,TCH,T313ms)) return abortAndRemoveCall(transaction,TCH,GSM::L3Cause(0x7F));
+		if (updateGSMSignalling(transaction, TCH, T313ms))
+			return abortAndRemoveCall(transaction, TCH, GSM::L3Cause(0x7F));
 	}
 
 	// At this point, everything is ready to run the call.
-	callManagementLoop(transaction,TCH);
+	callManagementLoop(transaction, TCH);
 
 	// The radio link should have been cleared with the call.
 	// So just return.
 }
 
-
-
-
 void Control::MTCStarter(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH)
 {
 	assert(LCH);
-	LOG(INFO) << "MTC on " << LCH->type() << " transaction: "<< *transaction;
+	LOG(INFO) << "MTC on " << LCH->type() << " transaction: " << *transaction;
 
 	// Get transaction identifiers.
 	// This transaction was created by the SIPInterface when it
 	// processed the INVITE that started this call.
 	unsigned L3TI = transaction->L3TI();
-	assert(L3TI<7);
+	assert(L3TI < 7);
 
 	// GSM 04.08 5.2.2.1
 	LOG(INFO) << "sending GSM Setup to call " << transaction->calling();
-	LCH->send(GSM::L3Setup(L3TI,GSM::L3CallingPartyBCDNumber(transaction->calling())));
+	LCH->send(GSM::L3Setup(L3TI, GSM::L3CallingPartyBCDNumber(transaction->calling())));
 	transaction->setTimer("303");
 	transaction->GSMState(GSM::CallPresent);
 
 	// Wait for Call Confirmed message.
 	LOG(DEBUG) << "wait for GSM Call Confirmed";
-	while (transaction->GSMState()!=GSM::MTCConfirmed) {
-		if (transaction->MTCSendTrying()==SIP::Fail) {
+	while (transaction->GSMState() != GSM::MTCConfirmed) {
+		if (transaction->MTCSendTrying() == SIP::Fail) {
 			LOG(NOTICE) << "call failed on SIP side";
 			LCH->send(GSM::RELEASE);
 			// Cause 0x03 is "no route to destination"
-			return abortAndRemoveCall(transaction,LCH,GSM::L3Cause(0x03));
+			return abortAndRemoveCall(transaction, LCH, GSM::L3Cause(0x03));
 		}
 		// FIXME -- What's the proper timeout here?
 		// It's the SIP TRYING timeout, whatever that is.
-		if (updateGSMSignalling(transaction,LCH,1000)) {
+		if (updateGSMSignalling(transaction, LCH, 1000)) {
 			LOG(INFO) << "Release from GSM side";
 			LCH->send(GSM::RELEASE);
 			return;
 		}
 		// Check for SIP cancel, too.
-		if (transaction->MTCCheckForCancel()==SIP::Fail) {
+		if (transaction->MTCCheckForCancel() == SIP::Fail) {
 			LOG(NOTICE) << "call cancelled or failed on SIP side";
 			// Cause 0x15 is "rejected"
-			return abortAndRemoveCall(transaction,LCH,GSM::L3Cause(0x15));
+			return abortAndRemoveCall(transaction, LCH, GSM::L3Cause(0x15));
 		}
 	}
 
@@ -860,58 +828,60 @@ void Control::MTCStarter(TransactionEntry *transaction, UMTS::DTCHLogicalChannel
 		if (!modeOK) return abortAndRemoveCall(transaction,LCH,GSM::L3Cause(0x06));
 	}
 #endif
-	MTCController(transaction,dynamic_cast<UMTS::DTCHLogicalChannel*>(LCH));
+	MTCController(transaction, dynamic_cast<UMTS::DTCHLogicalChannel *>(LCH));
 }
 
-
-void Control::MTCController(TransactionEntry *transaction, UMTS::DTCHLogicalChannel* TCH)
+void Control::MTCController(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *TCH)
 {
-	// Early Assignment Mobile Terminated Call. 
+	// Early Assignment Mobile Terminated Call.
 	// Transaction table in 04.08 7.3.3 figure 7.10a
 
 	LOG(DEBUG) << "transaction: " << *transaction;
 	unsigned L3TI = transaction->L3TI();
-	assert(L3TI<7);
+	assert(L3TI < 7);
 	assert(TCH);
 
 	// Get the alerting message.
 	LOG(INFO) << "waiting for GSM Alerting and Connect";
-	while (transaction->GSMState()!=GSM::Active) {
-		if (updateGSMSignalling(transaction,TCH,1000)) return;
-		if (transaction->GSMState()==GSM::Active) break;
-		if (transaction->GSMState()==GSM::CallReceived) {
+	while (transaction->GSMState() != GSM::Active) {
+		if (updateGSMSignalling(transaction, TCH, 1000))
+			return;
+		if (transaction->GSMState() == GSM::Active)
+			break;
+		if (transaction->GSMState() == GSM::CallReceived) {
 			LOG(DEBUG) << "sending SIP Ringing";
 			transaction->MTCSendRinging();
 		}
 		// Check for SIP cancel, too.
-		if (transaction->MTCCheckForCancel()==SIP::Fail) {
+		if (transaction->MTCCheckForCancel() == SIP::Fail) {
 			LOG(DEBUG) << "MTCCheckForCancel return Fail";
-			return abortAndRemoveCall(transaction,TCH,GSM::L3Cause(0x7F));
+			return abortAndRemoveCall(transaction, TCH, GSM::L3Cause(0x7F));
 		}
 	}
 
 	// FIXME -- We should also have a SIP.Timer.F timeout here.
 	LOG(INFO) << "allocating port and sending SIP OKAY";
 	unsigned RTPPorts = allocateRTPPorts();
-	SIP::SIPState state = transaction->MTCSendOK(RTPPorts,SIP::RTPGSM610);
-	while (state!=SIP::Active) {
+	SIP::SIPState state = transaction->MTCSendOK(RTPPorts, SIP::RTPGSM610);
+	while (state != SIP::Active) {
 		LOG(DEBUG) << "wait for SIP OKAY-ACK";
-		if (updateGSMSignalling(transaction,TCH)) return;
+		if (updateGSMSignalling(transaction, TCH))
+			return;
 		state = transaction->MTCWaitForACK();
-		LOG(DEBUG) << "SIP call state "<< state;
+		LOG(DEBUG) << "SIP call state " << state;
 		switch (state) {
-			case SIP::Active:
-				break;
-			case SIP::Fail:
-				return abortAndRemoveCall(transaction,TCH,GSM::L3Cause(0x7F));
-			case SIP::Timeout:
-				state = transaction->MTCSendOK(RTPPorts,SIP::RTPGSM610);
-				break;
-			case SIP::Connecting:
-				break;
-			default:
-				LOG(NOTICE) << "SIP unexpected state " << state;
-				break;
+		case SIP::Active:
+			break;
+		case SIP::Fail:
+			return abortAndRemoveCall(transaction, TCH, GSM::L3Cause(0x7F));
+		case SIP::Timeout:
+			state = transaction->MTCSendOK(RTPPorts, SIP::RTPGSM610);
+			break;
+		case SIP::Connecting:
+			break;
+		default:
+			LOG(NOTICE) << "SIP unexpected state " << state;
+			break;
 		}
 	}
 	transaction->MTCInitRTP();
@@ -922,19 +892,14 @@ void Control::MTCController(TransactionEntry *transaction, UMTS::DTCHLogicalChan
 
 	// At this point, everything is ready to run for the call.
 	// The radio link should have been cleared with the call.
-	callManagementLoop(transaction,TCH);
+	callManagementLoop(transaction, TCH);
 }
-
-
-
-
-
 
 void Control::TestCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH)
 {
 	assert(LCH);
-	LOG(INFO) << LCH->type() << " transaction: "<< *transaction;
-	assert(transaction->L3TI()<7);
+	LOG(INFO) << LCH->type() << " transaction: " << *transaction;
+	assert(transaction->L3TI() < 7);
 
 	// Mark the call as active.
 	transaction->GSMState(GSM::Active);
@@ -980,12 +945,12 @@ void Control::TestCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *
 		int msgLen = controlSocket.read(iBuf);
 		LOG(INFO) << "got " << msgLen << " bytes on UDP";
 		// Send it to the handset.
-		GSM::L3Frame query(iBuf,msgLen);
+		GSM::L3Frame query(iBuf, msgLen);
 		LOG(INFO) << "sending " << query;
 		LCH->send(query);
 		// Wait for a response.
 		// FIXME -- This should be a proper T3xxx value of some kind.
-		GSM::L3Frame* resp = LCH->recv(30000);
+		GSM::L3Frame *resp = LCH->recv(30000);
 		if (!resp) {
 			LOG(NOTICE) << "read timeout";
 			break;
@@ -998,7 +963,7 @@ void Control::TestCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *
 		// Send response on the port.
 		unsigned char oBuf[resp->size()];
 		resp->pack(oBuf);
-		controlSocket.writeBack((char*)oBuf);
+		controlSocket.writeBack((char *)oBuf);
 		// Delete and close the loop.
 		delete resp;
 	}
@@ -1009,17 +974,10 @@ void Control::TestCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *
 	gTransactionTable.remove(transaction);
 }
 
-
-
-void Control::initiateMTTransaction(Control::TransactionEntry* transaction, UMTS::ChannelTypeL3 chanType, unsigned pageTime)
+void Control::initiateMTTransaction(
+	Control::TransactionEntry *transaction, UMTS::ChannelTypeL3 chanType, unsigned pageTime)
 {
 	gTransactionTable.add(transaction);
 	transaction->GSMState(GSM::Paging);
-	gNodeB.pager().addID(transaction->subscriber(),chanType,*transaction,pageTime);
+	gNodeB.pager().addID(transaction->subscriber(), chanType, *transaction, pageTime);
 }
-
-
-
-
-
-// vim: ts=4 sw=4

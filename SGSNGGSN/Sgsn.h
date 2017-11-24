@@ -1,11 +1,11 @@
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2011, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
@@ -14,23 +14,26 @@
 
 #ifndef _SGSN_H_
 #define _SGSN_H_
+
+#include <GSM/GSMCommon.h> // For Z100Timer
+
 #include "GPRSL3Messages.h"
 #include "SgsnExport.h"
-#include "GSMCommon.h"	// For Z100Timer
+
 #ifndef MIN
-#define MIN(a,b) ((a)<=(b)?(a):(b))
-#endif
-#ifndef RN_FOR_ALL
-#define RN_FOR_ALL(type,list,var) \
-	for (type::iterator itr = (list).begin(); \
-		itr == (list).end() ? 0 : ((var=*itr++),1);)
-#define RN_FOR_ALL_WITH_ITR(type,list,var,itr) \
-	type::iterator itr; \
-	for (type::iterator itr1 = (list).begin(),itr=itr1; \
-		itr1 == (list).end() ? 0 : ((itr=itr1),(var=*itr1++),1);)
+#define MIN(a, b) ((a) <= (b) ? (a) : (b))
 #endif
 
-#define NEW_TLLI_ASSIGN_PROCEDURE 0		// NO, dont use this.
+#ifndef RN_FOR_ALL
+#define RN_FOR_ALL(type, list, var) \
+	for (type::iterator itr = (list).begin(); itr == (list).end() ? 0 : ((var = *itr++), 1);)
+#define RN_FOR_ALL_WITH_ITR(type, list, var, itr) \
+	type::iterator itr; \
+	for (type::iterator itr1 = (list).begin(), itr = itr1; \
+		itr1 == (list).end() ? 0 : ((itr = itr1), (var = *itr1++), 1);)
+#endif
+
+#define NEW_TLLI_ASSIGN_PROCEDURE 0 // NO, dont use this.
 
 namespace SGSN {
 
@@ -39,27 +42,25 @@ extern void sendImplicitlyDetached(SgsnInfo *si);
 
 // 10.5.5.2 AttachType can take all 3 values.
 // 10.5.5.1 Attach Result can only be GPRS or Combined, not value 2.
-enum AttachType {
-	AttachTypeGprs = 1, AttachTypeGprsWhileImsiAttached = 2, AttachTypeCombined = 3
-};
+enum AttachType { AttachTypeGprs = 1, AttachTypeGprsWhileImsiAttached = 2, AttachTypeCombined = 3 };
 class SgsnInfo;
 
 const static uint32_t sLocalTlliMask = 0xc0000000;
 
 struct AttachInfo {
 	AttachType mAttachReqType;
-	uint32_t mAttachReqPTmsi;	// Saved if specified in the attach request.
+	uint32_t mAttachReqPTmsi; // Saved if specified in the attach request.
 	// MsRadioAcces caps saved from the AttachRequest to go in GmmInfo when it is created.
 	ByteVector mMsRadioAccessCap;
 	GMMRoutingAreaIdIE mPrevRaId;
 	void stashMsgInfo(GMMAttach &msgIEs, bool isAttach);
 	void copyFrom(AttachInfo &other);
 
-	AttachInfo() :
-		// wont be used until initialized, but init to invalid value for copyFrom.
-		mAttachReqType((AttachType)0),
-		mAttachReqPTmsi(0)
-	{}
+	AttachInfo()
+		: // wont be used until initialized, but init to invalid value for copyFrom.
+		  mAttachReqType((AttachType)0), mAttachReqPTmsi(0)
+	{
+	}
 };
 
 // This is the state for a single MS identified by IMSI.
@@ -68,11 +69,10 @@ struct AttachInfo {
 // an sql data-base somewhere so the phone can subsequently attach without
 // having to send us an IMSI, however, this will still be per-IMSI.
 //
-class GmmInfo
-{
-	public:
-	ByteVector mImsi;	// The IMSI.
-	uint32_t mPTmsi;	// The unique P-TMSI we create for this Gmm context.
+class GmmInfo {
+public:
+	ByteVector mImsi; // The IMSI.
+	uint32_t mPTmsi;  // The unique P-TMSI we create for this Gmm context.
 	uint32_t getPTmsi() const { return mPTmsi; }
 	// For GPRS, teturn the TLLI that we assign to the MS.
 	// (pat) I think this TLLI may not necessarily equal the TLLI in getSI()->mMsHandle between
@@ -81,13 +81,17 @@ class GmmInfo
 	static const unsigned sNumPdps = 16;
 	time_t mAttachTime;
 	time_t mActivityTime;
-	int mGprsMultislotClass;		// -1 means invalid.
+	int mGprsMultislotClass; // -1 means invalid.
 	Bool_z mGprsGeranFeaturePackI;
-	AttachInfo mgAttachInfo;		// Copied from SgsnInfo.
+	AttachInfo mgAttachInfo; // Copied from SgsnInfo.
 	void setActivity() { time(&mActivityTime); }
-	void setAttachTime() { time(&mAttachTime); mActivityTime = mAttachTime; }
+	void setAttachTime()
+	{
+		time(&mAttachTime);
+		mActivityTime = mAttachTime;
+	}
 
-	private:
+private:
 	// mState starts in GmmDeregistered.
 	GmmState::state mState;
 #if RN_UMTS
@@ -95,24 +99,23 @@ class GmmInfo
 	// when we receive the security mode complete message from the UE.
 	// We could use the attach status to differentiate these two states, however, it is possible
 	// that the SGSN and UE disagree about the attach state, so we use a special state for this case.
-	public:
+public:
 	enum SecurityState {
-		SecurityStateNone = 0,	// nothin happening
-		SecurityStateAttach = 1,			// Starting integrity protection during an attach procedure.
-		SecurityStateServiceRequest = 2,	// Starting integrity protection during a service request procedure.
-		SecurityStateStarted = 3,			// Received Security Mode Complete message.
+		SecurityStateNone = 0,		 // nothin happening
+		SecurityStateAttach = 1,	 // Starting integrity protection during an attach procedure.
+		SecurityStateServiceRequest = 2, // Starting integrity protection during a service request procedure.
+		SecurityStateStarted = 3,	// Received Security Mode Complete message.
 	};
 	SecurityState mSecState;
 #endif
 
 	// PDPContext are allocated on request, via ActivatePdpContext message.
 	// In GPRS, each PdpContext here corresponds to a Sndcp in the mSndcp[].
-	private:
-	PdpContext *mPdps[sNumPdps];	// Only 5..15 are used, but we allocate the whole array and index into
-							// it directly with the RB [Radio Bearer] index, aka NSAPI.
+private:
+	PdpContext *mPdps[sNumPdps]; // Only 5..15 are used, but we allocate the whole array and index into
+				     // it directly with the RB [Radio Bearer] index, aka NSAPI.
 
-	public:
-
+public:
 	// This points to the SgsnInfo we will use for downlink messages after registration.
 	// It is not used for the responses during the attach process.
 	// If msi does not already exist, it is allocated at the same time as GmmInfo,
@@ -123,21 +126,21 @@ class GmmInfo
 	SgsnInfo *msi;
 	SgsnInfo *getSI() { return msi; }
 
-	bool isRegistered() {
-		return mState == GmmState::GmmRegisteredNormal ||
-		       mState == GmmState::GmmRegisteredSuspsended;
+	bool isRegistered()
+	{
+		return mState == GmmState::GmmRegisteredNormal || mState == GmmState::GmmRegisteredSuspsended;
 	}
 
 	void setGmmState(GmmState::state newstate) { mState = newstate; }
 	GmmState::state getGmmState() { return mState; }
 
-	bool isNSapiActive(unsigned nsapi); 	// True if the pdpcontext is not in state PDP-INACTIVE
+	bool isNSapiActive(unsigned nsapi); // True if the pdpcontext is not in state PDP-INACTIVE
 	// 3GPP 24.008 10.5.7.1: PDP Context Status.
 	// It is a bit-map of the allocated PdpContext for this ms.
 	// The result bytes for this IE are not in network order, so return it as two bytes.
 	PdpContextStatus getPdpContextStatus();
 	void connectPdp(PdpContext *pdp, mg_con_t *mgp);
-	bool freePdp(unsigned nsapi);	// Free both the PdpContext and the Sndcp.
+	bool freePdp(unsigned nsapi); // Free both the PdpContext and the Sndcp.
 	unsigned freePdpAll(bool freeRabsToo);
 	PdpContext *getPdp(unsigned nsapi);
 	void sendSecurityModeComplete();
@@ -145,7 +148,6 @@ class GmmInfo
 	GmmInfo(ByteVector &imsi);
 	~GmmInfo();
 };
-
 
 // The data path through SGSN is different for GPRS and UMTS.
 // For GPRS it includes LLC, LLE, and SNDCP.
@@ -179,7 +181,7 @@ class GmmInfo
 
 // There is one SgsnInfo for each TLLI.
 // This does not map one-to-one to MSInfo structs because MSInfo change TLLI when registered.
-// During the attach process an MS may call in with several different TLLIs 
+// During the attach process an MS may call in with several different TLLIs
 // and/or PTMSIs, which will create a bunch of MSInfo structs in GPRS and corresponding
 // SgsnInfos here.  We dont know what MS these really are until we get an IMSI,
 // or todo: see a known TMSI/PTSMI+RAI pair.
@@ -225,8 +227,7 @@ class GmmInfo
 // The GmmInfo holds the Session Management info, and is associated with one
 // and only one MS identified by IMSI.
 // There are two major types of SgsnInfo:
-class SgsnInfo
-{
+class SgsnInfo {
 	friend class MSUEAdapter;
 
 	// The LlcEngine is used only by GPRS.
@@ -236,16 +237,17 @@ class SgsnInfo
 	// I left the LLC component in the SGSN for several reasons:
 	// in case we implement handover, the LLC state must be passed too;
 	// and just because that is the way things are partitioned in commercial systems.
-	private:
+private:
 	GmmInfo *mGmmp;
-	public:
+
+public:
 	GmmInfo *getGmm() const { return mGmmp; }
 	void setGmm(GmmInfo *gmm);
 
 	LlcEngine *mLlcEngine;
 	time_t mLastUseTime;
 
-	//GmmMobileIdentityIE mAttachMobileId;
+	// GmmMobileIdentityIE mAttachMobileId;
 
 	// For the local SGSN, this is the P-TMSI/TLLI that we [are attempting to]
 	// assign to this MS.  In the old separated SGSN system, the SGSN would remember both old
@@ -259,8 +261,8 @@ class SgsnInfo
 	// depending on the Routing Area.  In the same Routing Area, it sets the top 2 bits.
 	// Which is silly for us, so we just set the top 2 bits to start with and use
 	// the same 32-bit number for TLLI and P-TMSI.
-	uint32_t mMsHandle;	// The single TLLI or URNTI associated with this SgsnInfo.
-					// If it is an assigned SgsnInfo, this is equal to the P-TMSI we allocated for the MS.
+	uint32_t mMsHandle; // The single TLLI or URNTI associated with this SgsnInfo.
+			    // If it is an assigned SgsnInfo, this is equal to the P-TMSI we allocated for the MS.
 
 	// I tried to implement the TLLI Assign Procedure by adding an AltTlli to this
 	// SgsnInfo struct, but it does not work well, because after an attach, if
@@ -271,14 +273,14 @@ class SgsnInfo
 	// so its easier to just keep them distinct.
 	// So an SgsnInfo is synonymous with a single TLLI.
 #if NEW_TLLI_ASSIGN_PROCEDURE
-	uint32_t mAltTlli;	// For GPRS, this is the alternate TLLI before a TLLI assignment
-						// procedure that occurs at AttachComplete.  This SgsnInfo must
-						// respond to both new and alt tllis, but only the tlli
-						// in mMsHandle is used for downlink communication.
+	uint32_t mAltTlli; // For GPRS, this is the alternate TLLI before a TLLI assignment
+			   // procedure that occurs at AttachComplete.  This SgsnInfo must
+			   // respond to both new and alt tllis, but only the tlli
+			   // in mMsHandle is used for downlink communication.
 #endif
 	SgsnInfo *changeTlli(bool now);
-	//uint32_t getTmsi() { return mMsHandle; }	// NOT RIGHT!
-	//uint32_t getPTmsi() { return mMsHandle; }	// NOT RIGHT!
+	// uint32_t getTmsi() { return mMsHandle; }	// NOT RIGHT!
+	// uint32_t getPTmsi() { return mMsHandle; }	// NOT RIGHT!
 
 	ByteVector mRAND;
 	// The information in the L3 AttachRequest is rightly part of the GmmInfo context,
@@ -288,14 +290,14 @@ class SgsnInfo
 	// be used to send the correct attach accept message after the MS identity request handshake(s).
 	AttachInfo mtAttachInfo;
 
-	AttachType attachResult() {
+	AttachType attachResult()
+	{
 		if (mtAttachInfo.mAttachReqType == AttachTypeGprsWhileImsiAttached) {
 			return AttachTypeCombined;
 		}
 		return mtAttachInfo.mAttachReqType;
 	}
 	void deactivateRabs(unsigned nsapiMask);
-
 
 	// Pass throughs to GmmInfo.  All must be protected from mGmmp == NULL.
 	bool isRegistered() const { return mGmmp && mGmmp->isRegistered(); }
@@ -306,9 +308,9 @@ class SgsnInfo
 
 	// After packet has been processed by LLC or PDCP, this sends it to the correct PdpContext.
 	void sgsnSend2PdpLowSide(int nsapi, ByteVector &packet);
-	void sgsnSend2MsHighSide(ByteVector &pdu,const char *descr, int rbid);
+	void sgsnSend2MsHighSide(ByteVector &pdu, const char *descr, int rbid);
 
-	void sgsnWriteHighSide(ByteVector &sdu,int nsapi);
+	void sgsnWriteHighSide(ByteVector &sdu, int nsapi);
 
 	// 24.008 11.2.2.  T3310 is in the MS and is 15s.  We are using it here similarly to place a limit
 	// on the Attach Request process, so when we receive an Identity Response we dont send
@@ -318,9 +320,9 @@ class SgsnInfo
 	// so we dont; the MS will RACH again if necessary.  But here is the timer anyway.
 	GSM::Z100Timer mT3370ImsiRequest;
 
-	SgsnInfo(uint32_t wTlli);	// May be a URNTI instead of TLLI.
+	SgsnInfo(uint32_t wTlli); // May be a URNTI instead of TLLI.
 	~SgsnInfo();
-	void sirm();	// Remove si from list and delete it.
+	void sirm(); // Remove si from list and delete it.
 
 	MSUEAdapter *getMS() const;
 
@@ -329,21 +331,20 @@ class SgsnInfo
 	// Downlink L3 Messages come here.
 	void sgsnWriteHighSideMsg(L3GprsDlMsg &msg);
 
-	//GMMAttach *atp;	// All the info from the attach or ra-update.
-	//GPRS::MSInfo *mMs;		// The MSInfo associated with this SgsnInfo.
-	friend std::ostream& operator<<(std::ostream& os, const SgsnInfo*si);
+	// GMMAttach *atp;	// All the info from the attach or ra-update.
+	// GPRS::MSInfo *mMs;		// The MSInfo associated with this SgsnInfo.
+	friend std::ostream &operator<<(std::ostream &os, const SgsnInfo *si);
 };
-std::ostream& operator<<(std::ostream& os, const SgsnInfo*si);
+std::ostream &operator<<(std::ostream &os, const SgsnInfo *si);
 
 void handleL3Msg(SgsnInfo *si, ByteVector &payload);
-void gmmDump(std::ostream&os);
-void sgsnInfoDump(SgsnInfo *si,std::ostream&os);
-void gmmInfoDump(GmmInfo *si,std::ostream&os,int options);
-SgsnInfo *findSgsnInfoByHandle(uint32_t handle,bool create);
-GmmInfo *findGmmByImsi(ByteVector&imsi,SgsnInfo *si);
+void gmmDump(std::ostream &os);
+void sgsnInfoDump(SgsnInfo *si, std::ostream &os);
+void gmmInfoDump(GmmInfo *si, std::ostream &os, int options);
+SgsnInfo *findSgsnInfoByHandle(uint32_t handle, bool create);
+GmmInfo *findGmmByImsi(ByteVector &imsi, SgsnInfo *si);
 bool cliSgsnInfoDelete(SgsnInfo *si);
 void cliGmmDelete(GmmInfo *gmm);
 
-
-};	// namespace
+}; // namespace SGSN
 #endif

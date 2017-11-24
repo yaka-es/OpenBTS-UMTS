@@ -7,7 +7,7 @@ find_package(Boost REQUIRED COMPONENTS system)
 include_directories(${Boost_INCLUDE_DIRS})
 link_directories(${Boost_LIBRARY_DIRS})
 
-add_compile_options(-pthread -march=native)
+add_compile_options(-march=native)
 
 add_library(transceiver-uhd-lib
 	RadioInterface.cpp
@@ -22,6 +22,7 @@ add_library(transceiver-uhd-lib
 add_executable(transceiver runTransceiver.cpp ../apps/GetConfigurationKeys.cpp)
 
 target_link_libraries(transceiver
+	${LINK_FLAGS_LTO}
 	transceiver-uhd-lib
 	uhd
 	openbts-umts-gsm

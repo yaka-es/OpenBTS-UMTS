@@ -6,7 +6,7 @@
  *
  * Copyright 2011, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
+ * This software is distributed under the terms of the GNU Affero General
  * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
@@ -14,16 +14,16 @@
  * See the LEGAL file in the main directory for details.
  */
 
-#include "UMTSL1FEC.h"
-#include "MACEngine.h"
 #include <assert.h>
-#include <Configuration.h>
-#include <Logger.h>
-#include "UMTSConfig.h"
-#include "URRCTrCh.h"
-#include "URRC.h"
-#include "RateMatch.h"
 
+#include <CommonLibs/Configuration.h>
+#include <CommonLibs/Logger.h>
+
+#include "RateMatch.h"
+#include "UMTSConfig.h"
+#include "UMTSL1FEC.h"
+#include "URRC.h"
+#include "URRCTrCh.h"
 
 using namespace std;
 namespace UMTS {
@@ -33,7 +33,7 @@ extern ConfigurationTable gConfig;
 
 DCHListType gActiveDCH;
 
-#if 0	// unused
+#if 0 // unused
 /** From 3GPP 25.211 Table 11, 15-slot formats only */
 unsigned SlotFormatDnNData1[] = {
  0, 0, 2, 2,		// 0-3
@@ -80,61 +80,51 @@ unsigned SlotFormatDnPilot[] = {
 };
 #endif
 
-
-
-TrCHFECDecoder::TrCHFECDecoder(TrCHFEC* wParent,FecProgInfo &fpi):
-			TrCHFECBase(wParent,fpi),
-			mUpstream(NULL)
+TrCHFECDecoder::TrCHFECDecoder(TrCHFEC *wParent, FecProgInfo &fpi)
+	: TrCHFECBase(wParent, fpi), mUpstream(NULL)
 #if OLD_CONTROL_IF
-			, mRunning(false),
-			mFER(0.0F),
-			mAssignmentTimer(10000),
-			mReleaseTimer(10000)
+	  ,
+	  mRunning(false), mFER(0.0F), mAssignmentTimer(10000), mReleaseTimer(10000)
 #endif
 {
 	unsigned frameSize = gFrameLen / SF();
 	mD = new SoftVector(frameSize);
 	mHDI = new SoftVector(frameSize);
 	mDSlotIndex = 0;
-	unsigned nrf = fpi.getNumRadioFrames();// number of radio frames per tti
-	//mDTti = new SoftVector(frameSize * nrf);
+	unsigned nrf = fpi.getNumRadioFrames(); // number of radio frames per tti
+	// mDTti = new SoftVector(frameSize * nrf);
 	// mRM and mDTti are after rate-matching:
-	mRM = new SoftVector(fpi.mCodedBkSz/nrf);
+	mRM = new SoftVector(fpi.mCodedBkSz / nrf);
 	mDTti = new SoftVector(fpi.mCodedBkSz);
 	mDTtiIndex = 0;
 
-	rateMatchComputeUlEini(fpi.mCodedBkSz/nrf,mRadioFrameSz,fpi.getTTICode(),mEini);
+	rateMatchComputeUlEini(fpi.mCodedBkSz / nrf, mRadioFrameSz, fpi.getTTICode(), mEini);
 }
-
 
 #if OLD_CONTROL_IF
 bool TrCHFECDecoder::recyclable() const
 {
 	ScopedLock lock(mLock);
-	if (mAssignmentTimer.expired()) return true;
-	if (mReleaseTimer.expired()) return true;
+	if (mAssignmentTimer.expired())
+		return true;
+	if (mReleaseTimer.expired())
+		return true;
 	return false;
 }
 #endif
 
-
-PhCh * TrCHFECBase::getPhCh() const
+PhCh *TrCHFECBase::getPhCh() const
 {
 	assert(mParent);
 	return mParent->mPhCh;
 }
 
+unsigned FecProgInfo::getNumRadioFrames() const { return TTICode2NumFrames(getTTICode()); }
 
-unsigned FecProgInfo::getNumRadioFrames() const
+FecProgInfoSimple::FecProgInfoSimple(unsigned wSF, TTICodes wTTICode, unsigned wPB, unsigned wRadioFrameSz)
+	: FecProgInfo(wSF, wTTICode, wPB, wRadioFrameSz, false)
 {
-	return TTICode2NumFrames(getTTICode());
-}
-
-FecProgInfoSimple::FecProgInfoSimple(unsigned wSF,TTICodes wTTICode,unsigned wPB,
-	unsigned wRadioFrameSz) :
-	FecProgInfo(wSF,wTTICode,wPB,wRadioFrameSz, false)
-{
-	assert(mPB == 16);	// Required for the simple channels.
+	assert(mPB == 16); // Required for the simple channels.
 	// assume no rate matching, convolutional coding, and compute TB size.
 	mCodedBkSz = mRadioFrameSz * getNumRadioFrames();
 	mTBSz = RrcDefs::R2DecodedSize(mCodedBkSz) - mPB;
@@ -143,50 +133,46 @@ FecProgInfoSimple::FecProgInfoSimple(unsigned wSF,TTICodes wTTICode,unsigned wPB
 // This class is used to init the FecProgInfo for a full support rach/fach/dch.
 // Assumes convolutional coding.
 // TODO: Need a different constructor for Turbo-coded.
-FecProgInfoInit::FecProgInfoInit(unsigned wSF,TTICodes wTTICode,unsigned wPB,
-	unsigned wRadioFrameSz, unsigned wTBSz, bool wTurbo) :
-	FecProgInfo(wSF,wTTICode,wPB,wRadioFrameSz, wTurbo)
+FecProgInfoInit::FecProgInfoInit(
+	unsigned wSF, TTICodes wTTICode, unsigned wPB, unsigned wRadioFrameSz, unsigned wTBSz, bool wTurbo)
+	: FecProgInfo(wSF, wTTICode, wPB, wRadioFrameSz, wTurbo)
 {
 	assert(mPB == 24 || mPB == 16 || mPB == 12 || mPB == 8);
 	assert(wTBSz != 0);
-	mTBSz = wTBSz;	// Determined by RRC.
+	mTBSz = wTBSz; // Determined by RRC.
 	if (wTurbo) {
-        	mCodedBkSz = RrcDefs::TurboEncodedSize(mTBSz + mPB, &mCodeBkSz);
-       		mFillBits = RrcDefs::TurboDecodedSize(mCodedBkSz) - (mTBSz+mPB);
+		mCodedBkSz = RrcDefs::TurboEncodedSize(mTBSz + mPB, &mCodeBkSz);
+		mFillBits = RrcDefs::TurboDecodedSize(mCodedBkSz) - (mTBSz + mPB);
 	} else {
 		mCodedBkSz = RrcDefs::R2EncodedSize(mTBSz + mPB, &mCodeBkSz);
-		mFillBits = RrcDefs::R2DecodedSize(mCodedBkSz) - (mTBSz+mPB);
+		mFillBits = RrcDefs::R2DecodedSize(mCodedBkSz) - (mTBSz + mPB);
 	}
-	printf("ProgInfo: %u %u %u %u %u\n",wSF,wRadioFrameSz,wTBSz,(unsigned)mCodedBkSz,(unsigned)mFillBits);
+	printf("ProgInfo: %u %u %u %u %u\n", wSF, wRadioFrameSz, wTBSz, (unsigned)mCodedBkSz, (unsigned)mFillBits);
 }
 
-TrCHFECDecoder* TrCHFECEncoder::sibling()
+TrCHFECDecoder *TrCHFECEncoder::sibling()
 {
 	assert(mParent);
 	return mParent->decoder();
 }
 
-const TrCHFECDecoder* TrCHFECEncoder::sibling() const
+const TrCHFECDecoder *TrCHFECEncoder::sibling() const
 {
 	assert(mParent);
 	return mParent->decoder();
 }
 
-
-TrCHFECEncoder* TrCHFECDecoder::sibling()
+TrCHFECEncoder *TrCHFECDecoder::sibling()
 {
 	assert(mParent);
 	return mParent->encoder();
 }
 
-const TrCHFECEncoder* TrCHFECDecoder::sibling() const
+const TrCHFECEncoder *TrCHFECDecoder::sibling() const
 {
 	assert(mParent);
 	return mParent->encoder();
 }
-
-
-
 
 void TrCHFECEncoder::open()
 {
@@ -196,12 +182,7 @@ void TrCHFECEncoder::open()
 	mActive = true;
 }
 
-
-void TrCHFECEncoder::close()
-{
-	mActive = false;
-}
-
+void TrCHFECEncoder::close() { mActive = false; }
 
 void TrCHFECDecoder::open()
 {
@@ -213,7 +194,6 @@ void TrCHFECDecoder::open()
 	controlOpen();
 #endif
 }
-
 
 void TrCHFECDecoder::close(bool hardRelease)
 {
@@ -227,10 +207,10 @@ void TrCHFECDecoder::close(bool hardRelease)
 }
 
 // Incoming frame is the result of 25.212 4.2.6 Radio Frame Segmentation.
-void TrCHFECEncoder::sendFrame(BitVector& frame, unsigned tfci)
+void TrCHFECEncoder::sendFrame(BitVector &frame, unsigned tfci)
 {
-	//TODO: This test now fails, correctly, due to rate matching.
-	//assert(frame.size()%gFrameSlots == 0);
+	// TODO: This test now fails, correctly, due to rate matching.
+	// assert(frame.size()%gFrameSlots == 0);
 
 	BitVector h = frame.alias();
 
@@ -238,10 +218,9 @@ void TrCHFECEncoder::sendFrame(BitVector& frame, unsigned tfci)
 	// (pat) We only have one TrCh, so nothing to do.
 
 	// 25.212 4.2.9 Insertion of Discontinuous Transmission (DTX) Indicators.
-        // Since we only either the max. size of possible transport format combinatiors or transmit nothing, DTX is not needed.
-	// (pat) This adds empty bits to fill up the radio frames.
-	// The description is complicated by various types of compressed frames that we
-	// will never support, but it is basically just right-padding with emptiness.
+	// Since we only either the max. size of possible transport format combinatiors or transmit nothing, DTX is not
+	// needed. (pat) This adds empty bits to fill up the radio frames. The description is complicated by various
+	// types of compressed frames that we will never support, but it is basically just right-padding with emptiness.
 
 	// 25.212 4.2.10 Physical Channel Segmentation.
 	// "When more than one PhCH is used..."  OK, can stop reading right there.
@@ -250,12 +229,12 @@ void TrCHFECEncoder::sendFrame(BitVector& frame, unsigned tfci)
 	// (pat) Number of columns fixed at 30, and number of rows is the minimum that will work.
 	// The padding will only occur when supporting multiple TrCh, because the
 	// radio frame is a multiple 150 which is divisible by 30.
-	const unsigned C2 = 30;		// Number of columns;
+	const unsigned C2 = 30; // Number of columns;
 	unsigned hsize = h.size();
-	unsigned rows = (hsize + (C2 - 1))/C2;
+	unsigned rows = (hsize + (C2 - 1)) / C2;
 	int padding = (C2 * rows) - hsize;
 	assert(padding >= 0);
-	unsigned Ysize = hsize + padding;	// Y is defined in 4.2.11 as padded interleave buf
+	unsigned Ysize = hsize + padding; // Y is defined in 4.2.11 as padded interleave buf
 	BitVector Yout(Ysize);
 	if (padding == 0) {
 		h.interleavingNP(C2, TrCHConsts::inter2Perm, Yout);
@@ -263,22 +242,24 @@ void TrCHFECEncoder::sendFrame(BitVector& frame, unsigned tfci)
 		// Must pre-pad and post-strip bits.
 		// The post-interleave pad bits are spread all over; easiest way to get rid
 		// of them is to use a special marker value for the padding.
-		const char padval = 4;	// We will pad with padbits set to this value.
-		BitVector Yin(Ysize);	// Temporary buffer
+		const char padval = 4; // We will pad with padbits set to this value.
+		BitVector Yin(Ysize);  // Temporary buffer
 		h.copyTo(Yin);
-		memset(Yin.begin()+hsize,padval,padding);	// Add the padding.
+		memset(Yin.begin() + hsize, padval, padding); // Add the padding.
 		Yin.interleavingNP(C2, TrCHConsts::inter2Perm, Yout);
 		// Strip out the padding bits.
 		char *yp = Yout.begin(), *yend = Yout.end();
 		for (char *cp = yp; cp < yend; cp++) {
-			if (*cp != padval) { *yp++ = *cp; }
+			if (*cp != padval) {
+				*yp++ = *cp;
+			}
 		}
 		assert(yp == Yin.begin() + hsize);
 	}
 
 	BitVector U(Yout.head(hsize));
 
-#if USE_OLD_FEC		// This makes assumptions about RACHFEC so does not compile with the new code.
+#if USE_OLD_FEC // This makes assumptions about RACHFEC so does not compile with the new code.
 	if (gFecTestMode == 2) {
 		gNodeB.mRachFec->decoder()->writeLowSide2(U);
 		return;
@@ -295,7 +276,7 @@ void TrCHFECEncoder::sendFrame(BitVector& frame, unsigned tfci)
 	// so it is done once on startup in class TrCHConsts,
 	// and now we just index into it with the incoming tfci.
 	assert(tfci < TrCHConsts::sMaxTfci);
-	//tfci = 0;
+	// tfci = 0;
 	uint32_t tfciCode = TrCHConsts::sTfciCodes[tfci];
 
 	// (pat) Okey Dokey, finished with spec 25.212.
@@ -309,37 +290,34 @@ void TrCHFECEncoder::sendFrame(BitVector& frame, unsigned tfci)
 	// NOTE: PCCPCHType sends only 18 bits per slot, not 20.
 	if (chType == PCCPCHType) {
 		// The PCCPCH radio slot contains: | Tx Off | Data (always 18 bits) |
-		for (unsigned i=0; i<gFrameSlots; i++) {
+		for (unsigned i = 0; i < gFrameSlots; i++) {
 			// (pat) Before I added the BitVector copy constructor, this allocated
 			// a new Vector via constructor: Vector(const Vector<char>&other)
-			const BitVector slotBits = U.segment(i*dataSlotSize,dataSlotSize);
-			TxBitsBurst *out = new TxBitsBurst(
-				slotBits,
-				SF(), SpCode(), mNextWriteTime.slot(i),true
-			);
-			RN_MEMLOG(TxBitsBurst,out);
+			const BitVector slotBits = U.segment(i * dataSlotSize, dataSlotSize);
+			TxBitsBurst *out = new TxBitsBurst(slotBits, SF(), SpCode(), mNextWriteTime.slot(i), true);
+			RN_MEMLOG(TxBitsBurst, out);
 			phch->getRadio()->writeHighSide(out);
 		}
 	} else {
 
-		int radioFrameSize = 2*(gFrameLen / SF());
+		int radioFrameSize = 2 * (gFrameLen / SF());
 		BitVector radioFrame(radioFrameSize);
-		int radioSlotSize = radioFrameSize/15;
+		int radioSlotSize = radioFrameSize / 15;
 
 		SlotFormat *dlslot = phch->getDlSlot();
 		const unsigned ndata1 = dlslot->mNData1;
 		const unsigned ndata2 = dlslot->mNData2;
 		const unsigned ntpc = dlslot->mNTpc;
 		const unsigned ntfci = dlslot->mNTfci;
-		const unsigned tfciMask = (1<<ntfci)-1;
+		const unsigned tfciMask = (1 << ntfci) - 1;
 		const unsigned npilot = dlslot->mNPilot;
 		const unsigned pi = dlslot->mPilotIndex;
 		// Double check this against channel parameters.
-		assert(dataSlotSize == ndata1+ndata2);
+		assert(dataSlotSize == ndata1 + ndata2);
 
 		BitVector radioSlotBits(radioSlotSize);
-		for (unsigned s=0; s<gFrameSlots; s++) {
-			const unsigned dataStart = s*dataSlotSize;
+		for (unsigned s = 0; s < gFrameSlots; s++) {
+			const unsigned dataStart = s * dataSlotSize;
 			size_t wp = 0;
 			unsigned int tpcField = 0;
 
@@ -348,52 +326,54 @@ void TrCHFECEncoder::sendFrame(BitVector& frame, unsigned tfci)
 			// wrapping around to be reused as much as needed.
 			switch (chType) {
 			case SCCPCHType:
-				//cout << "TFCI: " << tfci << " code: " << (tfciCode&tfciMask);
+				// cout << "TFCI: " << tfci << " code: " << (tfciCode&tfciMask);
 				// The SCCPCH radio slot contains: | TFCI | Data | Pilot |
-				radioSlotBits.writeFieldReversed(wp,tfciCode&tfciMask,ntfci);
-				U.segment(dataStart,ndata1).copyToSegment(radioSlotBits,wp,ndata1);
+				radioSlotBits.writeFieldReversed(wp, tfciCode & tfciMask, ntfci);
+				U.segment(dataStart, ndata1).copyToSegment(radioSlotBits, wp, ndata1);
 				wp += ndata1;
 				radioSlotBits.fillField(wp, TrCHConsts::sDlPilotBitPattern[pi][s], npilot);
 				// There is no data2 for SCCPCH.
 				break;
 			case DPDCHType:
-				// The DCH radio slot contains: 
+				// The DCH radio slot contains:
 				// Release 4 or later:     | Data1 |  TPC  | TFCI | Data2 | Pilot |
 				// Early versions of R'99: | TFCI  | Data1 | TPC  | Data2 | Pilot |
 #ifdef RELEASE99 // defined in UMTSPhCh.cpp
-                                radioSlotBits.writeFieldReversed(wp,tfciCode&tfciMask,ntfci);
+				radioSlotBits.writeFieldReversed(wp, tfciCode & tfciMask, ntfci);
 #endif
 				if (ndata1 > 0) {
-                                	U.segment(dataStart,ndata1).copyToSegment(radioSlotBits,wp,ndata1);
-                                	wp += ndata1;
+					U.segment(dataStart, ndata1).copyToSegment(radioSlotBits, wp, ndata1);
+					wp += ndata1;
 				}
 				// Lower layers are going to fill in TPC, we hope.
 				// Toggle tpc bits between all ones and all zeros to keep phone at same tx power
 				// TODO: Will need to do better power control later
-				tpcField = ((1 << ntpc)-1); // * ( (s+mNextWriteTime.FN()) % 2);
-				radioSlotBits.writeField(wp,tpcField,ntpc);
+				tpcField = ((1 << ntpc) - 1); // * ( (s+mNextWriteTime.FN()) % 2);
+				radioSlotBits.writeField(wp, tpcField, ntpc);
 #ifndef RELEASE99
-				radioSlotBits.writeFieldReversed(wp,tfciCode&tfciMask,ntfci);
+				radioSlotBits.writeFieldReversed(wp, tfciCode & tfciMask, ntfci);
 #endif
 				if (ndata2 > 0) {
-					U.segment(dataStart+ndata1,ndata2).copyToSegment(radioSlotBits,wp,ndata2);
+					U.segment(dataStart + ndata1, ndata2).copyToSegment(radioSlotBits, wp, ndata2);
 					wp += ndata2;
 				}
 				radioSlotBits.fillField(wp, TrCHConsts::sDlPilotBitPattern[pi][s], npilot);
 				break;
-			default: assert(0);
+			default:
+				assert(0);
 			}
 
 			// rotate tfciCode by ntfci bits.  It is unsigned, which helps.
-			tfciCode = (tfciCode>>ntfci) | (tfciCode<<(32-ntfci));
+			tfciCode = (tfciCode >> ntfci) | (tfciCode << (32 - ntfci));
 
 			TxBitsBurst *out = new TxBitsBurst(radioSlotBits, SF(), SpCode(), mNextWriteTime.slot(s));
-			RN_MEMLOG(TxBitsBurst,out);
+			RN_MEMLOG(TxBitsBurst, out);
 			phch->getRadio()->writeHighSide(out);
 		}
 	}
 	mPrevWriteTime = mNextWriteTime;
-	++mNextWriteTime;	// The ++ does not matter for BCH because the TBs have scheduled() set, which overrides mNextWriteTime.
+	++mNextWriteTime; // The ++ does not matter for BCH because the TBs have scheduled() set, which overrides
+			  // mNextWriteTime.
 }
 
 #if 0
@@ -620,17 +600,16 @@ void getParity(const BitVector &in, BitVector &parity)
 	}
 }
 
-
 void TrCHFECEncoder::writeHighSide(const TransportBlock &tblock)
 {
 	const BitVector a = tblock.alias();
-        //PhCh *phch = getPhCh();
-        //PhChType chType = phch->phChType();
+	// PhCh *phch = getPhCh();
+	// PhChType chType = phch->phChType();
 	/*if (chType==SCCPCHType) {
-          LOG(NOTICE) << "SCCPCH TrCHFECEncoder input " << a.size() << " " << a.hexstr();
+	  LOG(NOTICE) << "SCCPCH TrCHFECEncoder input " << a.size() << " " << a.hexstr();
 	  LOG(NOTICE) << tblock.size() << "  " << trBkSz();
 	}*/
-	LOG(DEBUG) << "TrCHFECEncoder input " <<tblock;
+	LOG(DEBUG) << "TrCHFECEncoder input " << tblock;
 	assert(tblock.size() == trBkSz());
 
 	// parity - 25.212, 4.2.1
@@ -638,15 +617,15 @@ void TrCHFECEncoder::writeHighSide(const TransportBlock &tblock)
 	a.copyTo(b);
 	BitVector parityOfA = b.segment(a.size(), getPB());
 	getParity(a, parityOfA);
-	//OBJLOG(DEBUG) << "with parity " << b.size() << " " << b;
+	// OBJLOG(DEBUG) << "with parity " << b.size() << " " << b;
 	if (gFecTestMode) {
-		std::cout<<"writeHighSide"<<LOGBV(a)<<LOGBV(parityOfA)<<"\n";
+		std::cout << "writeHighSide" << LOGBV(a) << LOGBV(parityOfA) << "\n";
 	}
 
 	// 24.212 4.2.2.1 Transport Block Concatenation.
 	// 		not yet
 
-	BitVector c;		// The result after convolutional encoding.
+	BitVector c; // The result after convolutional encoding.
 
 	unsigned Z = getZ();
 	if (b.size() <= Z) {
@@ -657,23 +636,23 @@ void TrCHFECEncoder::writeHighSide(const TransportBlock &tblock)
 		// convolutional coding - 25.212, 4.2.3.1
 		if (isTurbo()) {
 			c = BitVector(3 * o.size() + 12);
-			encode(o,c);
+			encode(o, c);
 		} else {
 			BitVector in(b.size() + 8);
 			c = BitVector(2 * in.size());
 			o.copyTo(in);
 			in.fill(0, b.size(), 8);
-			encode(in,c);
+			encode(in, c);
 		}
 	} else {
 		// 24.212 4.2.2.2 Code Block Segmentation.
 		// 25.212 4.2.3.3 concatenation of encoded blocks
 		// We just encode the blocks directly into the concatenated output c.
 		// This code is for convolutional coding only!!
-		unsigned Xi = b.size();			// number of input bits
-		unsigned Ci = (Xi+ Z-1)/ Z;		// number of code blocks.
-		unsigned Ki = (Xi+Ci-1)/Ci;		// number of bits per block.
-		unsigned Yi = Ci * Ki - Xi;		// number of filler bits.
+		unsigned Xi = b.size();		  // number of input bits
+		unsigned Ci = (Xi + Z - 1) / Z;   // number of code blocks.
+		unsigned Ki = (Xi + Ci - 1) / Ci; // number of bits per block.
+		unsigned Yi = Ci * Ki - Xi;       // number of filler bits.
 		// Unnecessary assertion used as a warning that rate-matching
 		// may be required.  The code below works fine, but the RRC
 		// does not currently take these Yi filler bits into account
@@ -683,26 +662,26 @@ void TrCHFECEncoder::writeHighSide(const TransportBlock &tblock)
 		// account and removed this assertion.  We should still assert
 		// elsewhere that any rate-matching is downward only.
 		// assert(Yi == 0);
-		const unsigned csize = isTurbo() ? 3*Ki+12 : 2*Ki+16;
+		const unsigned csize = isTurbo() ? 3 * Ki + 12 : 2 * Ki + 16;
 		c = BitVector(Ci * csize);
-		BitVector in(Ki+8);
+		BitVector in(Ki + 8);
 		for (unsigned r = 0; r < Ci; r++) {
 			if (Yi && (r == 0)) {
-				in.fill(0,0,Yi);		// First block has Yi filler bits.
-				b.segment(0,Ki-Yi).copyToSegment(in,Yi);
+				in.fill(0, 0, Yi); // First block has Yi filler bits.
+				b.segment(0, Ki - Yi).copyToSegment(in, Yi);
 			} else {
-				b.segment(r*Ki-Yi,Ki).copyToSegment(in,0);
+				b.segment(r * Ki - Yi, Ki).copyToSegment(in, 0);
 			}
 			// 24.212 4.2.3 Channel Coding,
 			// convolutional coding - 25.212, 4.2.3.1
 			// And implicit concatenation of encoded blocks.
-                        BitVector csegment = c.segment(r*csize,csize);
+			BitVector csegment = c.segment(r * csize, csize);
 			if (!isTurbo()) {
-				in.fill(0,Ki,8);
-				encode(in,csegment);
+				in.fill(0, Ki, 8);
+				encode(in, csegment);
 			} else {
-				BitVector inTrunc = in.segment(0,Ki);
-				encode(inTrunc,csegment);
+				BitVector inTrunc = in.segment(0, Ki);
+				encode(inTrunc, csegment);
 			}
 		}
 	}
@@ -712,38 +691,39 @@ void TrCHFECEncoder::writeHighSide(const TransportBlock &tblock)
 	// "Radio frame size equalisation is only performed in the UL."
 	// (pat) And that is because we use DTX instead of rate-matching in DL.
 	BitVector g = c.alias();
-	
+
 	// Rate-matching
-        // The RRC insures that codedBkSz < mRadioFrameSz, ie, we will never use puncturing, ever,
-        // for any TF [Transport Format]
-        unsigned outsize = this->mRadioFrameSz*this->getNumRadioFrames();
-        unsigned insize = this->mCodedBkSz;
+	// The RRC insures that codedBkSz < mRadioFrameSz, ie, we will never use puncturing, ever,
+	// for any TF [Transport Format]
+	unsigned outsize = this->mRadioFrameSz * this->getNumRadioFrames();
+	unsigned insize = this->mCodedBkSz;
 	BitVector h(outsize);
-        if (insize != outsize) 
-                rateMatchFunc<char>(g,h,1);
-        else 
-                g.copyTo(h);
+	if (insize != outsize)
+		rateMatchFunc<char>(g, h, 1);
+	else
+		g.copyTo(h);
 
 	// not doing insertion of DTX  (pat) doesnt go here?
 	// 4.2.9
-        //BitVector h; // This is 3-valued, but for now, just pad with zeros.
-	// Since we only either the max. size of possible transport format combinatiors or transmit nothing, DTX is not needed.
-        
-        /*if (insize == outsize) {
-                h = frame;
-        } else {
-                h = BitVector(outsize);
-                frame.copyTo(h);
-                h.tail(frame.size()).zero();
-        }*/
+	// BitVector h; // This is 3-valued, but for now, just pad with zeros.
+	// Since we only either the max. size of possible transport format combinatiors or transmit nothing, DTX is not
+	// needed.
+
+	/*if (insize == outsize) {
+		h = frame;
+	} else {
+		h = BitVector(outsize);
+		frame.copyTo(h);
+		h.tail(frame.size()).zero();
+	}*/
 
 	// first interleave - 25.212, 4.2.5
 	BitVector q(h.size());
 	h.interleavingNP(inter1Columns(), inter1Perm(), q);
-	//LOG(DEBUG) << "interleaved " <<LOGVAR2("descr",tblock.mDescr) << " "<< q.str();
+	// LOG(DEBUG) << "interleaved " <<LOGVAR2("descr",tblock.mDescr) << " "<< q.str();
 	LOG(DEBUG) << "interleaved " << q.str();
 
-#if USE_OLD_FEC		// This makes assumptions about RACHFEC so does not compile with the new code.
+#if USE_OLD_FEC // This makes assumptions about RACHFEC so does not compile with the new code.
 	if (gFecTestMode == 1) {
 		// (pat) For testing, send it back up through the decoder.
 		// Jumper around the radio frame segmentation for now.
@@ -759,10 +739,11 @@ void TrCHFECEncoder::writeHighSide(const TransportBlock &tblock)
 	const int frames = inter1Columns();
 	const int frameSize = q.size() / frames;
 	assert(q.size() % frameSize == 0);
-        if (tblock.scheduled()) mNextWriteTime = tblock.time();
+	if (tblock.scheduled())
+		mNextWriteTime = tblock.time();
 	for (int i = 0; i < frames; i++) {
 		BitVector seg = q.segment(i * frameSize, frameSize);
-		sendFrame(seg,0 /*tblock.mTfci*/);
+		sendFrame(seg, 0 /*tblock.mTfci*/);
 	}
 }
 
@@ -773,8 +754,8 @@ void TrCHFECEncoder::writeHighSide(const TransportBlock &tblock)
 void TrCHFECDecoder::l1WriteLowSide(const RxBitsBurst &burst)
 {
 	// TODO: Enable these assertions.
-	//assert(burst.mTfciBits[0] >= 0 && burst.mTfciBits[0] <= 1);
-	//assert(burst.mTfciBits[1] >= 0 && burst.mTfciBits[1] <= 1);
+	// assert(burst.mTfciBits[0] >= 0 && burst.mTfciBits[0] <= 1);
+	// assert(burst.mTfciBits[1] >= 0 && burst.mTfciBits[1] <= 1);
 
 	const SoftVector f = burst.alias();
 
@@ -790,59 +771,61 @@ void TrCHFECDecoder::l1WriteLowSide(const RxBitsBurst &burst)
 	// Also, maybe he hopes the convolutional decoder will span the data.
 
 	// This assumes frame boundary is at TN=0, and TTI boundary is at FN=0
-	unsigned expectedTTISlotIndex = mDTtiIndex*gFrameSlots+mDSlotIndex;
+	unsigned expectedTTISlotIndex = mDTtiIndex * gFrameSlots + mDSlotIndex;
 	unsigned receivedTTISlotIndex = burst.time().TN();
 	unsigned numFramesTTI = TTICode2NumFrames(getTTICode());
-	unsigned receivedTTIIndex = ((unsigned) burst.time().FN() % numFramesTTI);
-	receivedTTISlotIndex += (receivedTTIIndex*gFrameSlots);
+	unsigned receivedTTIIndex = ((unsigned)burst.time().FN() % numFramesTTI);
+	receivedTTISlotIndex += (receivedTTIIndex * gFrameSlots);
 	if (receivedTTISlotIndex <= expectedTTISlotIndex) {
 		mDSlotIndex = burst.time().TN();
 		mDTtiIndex = receivedTTIIndex;
 		expectedTTISlotIndex = receivedTTISlotIndex;
-	} 
+	}
 
-	//LOG(INFO) << "time: " << burst.time() << " slot: " << mDSlotIndex << " frame " << mDTtiIndex;
+	// LOG(INFO) << "time: " << burst.time() << " slot: " << mDSlotIndex << " frame " << mDTtiIndex;
 	SoftVector fillerBurst;
 	bool first = true;
 	while (receivedTTISlotIndex > expectedTTISlotIndex) {
 		if (first) {
 			fillerBurst.resize(burst.size());
-			for (unsigned i = 0; i < burst.size(); i++) 
-				fillerBurst[i] = 0.5f + 0.0001*(2.0*(float) (random() & 0x01)-1.0);
+			for (unsigned i = 0; i < burst.size(); i++)
+				fillerBurst[i] = 0.5f + 0.0001 * (2.0 * (float)(random() & 0x01) - 1.0);
 			first = false;
 		}
-		float garbageTfci[2] = { 1.0, 1.0 };
+		float garbageTfci[2] = {1.0, 1.0};
 		writeLowSide1(fillerBurst, garbageTfci);
 		expectedTTISlotIndex++;
 	}
-	writeLowSide1(e,burst.mTfciBits);
+	writeLowSide1(e, burst.mTfciBits);
 }
 
 // (pat) Accumulate slots into one radio frame in mD.
 void TrCHFECDecoder::writeLowSide1(const SoftVector &e, const float tfcibits[2])
 {
-	//OBJLOG(INFO) << "TrCHFECDecoder input " << e.size() << " " << e;
+	// OBJLOG(INFO) << "TrCHFECDecoder input " << e.size() << " " << e;
 
 	// (pat) If TTI != 10ms, we just concatenate radio frames until we have them all.
 	// (pat) So accumulate the incoming fuzzy bits in mD until it is full.
 	// radio frame segmentation - 25.212, 4.2.6
 	unsigned frameSize = gFrameLen / SF();
-	unsigned slotSize = frameSize/gFrameSlots;
+	unsigned slotSize = frameSize / gFrameSlots;
 	assert(e.size() == slotSize);
 
-	e.copyToSegment(*mD,mDSlotIndex*slotSize);
-	if (++mDSlotIndex < gFrameSlots) {return;}
-	mDSlotIndex = 0;	// prep for next Radio Frame.
+	e.copyToSegment(*mD, mDSlotIndex * slotSize);
+	if (++mDSlotIndex < gFrameSlots) {
+		return;
+	}
+	mDSlotIndex = 0; // prep for next Radio Frame.
 
 	// (pat) Previous code did alot of copying things around:
-	//if (mD->size() == frameSize) mD->resize(0);
-	//SoftVector *tmp = mD;
-	//mD = new SoftVector(*mD, e);
-	//delete tmp;
-	//if (mD->size() < frameSize) return;
+	// if (mD->size() == frameSize) mD->resize(0);
+	// SoftVector *tmp = mD;
+	// mD = new SoftVector(*mD, e);
+	// delete tmp;
+	// if (mD->size() < frameSize) return;
 
 	assert(mD->size() == frameSize);
-	//OBJLOG(INFO) << "concatenated " << mD->size() << " " << *mD;
+	// OBJLOG(INFO) << "concatenated " << mD->size() << " " << *mD;
 	writeLowSide2(*mD);
 }
 
@@ -856,9 +839,9 @@ void TrCHFECDecoder::writeLowSide2(const SoftVector &frame)
 
 	// TODO: These vectors can be allocated statically at initialization time.
 	// 25.212 4.2.11 Second Interleaving.
-	const_cast<SoftVector&>(frame).deInterleavingNP(30, TrCHConsts::inter2Perm, *mHDI);
+	const_cast<SoftVector &>(frame).deInterleavingNP(30, TrCHConsts::inter2Perm, *mHDI);
 	assert(mHDI->size() == frameSize);
-	//OBJLOG(INFO) << "2nd deinterleaved " << mHDI->size() << " " << *mHDI;
+	// OBJLOG(INFO) << "2nd deinterleaved " << mHDI->size() << " " << *mHDI;
 	// 25.212 4.2.10 Physical Channel Segmentation.
 	// "When more than one PhCh is used..."  Nope.
 
@@ -867,29 +850,34 @@ void TrCHFECDecoder::writeLowSide2(const SoftVector &frame)
 
 	// 25.212 4.2.7 Rate Matching.
 	unsigned insize = this->mRadioFrameSz;
-	unsigned outsize = this->mCodedBkSz/this->getNumRadioFrames();
+	unsigned outsize = this->mCodedBkSz / this->getNumRadioFrames();
 	assert(mHDI->size() == insize);
 	SoftVector *result = mHDI;
 	if (insize != outsize) {
 		result = mRM;
-		rateMatchFunc<float>(*mHDI,*mRM,this->mEini[mDTtiIndex]);
+		rateMatchFunc<float>(*mHDI, *mRM, this->mEini[mDTtiIndex]);
 	}
 
 	OBJLOG(INFO) << "insize: " << insize << "outsize: " << outsize;
-        OBJLOG(INFO) << "rate-unmatched" << result->size() << " " << *result;
+	OBJLOG(INFO) << "rate-unmatched" << result->size() << " " << *result;
 
 	// 25.212 4.2.6 Radio Frame Segmentation.
 	// If not using TTI=10ms, At this point we have to reaccumulate the complete TTI data.
 	TTICodes tticode = getTTICode();
-	if (tticode == TTI10ms) { writeLowSide3(*result); return; }
+	if (tticode == TTI10ms) {
+		writeLowSide3(*result);
+		return;
+	}
 
 	// Accumulate one ttis worth of Radio Frames into mDTti.
-	result->copyToSegment(*mDTti,mDTtiIndex*outsize);
+	result->copyToSegment(*mDTti, mDTtiIndex * outsize);
 	mDTtiIndex++;
 
 	unsigned numFramesPerTti = getNumRadioFrames();
-	if (mDTtiIndex < numFramesPerTti) {return;}
-	mDTtiIndex = 0;	// prep for next TTI
+	if (mDTtiIndex < numFramesPerTti) {
+		return;
+	}
+	mDTtiIndex = 0; // prep for next TTI
 	writeLowSide3(*mDTti);
 }
 
@@ -897,11 +885,11 @@ void TrCHFECDecoder::writeLowSide2(const SoftVector &frame)
 // of 1, 2, 4, 8 radio frames based on the TTI=10,20,40,80
 void TrCHFECDecoder::writeLowSide3(const SoftVector &dataTti)
 {
-	//OBJLOG(INFO) << "concatenated TTI: " << dataTti.size() << " " << dataTti;
+	// OBJLOG(INFO) << "concatenated TTI: " << dataTti.size() << " " << dataTti;
 
 	// first interleave - 25.212, 4.2.5
 	SoftVector t(dataTti.size());
-	const_cast<SoftVector&>(dataTti).deInterleavingNP(inter1Columns(), inter1Perm(), t);
+	const_cast<SoftVector &>(dataTti).deInterleavingNP(inter1Columns(), inter1Perm(), t);
 	OBJLOG(INFO) << "deinterleaved " << t.size() << " " << t;
 
 	// radio frame equalization - 25.212, 4.2.4
@@ -909,44 +897,44 @@ void TrCHFECDecoder::writeLowSide3(const SoftVector &dataTti)
 
 	// FIXME -- This stuff assumes a rate-1/2 coder.
 
-	//assert(c.size() <= 2 * getZ());
-	BitVector b;	// The result
+	// assert(c.size() <= 2 * getZ());
+	BitVector b; // The result
 	if (0) {
 		// old code does not handle concatenation/segmentation.
 		BitVector o(c.size() / 2);
-		decode(c,o);
-		//OBJLOG(INFO) << "unconvoluted " << o.size() << " " << o;
+		decode(c, o);
+		// OBJLOG(INFO) << "unconvoluted " << o.size() << " " << o;
 
 		// 24.212 4.2.2 Transport Block Concatenation and Code Block Segmentation.
 		// concatenation - 25.212, 4.2.2.1
 		// segmentation - 25.212, 4.2.2.2
 		// nothing to do but remove 8 bits of fill
-		//BitVector b(o.size() - 8);
+		// BitVector b(o.size() - 8);
 		b = BitVector(o.size() - 8);
 		o.copyToSegment(b, 0, o.size() - 8);
 	} else {
 		// convolutional coding - 25.212, 4.2.3.1
 		// concatenation of encoded blocks - 25.212, 4.2.3.3
-		unsigned Zenc = isTurbo() ? (3*getZ()+12) : (2*getZ() + 16);		// encoded size of Z.
-		unsigned Ci = (c.size() + Zenc-1)/Zenc;	// number of coded blocks.
-		unsigned Kienc = c.size()/Ci;		// number of encoded bits per coded block.
-		unsigned Ki = isTurbo() ? ((Kienc-12)/3) : (Kienc/2 - 8);		// number of unencoded bits per coded block.
-		unsigned numFillBits = fillBits();		// number of filler bits in first coded block.
+		unsigned Zenc = isTurbo() ? (3 * getZ() + 12) : (2 * getZ() + 16); // encoded size of Z.
+		unsigned Ci = (c.size() + Zenc - 1) / Zenc;			   // number of coded blocks.
+		unsigned Kienc = c.size() / Ci; // number of encoded bits per coded block.
+		unsigned Ki =
+			isTurbo() ? ((Kienc - 12) / 3) : (Kienc / 2 - 8); // number of unencoded bits per coded block.
+		unsigned numFillBits = fillBits();			  // number of filler bits in first coded block.
 		assert(Kienc * Ci == c.size());
-		b = BitVector(Ci*Ki - numFillBits);
-		BitVector o1(isTurbo() ? Ki : (Ki+8));
-		//printf("%u %u %u %u\n",Zenc,Ci,Kienc,Ki);
+		b = BitVector(Ci * Ki - numFillBits);
+		BitVector o1(isTurbo() ? Ki : (Ki + 8));
+		// printf("%u %u %u %u\n",Zenc,Ci,Kienc,Ki);
 		for (unsigned r = 0; r < Ci; r++) {
-			decode(c.segment(r*Kienc,Kienc),o1);
-			if (numFillBits && (r == 0)) {// skip first fillBits, they aren't data
-				o1.segmentCopyTo(b,numFillBits,Ki-numFillBits);
-			}
-			else
-				o1.copyToSegment(b,r*Ki-numFillBits,Ki);
+			decode(c.segment(r * Kienc, Kienc), o1);
+			if (numFillBits && (r == 0)) { // skip first fillBits, they aren't data
+				o1.segmentCopyTo(b, numFillBits, Ki - numFillBits);
+			} else
+				o1.copyToSegment(b, r * Ki - numFillBits, Ki);
 		}
 	}
 	OBJLOG(INFO) << "de-filled " << b.size() << " " << b;
-	OBJLOG(INFO) << "de-filled last 100: " << b.segment(b.size()-100,100);
+	OBJLOG(INFO) << "de-filled last 100: " << b.segment(b.size() - 100, 100);
 	// parity - 25.212, 4.2.1
 	unsigned pb = getPB();
 	BitVector a = b.segment(0, b.size() - pb);
@@ -954,15 +942,17 @@ void TrCHFECDecoder::writeLowSide3(const SoftVector &dataTti)
 	BitVector expectParity(pb);
 	BitVector bWithoutParity = b.segment(0, b.size() - pb);
 	getParity(bWithoutParity, expectParity);
-	//bool parityOK = true;
-	//for (int i = 0; i < pb && parityOK; i++) {
+	// bool parityOK = true;
+	// for (int i = 0; i < pb && parityOK; i++) {
 	//	parityOK = expectParity[i] == gotParity[i];
 	//}
 	bool parityOK = expectParity == gotParity;
-	if (gotParity.sum() == 0) parityOK = false;
+	if (gotParity.sum() == 0)
+		parityOK = false;
 	OBJLOG(INFO) << "parity " << expectParity << " " << gotParity;
 	if (gFecTestMode) {
-		std::cout<<"writeLowSide3"<<LOGBV(b) <<LOGBV(gotParity)<<LOGBV(expectParity)<<LOGVAR(parityOK)<<"\n";
+		std::cout << "writeLowSide3" << LOGBV(b) << LOGBV(gotParity) << LOGBV(expectParity) << LOGVAR(parityOK)
+			  << "\n";
 	}
 
 	if (parityOK) {
@@ -986,34 +976,31 @@ void TrCHFECDecoder::countGoodFrame()
 	static const float a = 1.0F / ((float)mFERMemory);
 	static const float b = 1.0F - a;
 	mFER *= b;
-	OBJLOG(DEBUG) <<"L1Decoder FER=" << mFER;
+	OBJLOG(DEBUG) << "L1Decoder FER=" << mFER;
 }
 
 void TrCHFECDecoder::countBadFrame()
 {
 	static const float a = 1.0F / ((float)mFERMemory);
 	static const float b = 1.0F - a;
-	mFER = b*mFER + a;
-	OBJLOG(DEBUG) <<"L1Decoder FER=" << mFER;
+	mFER = b * mFER + a;
+	OBJLOG(DEBUG) << "L1Decoder FER=" << mFER;
 }
 #endif
 
 // (pat) This is used only for BCH - see macServiceLoop for FACH and DCH.
-//void TrCHFECEncoder::waitToSend() const
+// void TrCHFECEncoder::waitToSend() const
 void TrCHFECEncoder::l1WaitToSend() const
 {
 	// Block until the NodeB clock catches up to the
 	// mostly recently transmitted burst.
-	//LOG(INFO) << "mPrevWriteTime: " << mPrevWriteTime << ", " << mNextWriteTime;
+	// LOG(INFO) << "mPrevWriteTime: " << mPrevWriteTime << ", " << mNextWriteTime;
 	// (pat) TODO: Add Transceiver.mTransmitLatency in here.
 	gNodeB.clock().wait(mPrevWriteTime);
-	//LOG(NOTICE) << "waitToSend "<<when<<" clock="<<gNodeB.clock().FN();
+	// LOG(NOTICE) << "waitToSend "<<when<<" clock="<<gNodeB.clock().FN();
 }
 
-
-
-
-void TrCHFECEncoderLowRate::encode(BitVector& in, BitVector& c)
+void TrCHFECEncoderLowRate::encode(BitVector &in, BitVector &c)
 {
 	// convolutional coding - 25.212, 4.2.3.1
 	// concatenation of encoded blocks - 25.212, 4.2.3.3
@@ -1021,26 +1008,23 @@ void TrCHFECEncoderLowRate::encode(BitVector& in, BitVector& c)
 	OBJLOG(DEBUG) << "convoluted " << c.str(); // c.size() << " " << c;
 }
 
-void TrCHFECDecoderLowRate::decode(const SoftVector& c, BitVector& o)
+void TrCHFECDecoderLowRate::decode(const SoftVector &c, BitVector &o)
 {
 	c.decode(mVCoder, o);
-	OBJLOG(DEBUG) << "unconvoluted " << c.str();	//c.size() << " " << c;
+	OBJLOG(DEBUG) << "unconvoluted " << c.str(); // c.size() << " " << c;
 }
-
 
 void BCHFEC::generate()
 {
-	//printf("BCHFEC::generate\n"); fflush(stdout);
+	// printf("BCHFEC::generate\n"); fflush(stdout);
 	l1WaitToSend();
 	const TransportBlock *tb = gNodeB.getTxSIB(nextWriteTime().FN());
-	//printf("BCHFEC::generate calling writeHighSide\n"); fflush(stdout);
-	//LOG(NOTICE) << "BCH TB.time="<<tb->time() <<" clock="<<gNodeB.clock().FN() <<" t="<< format("%.2f",timef());
+	// printf("BCHFEC::generate calling writeHighSide\n"); fflush(stdout);
+	// LOG(NOTICE) << "BCH TB.time="<<tb->time() <<" clock="<<gNodeB.clock().FN() <<" t="<< format("%.2f",timef());
 	l1WriteHighSide(*tb);
 }
 
-
-
-static void* BCHServiceLoop(BCHFEC* chan)
+static void *BCHServiceLoop(BCHFEC *chan)
 {
 	while (true) {
 		chan->generate();
@@ -1048,28 +1032,22 @@ static void* BCHServiceLoop(BCHFEC* chan)
 	return 0;
 }
 
+void BCHFEC::start() { mServiceThread.start((void *(*)(void *))BCHServiceLoop, (void *)this); }
 
-void BCHFEC::start()
-{
-	mServiceThread.start((void* (*)(void*))BCHServiceLoop, (void*)this);
-}
-
-
-
-void TrCHFECEncoderTurbo::encode(BitVector& in, BitVector &c)
+void TrCHFECEncoderTurbo::encode(BitVector &in, BitVector &c)
 {
 	// coding - 25.212, 4.2.3.1
 	// concatenation of encoded blocks - 25.212, 4.2.3.3
 	in.encode(mTCoder, c, mInterleaver);
-	OBJLOG(DEBUG) << "turbo " << c.str();	//c.size() << " " << c;
+	OBJLOG(DEBUG) << "turbo " << c.str(); // c.size() << " " << c;
 }
 
-void TrCHFECDecoderTurbo::decode(const SoftVector&c, BitVector &o)
+void TrCHFECDecoderTurbo::decode(const SoftVector &c, BitVector &o)
 {
 	// coding - 25.212, 4.2.3.1
 	// concatenation of encoded blocks - 25.212, 4.2.3.3
 	c.decode(mTCoder, o, mInterleaver);
-	OBJLOG(DEBUG) << "turbo " << o.str();	//o.size() << " " << o;
+	OBJLOG(DEBUG) << "turbo " << o.str(); // o.size() << " " << o;
 }
 
 #if USE_OLD_DCH
@@ -1090,16 +1068,19 @@ void DCHFEC::fecConfig(TrChConfig &config, bool turbo)
 		for (int n = 0; n < ntf; n++) {
 			int numtb = tfs->getNumTB(n);
 			int tbsize = tfs->getTBSize(n);
-			if (numtb == 0 || tbsize == 0) continue;
-			if (numNonEmpty++) {assert(0);}	// There are multiple non-empty TF.
+			if (numtb == 0 || tbsize == 0)
+				continue;
+			if (numNonEmpty++) {
+				assert(0);
+			} // There are multiple non-empty TF.
 			assert(numtb == 1);
-			FecProgInfoInit fpiul(this->getUlSF(),tfs->getTTICode(),tfs->getPB(),
+			FecProgInfoInit fpiul(this->getUlSF(), tfs->getTTICode(), tfs->getPB(),
 				this->getUlRadioFrameSize(), tbsize, turbo);
 			if (turbo) {
-                        	TrCHFECDecoder *decoder = new TrCHFECDecoderTurbo(this,fpiul);
-                        	this->setDecoder(decoder);
- 			} else {
-				TrCHFECDecoder *decoder = new TrCHFECDecoderLowRate(this,fpiul);
+				TrCHFECDecoder *decoder = new TrCHFECDecoderTurbo(this, fpiul);
+				this->setDecoder(decoder);
+			} else {
+				TrCHFECDecoder *decoder = new TrCHFECDecoderLowRate(this, fpiul);
 				this->setDecoder(decoder);
 			}
 		}
@@ -1115,22 +1096,24 @@ void DCHFEC::fecConfig(TrChConfig &config, bool turbo)
 		for (int n = 0; n < ntf; n++) {
 			int numtb = tfs->getNumTB(n);
 			int tbsize = tfs->getTBSize(n);
-			if (numtb == 0 || tbsize == 0) continue;
-			if (numNonEmpty++) {assert(0);}	// There are multiple non-empty TF.
+			if (numtb == 0 || tbsize == 0)
+				continue;
+			if (numNonEmpty++) {
+				assert(0);
+			} // There are multiple non-empty TF.
 			assert(numtb == 1);
-			FecProgInfoInit fpidl(this->getDlSF(),tfs->getTTICode(),tfs->getPB(),
+			FecProgInfoInit fpidl(this->getDlSF(), tfs->getTTICode(), tfs->getPB(),
 				this->getDlRadioFrameSize(), tbsize, turbo);
 			if (turbo) {
-                        	TrCHFECEncoder *encoder = new TrCHFECEncoderTurbo(this,fpidl);
-                        	this->setEncoder(encoder);
+				TrCHFECEncoder *encoder = new TrCHFECEncoderTurbo(this, fpidl);
+				this->setEncoder(encoder);
 			} else {
-				TrCHFECEncoder *encoder = new TrCHFECEncoderLowRate(this,fpidl);
+				TrCHFECEncoder *encoder = new TrCHFECEncoderLowRate(this, fpidl);
 				this->setEncoder(encoder);
 			}
 		}
 	}
-	//this->setDownstream(mRadio);	radio pointer moved to PhCh
-
+	// this->setDownstream(mRadio);	radio pointer moved to PhCh
 }
 #endif
 
@@ -1145,7 +1128,7 @@ void DCHFEC::open()
 #else
 	controlOpen();
 #endif
-	gActiveDCH.push_back((DCHFEC*)this);
+	gActiveDCH.push_back((DCHFEC *)this);
 	cout << "Opening DCH" << endl;
 }
 
@@ -1153,9 +1136,10 @@ void DCHFEC::open()
 void DCHFEC::close()
 {
 	printf("waiting to remove...\n");
-	while (gActiveDCH.inTxUse || gActiveDCH.inRxUse) usleep(1000);
+	while (gActiveDCH.inTxUse || gActiveDCH.inRxUse)
+		usleep(1000);
 	ScopedLock lock(gActiveDCH.mLock);
-	gActiveDCH.remove((DCHFEC*)this);
+	gActiveDCH.remove((DCHFEC *)this);
 	printf("removed\n");
 #if USE_OLD_DCH
 	mEncoder->close();
@@ -1164,10 +1148,7 @@ void DCHFEC::close()
 	// Somebody needs to deallocate the encoder/decoders.
 	controlClose();
 #endif
-	mPhCh->phChClose();		// Allows reallocation in the ChannelTree.
+	mPhCh->phChClose(); // Allows reallocation in the ChannelTree.
 }
 
-
-}; // namespace
-
-// vim: ts=4 sw=4
+}; // namespace UMTS

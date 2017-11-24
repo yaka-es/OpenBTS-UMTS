@@ -19,6 +19,7 @@ add_compile_options(-pthread)
 
 add_executable(OpenBTS-UMTS OpenBTS-UMTS.cpp GetConfigurationKeys.cpp)
 target_link_libraries(OpenBTS-UMTS
+	${LINK_FLAGS_LTO}
 	openbts-umts-globals
 	openbts-umts-cli
 	openbts-umts-trxmanager
@@ -39,10 +40,18 @@ target_link_libraries(OpenBTS-UMTS
 add_dependencies(OpenBTS-UMTS ${openbts_deps_prebuild})
 
 add_executable(OpenBTS-UMTSCLI OpenBTS-UMTSCLI.cpp)
-target_link_libraries(OpenBTS-UMTSCLI -lreadline -pthread)
+target_link_libraries(OpenBTS-UMTSCLI
+	${LINK_FLAGS_LTO}
+	readline
+	-pthread
+)
 add_dependencies(OpenBTS-UMTSCLI ${openbts_deps_prebuild})
 
 add_executable(OpenBTS-UMTSDo OpenBTS-UMTSDo.cpp)
+target_link_libraries(OpenBTS-UMTSDo
+	${LINK_FLAGS_LTO}
+	-pthread
+)
 add_dependencies(OpenBTS-UMTSDo ${openbts_deps_prebuild})
 
 # OpenBTS-UMTS.example.sql

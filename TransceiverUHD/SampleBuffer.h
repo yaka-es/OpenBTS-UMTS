@@ -1,8 +1,9 @@
 #ifndef UHD_BUFFER_H
 #define UHD_BUFFER_H
 
-#include <string>
 #include <complex>
+#include <string>
+
 #include <uhd/types/time_spec.hpp>
 
 /*
@@ -32,12 +33,7 @@ public:
 	/* Formatted error code string */
 	static std::string str_code(int code);
 
-	enum err_code {
-		ERROR_TIMESTAMP = -1,
-		ERROR_READ = -2,
-		ERROR_WRITE = -3,
-		ERROR_OVERFLOW = -4
-	};
+	enum err_code { ERROR_TIMESTAMP = -1, ERROR_READ = -2, ERROR_WRITE = -3, ERROR_OVERFLOW = -4 };
 
 private:
 	std::complex<short> *data;

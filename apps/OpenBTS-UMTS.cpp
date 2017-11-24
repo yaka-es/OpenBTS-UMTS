@@ -6,7 +6,7 @@
  * Copyright 2010 Kestrel Signal Processing, Inc.
  * Copyright 2011, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
+ * This software is distributed under the terms of the GNU Affero General
  * See the COPYING and NOTICE files in the current or main directory for
  * directory for licensing information.
  *
@@ -14,52 +14,51 @@
  * See the LEGAL file in the main directory for details.
  */
 
-#include <iostream>
-#include <fstream>
+#include <assert.h>
+#include <signal.h>
+#include <string.h>
+#include <unistd.h>
 
-#include <Configuration.h>
+#include <fstream>
+#include <iostream>
+
+#ifdef HAVE_LIBREADLINE
+#include <readline/history.h>
+#include <readline/readline.h>
+#endif
+
+#include <CLI/CLI.h>
+#include <CommonLibs/Configuration.h>
+#include <CommonLibs/Logger.h>
+#include <Control/ControlCommon.h>
+#include <Control/TransactionTable.h>
+#include <NodeManager/NodeManager.h>
+#include <SIP/SIPInterface.h>
+#include <TRXManager/TRXManager.h>
+#include <UMTS/UMTSConfig.h>
+
 // Load configuration from a file.
 ConfigurationTable gConfig("/etc/OpenBTS/OpenBTS-UMTS.db", "OpenBTS-UMTS", getConfigurationKeys());
-
-#include <TRXManager.h>
-#include <UMTSConfig.h>
-#include <SIPInterface.h>
-#include <TransactionTable.h>
-#include <ControlCommon.h>
-
-#include <Logger.h>
-#include <CLI.h>
-#include <NodeManager.h>
-
-#include <assert.h>
-#include <unistd.h>
-#include <string.h>
-#include <signal.h>
-
-#ifdef HAVE_LIBREADLINE // [
-//#include <stdio.h>
-#include <readline/readline.h>
-#include <readline/history.h>
-#endif // HAVE_LIBREADLINE ]
 
 using namespace std;
 using namespace UMTS;
 
-namespace UMTS { void testCCProgramming(); }
+namespace UMTS {
 
-const char* gDateTime = __DATE__ " " __TIME__;
+void testCCProgramming();
+};
 
+const char *gDateTime = __DATE__ " " __TIME__;
 
 // All of the other globals that rely on the global configuration file need to
 // be declared here.
-
 
 // Configure the BTS object based on the config file.
 // So don't create this until AFTER loading the config file.
 UMTSConfig gNodeB;
 
 // Our interface to the software-defined radio.
-TransceiverManager gTRX;	// init below with TransceiverManagerInit()
+TransceiverManager gTRX; // init below with TransceiverManagerInit()
 
 // The TMSI Table.
 Control::TMSITable gTMSITable(gConfig.getStr("Control.Reporting.TMSITable").c_str());
@@ -70,7 +69,7 @@ Control::TransactionTable gTransactionTable(gConfig.getStr("Control.Reporting.Tr
 // The global SIPInterface object.
 SIP::SIPInterface gSIPInterface;
 
-/** The remote node manager. */ 
+/** The remote node manager. */
 NodeManager gNodeManager;
 
 const char *transceiverPath = "./transceiver";
@@ -78,7 +77,7 @@ const char *transceiverPath = "./transceiver";
 pid_t gTransceiverPid = 0;
 
 /** Define a function to call any time the configuration database changes. */
-void purgeConfig(void*,int,char const*, char const*, sqlite3_int64)
+void purgeConfig(void *, int, char const *, char const *, sqlite3_int64)
 {
 	LOG(INFO) << "purging configuration cache";
 	gConfig.purge();
@@ -116,9 +115,8 @@ int main(int argc, char *argv[])
 
 	// TODO: Properly parse and handle any arguments
 	if (argc > 1) {
-		for (int argi = 1; argi < argc; argi++) {		// Skip argv[0] which is the program name.
-			if (!strcmp(argv[argi], "--version") ||
-				!strcmp(argv[argi], "-v")) {
+		for (int argi = 1; argi < argc; argi++) { // Skip argv[0] which is the program name.
+			if (!strcmp(argv[argi], "--version") || !strcmp(argv[argi], "-v")) {
 				cout << gVersionString << endl;
 				return 0;
 			}
@@ -137,14 +135,14 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	//createStats();
+	// createStats();
 
-	//gConfig.setCrossCheckHook(&configurationCrossCheck);
+	// gConfig.setCrossCheckHook(&configurationCrossCheck);
 
-	//gReports.incr("OpenBTS-UMTS.Starts");
+	// gReports.incr("OpenBTS-UMTS.Starts");
 
-	//gNeighborTable.NeighborTableInit(
-	//gConfig.getStr("Peering.NeighborTable.Path").c_str());
+	// gNeighborTable.NeighborTableInit(
+	// gConfig.getStr("Peering.NeighborTable.Path").c_str());
 
 	try {
 		COUT("\n\n" << gOpenWelcome << "\n");
@@ -164,23 +162,27 @@ int main(int argc, char *argv[])
 
 		LOG(ALERT) << "OpenBTS-UMTS (re)starting, ver " << VERSION << " build date " << __DATE__;
 
-		//verify(argv[0]);
+		// verify(argv[0]);
 		gParser.addCommands();
 
 		COUT("\nStarting the system...");
 
-		ARFCNManager* downstreamRadio = gTRX.ARFCN(0);
+		ARFCNManager *downstreamRadio = gTRX.ARFCN(0);
 
-		gNodeB.init(downstreamRadio);	// (pat) Nicer to test the beacon config before starting the transceiver.
+		gNodeB.init(downstreamRadio); // (pat) Nicer to test the beacon config before starting the transceiver.
 
 		// (pat) DEBUG: Run these tests on startup.
-		if (testmode) { UMTS::testCCProgramming(); return 0; }
+		if (testmode) {
+			UMTS::testCCProgramming();
+			return 0;
+		}
 
-		COUT("Starting the transceiver..." << endl);	// (pat) 11-9-2012 Taking this out causes OpenBTS-UMTS to malfunction! Intermittently.
+		COUT("Starting the transceiver..."
+			<< endl); // (pat) 11-9-2012 Taking this out causes OpenBTS-UMTS to malfunction! Intermittently.
 
-		//LOG(INFO) << "Starting the transceiver...";
+		// LOG(INFO) << "Starting the transceiver...";
 
-		startTransceiver();	// (pat) This is now a no-op because transceiver is built-in.
+		startTransceiver(); // (pat) This is now a no-op because transceiver is built-in.
 
 		sleep(5);
 
@@ -192,7 +194,7 @@ int main(int argc, char *argv[])
 		// Configure the radio.
 		//
 		Thread DCCHControlThread;
-		DCCHControlThread.start((void * (*)(void *))Control::DCCHDispatcher, NULL);
+		DCCHControlThread.start((void *(*)(void *))Control::DCCHDispatcher, NULL);
 
 		// Set up the interface to the radio.
 		// Get a handle to the C0 transceiver interface.
@@ -206,7 +208,7 @@ int main(int argc, char *argv[])
 		// Get the ARFCN list.
 		unsigned C0 = gConfig.getNum("UMTS.Radio.C0");
 		LOG(INFO) << "tuning TRX to UARFCN " << C0;
-		ARFCNManager* radio = gTRX.ARFCN(0);
+		ARFCNManager *radio = gTRX.ARFCN(0);
 		radio->tune(C0);
 
 		// Sleep long enough for the USRP to bootload.
@@ -214,14 +216,14 @@ int main(int argc, char *argv[])
 		gTRX.trxStart();
 
 		// Set maximum expected delay spread.
-		//C0radio->setMaxDelay(gConfig.getNum("UMTS.Radio.MaxExpectedDelaySpread"));
+		// C0radio->setMaxDelay(gConfig.getNum("UMTS.Radio.MaxExpectedDelaySpread"));
 
 		// Set Receiver Gain
 		C0radio->setRxGain(gConfig.getNum("UMTS.Radio.RxGain"));
 
-#if 0		/* Unused code */
+#if 0 /* Unused code */
 		// Turn on and power up.
-		// get the band and set the RF filter muxes 
+		// get the band and set the RF filter muxes
 		unsigned gsm_band;
 		unsigned band = gConfig.getNum("UMTS.Radio.Band");
 
@@ -250,7 +252,7 @@ int main(int argc, char *argv[])
 		// gNodeB.addPCH(&CCCH2);
 
 		// Be sure we are not over-reserving.
-		//LOG_ASSERT(gConfig.getNum("UMTS.CCCH.PCH.Reserve")<(int)gNodeB.numAGCHs());
+		// LOG_ASSERT(gConfig.getNum("UMTS.CCCH.PCH.Reserve")<(int)gNodeB.numAGCHs());
 
 		// XXX skip this test
 		// C0radio->readRxPwrCoarse();
@@ -301,7 +303,7 @@ int main(int argc, char *argv[])
 
 		gParser.startCommandLine();
 
-		//gNodeManager.setAppLogicHandler(&nmHandler);
+		// gNodeManager.setAppLogicHandler(&nmHandler);
 
 		gNodeManager.start(45070);
 
@@ -315,9 +317,10 @@ int main(int argc, char *argv[])
 
 			memset(&source, 0, sizeof(source));
 
-			ssize_t nread = recvfrom(sock, cmd_buffer, cmd_buffer_size - 1, 0, (struct sockaddr *)&source, &sourceSize);
+			ssize_t nread = recvfrom(
+				sock, cmd_buffer, cmd_buffer_size - 1, 0, (struct sockaddr *)&source, &sourceSize);
 
-			//gReports.incr("OpenBTS-UMTS.CLI.Command");
+			// gReports.incr("OpenBTS-UMTS.CLI.Command");
 			cmd_buffer[nread] = '\0';
 
 			LOG(INFO) << "received command \"" << cmd_buffer << "\" from " << source.sun_path;
@@ -330,9 +333,9 @@ int main(int argc, char *argv[])
 
 			LOG(INFO) << "sending " << strlen(rsp) << "-char result to " << source.sun_path;
 
-			if (sendto(sock, rsp, strlen(rsp) + 1, 0, (const struct sockaddr *)&source, sourceSize)<0) {
+			if (sendto(sock, rsp, strlen(rsp) + 1, 0, (const struct sockaddr *)&source, sourceSize) < 0) {
 				LOG(ERR) << "can't send CLI response to " << source.sun_path;
-				//gReports.incr("OpenBTS-UMTS.CLI.Command.ResponseFailure");
+				// gReports.incr("OpenBTS-UMTS.CLI.Command.ResponseFailure");
 			}
 
 			// res<0 means to exit the application
@@ -347,8 +350,8 @@ int main(int argc, char *argv[])
 
 	} catch (ConfigurationTableKeyNotFound e) {
 		LOG(EMERG) << "required configuration parameter " << e.key() << " not defined, aborting";
-		//gReports.incr("OpenBTS-UMTS.Exit.Error.ConfigurationParamterNotFound");
+		// gReports.incr("OpenBTS-UMTS.Exit.Error.ConfigurationParamterNotFound");
 	}
 
-	//if (gTransceiverPid) kill(gTransceiverPid, SIGKILL);
+	// if (gTransceiverPid) kill(gTransceiverPid, SIGKILL);
 }

@@ -4,6 +4,8 @@
 
 cmake_minimum_required(VERSION 3.0)
 
+option(CONFIG_LTO "Use link-time optimization" OFF)
+
 project(OpenBTS-UMTS)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
@@ -22,6 +24,10 @@ add_compile_options(-Wall)
 add_compile_options(-Werror)
 #add_compile_options(-Weffc++)
 add_compile_options(-pthread)
+if (CONFIG_LTO)
+	add_compile_options(-flto)
+	set(LINK_FLAGS_LTO -flto)
+endif ()
 
 set(TIMESTAMP_ISO "1900-01-01T00:00:00")
 add_definitions(-DTIMESTAMP_ISO="${TIMESTAMP_ISO}")
@@ -34,18 +40,17 @@ include_directories(${PROJECT_SOURCE_DIR})  # required in apps/OpenBTS.cpp
 include_directories(${PROJECT_BINARY_DIR})  # required for <config.h>
 include_directories(${PROJECT_BINARY_DIR}/ASN/generated)
 
-include_directories(CLI)
-include_directories(CommonLibs)
-include_directories(Control)
-include_directories(GSM)
-include_directories(Globals)
-include_directories(NodeManager)
+#include_directories(CLI)
+#include_directories(Control)
+#include_directories(GSM)
+#include_directories(Globals)
+#include_directories(NodeManager)
 include_directories(NodeManager/JsonBox-0.4.3/include)
-include_directories(SGSNGGSN)
-include_directories(SIP)
-include_directories(SMS)
-include_directories(TRXManager)
-include_directories(UMTS)
+#include_directories(SGSNGGSN)
+#include_directories(SIP)
+#include_directories(SMS)
+#include_directories(TRXManager)
+#include_directories(UMTS)
 
 set(openbts_deps_prebuild openbts-umts-asn-generated)
 

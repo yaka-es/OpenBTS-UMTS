@@ -4,19 +4,21 @@
  *
  * Copyright 2008, 2009 Free Software Foundation, Inc.
  * Copyright 2014 Range Networks, Inc.
- * 
- * This software is distributed under the terms of the GNU General Public 
+ *
+ * This software is distributed under the terms of the GNU General Public
  * License version 3. See the COPYING and NOTICE files in the current
  * directory for licensing information.
- * 
+ *
  * This use of this software may be subject to additional restrictions.
  * See the LEGAL file in the main directory for details.
  */
 
 #include <stdint.h>
 #include <stdio.h>
-#include <Logger.h>
-#include <Configuration.h>
+
+#include <CommonLibs/Configuration.h>
+#include <CommonLibs/Logger.h>
+
 #include "RAD1Device.h"
 
 ConfigurationTable gConfig;
@@ -31,7 +33,7 @@ int main(int argc, char *argv[])
 	else
 		gLogInit("openbts", "DEBUG", LOG_LOCAL7);
 
-	//if (argc>2) gSetLogFile(argv[2]);
+	// if (argc>2) gSetLogFile(argv[2]);
 
 	RAD1Device *usrp = new RAD1Device(3.84e6);
 
@@ -39,8 +41,10 @@ int main(int argc, char *argv[])
 
 	TIMESTAMP timestamp;
 
-	if (!usrp->setTxFreq(925.2e6, 113)) printf("TX failed!");
-	if (!usrp->setRxFreq(925.2e6, 113)) printf("RX failed!");
+	if (!usrp->setTxFreq(925.2e6, 113))
+		printf("TX failed!");
+	if (!usrp->setRxFreq(925.2e6, 113))
+		printf("RX failed!");
 
 	usrp->start();
 
@@ -50,7 +54,7 @@ int main(int argc, char *argv[])
 
 	bool underrun;
 
-	//short data[] = { 0x00, 0x02 };
+	// short data[] = { 0x00, 0x02 };
 
 	usrp->updateAlignment(20000);
 	usrp->updateAlignment(21000);
@@ -72,7 +76,7 @@ int main(int argc, char *argv[])
 	unsigned long num = 0;
 
 	while (1) {
-		short readBuf[rcvLen*2];
+		short readBuf[rcvLen * 2];
 		printf("reading data...\n");
 
 		int rd = usrp->readSamples(readBuf, rcvLen, &underrun, timestamp);
@@ -84,18 +88,18 @@ int main(int argc, char *argv[])
 			for (int i = 0; i < rcvLen; i++) {
 				uint32_t *wordPtr = (uint32_t *)&readBuf[2 * i];
 
-				*wordPtr = usrp_to_host_u32(*wordPtr); 
+				*wordPtr = usrp_to_host_u32(*wordPtr);
 
-				printf ("%llu: %d %d\n", timestamp+i,readBuf[2*i],readBuf[2*i+1]);
+				printf("%llu: %d %d\n", timestamp + i, readBuf[2 * i], readBuf[2 * i + 1]);
 
 				sum += (readBuf[2 * i + 1] * readBuf[2 * i + 1] + readBuf[2 * i] * readBuf[2 * i]);
 				pwr += (readBuf[2 * i + 1] * readBuf[2 * i + 1] + readBuf[2 * i] * readBuf[2 * i]);
 				num++;
-				//if (num % 10000 == 0) printf("avg pwr: %f\n", sum/num);
+				// if (num % 10000 == 0) printf("avg pwr: %f\n", sum/num);
 			}
 			printf("For %llu to %llu, power is %f\n", timestamp, timestamp + rcvLen - 1, pwr);
 			timestamp += rd;
-			//usrp->writeSamples((short*) data2,512*numpkts,&underrun,timestamp+1000);
+			// usrp->writeSamples((short*) data2,512*numpkts,&underrun,timestamp+1000);
 		}
 	}
 }

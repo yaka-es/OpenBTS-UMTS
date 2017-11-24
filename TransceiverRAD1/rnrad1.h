@@ -3,11 +3,11 @@
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2014 Range Networks, Inc.
- * 
- * This software is distributed under the terms of the GNU General Public 
+ *
+ * This software is distributed under the terms of the GNU General Public
  * License version 3. See the COPYING and NOTICE files in the current
  * directory for licensing information.
- * 
+ *
  * This use of this software may be subject to additional restrictions.
  * See the LEGAL file in the main directory for details.
  */
@@ -15,162 +15,143 @@
 #ifndef RNRAD1_H
 #define RNRAD1_H
 
+#include "rnrad1Core.h"
+
 class rnrad1Tx;
 class rnrad1Rx;
 
-#include "rnrad1Core.h"
+class rnrad1Rx : public rnrad1Core {
+private:
+	unsigned int mDecimRate;
+	int mSwMux;
+	int mHwMux;
+	double mRxFreq;
 
+	fusb_devhandle *mDevHandle;
+	fusb_ephandle *mEndptHandle;
+	int mBytesSeen; // how many bytes we've seen
+	bool mFirstRead;
+	bool mEnabled;
 
-class rnrad1Rx : public rnrad1Core
-{
- private:
+protected:
+	rnrad1Rx(int whichBoard, unsigned int wDecimRate, const std::string fpgaFilename,
+		const std::string firmwareFilename);
 
-  unsigned int mDecimRate;
-  int mSwMux;
-  int mHwMux;
-  double mRxFreq;
-  
-  fusb_devhandle	*mDevHandle;
-  fusb_ephandle		*mEndptHandle;
-  int			 mBytesSeen;		// how many bytes we've seen
-  bool			 mFirstRead;
-  bool			 mEnabled;
+	bool writeHwMuxReg();
+	bool enable(bool on);
+	bool enable() const { return mEnabled; }
 
- protected:
-  
-  rnrad1Rx (int whichBoard,
-	    unsigned int wDecimRate,
-	    const std::string fpgaFilename,
-	    const std::string firmwareFilename);
-
-  bool writeHwMuxReg();
-  bool enable(bool on);
-  bool enable () const { return mEnabled; }
-
-  bool disable();		// conditional disable, return prev state
-  void restore(bool on);	// conditional set
+	bool disable();	// conditional disable, return prev state
+	void restore(bool on); // conditional set
 
 public:
+	~rnrad1Rx();
 
-  ~rnrad1Rx ();
+	static rnrad1Rx *make(int whichBoard, unsigned int wDecimRate, const std::string fpgaFilename,
+		const std::string firmwareFilename);
 
-  static rnrad1Rx* make(int whichBoard,
-			unsigned int wDecimRate,
-			const std::string fpgaFilename,
-			const std::string firmwareFilename);
+	bool setDecimRate(unsigned int rate);
 
-  bool setDecimRate (unsigned int rate);
+	bool setMux(int mux);
 
-  bool setMux (int mux);
+	bool setRxFreq(double freq);
 
-  bool setRxFreq (double freq);
+	double rxFreq(void) { return mRxFreq; }
 
-  double rxFreq(void) {return mRxFreq;}
+	bool start();
 
-  bool start();
+	bool setSampleRateDivisor(unsigned int div);
 
-  bool setSampleRateDivisor (unsigned int div);
+	int read(void *buf, int len, bool *overrun);
 
-  int read (void *buf, int len, bool *overrun);
+	long adcRate() const { return fpgaMasterClockFreq(); }
 
-  long adcRate() const { return fpgaMasterClockFreq(); }
+	bool setPga(int which_amp, double gain_in_db);
+	double pga(int which_amp) const;
+	double pgaMin() const { return 0.0; }
+	double pgaMax() const { return 20.0; }
+	double pgaDbPerStep() const { return 20.0 / 20.0; }
 
-  bool setPga (int which_amp, double gain_in_db);
-  double pga (int which_amp) const;
-  double pgaMin () const {return 0.0;}
-  double pgaMax () const {return 20.0;}
-  double pgaDbPerStep () const {return 20.0/20.0;}
+	bool writeOE(int value, int mask);
+	bool writeIO(int value, int mask);
+	bool readIO(int *value);
+	int readIO(void);
+	bool writeRefClk(int value);
 
-  bool writeOE (int value, int mask);
-  bool writeIO (int value, int mask);
-  bool readIO (int *value);
-  int  readIO (void);
-  bool writeRefClk(int value);
+	bool writeAuxDac(int which_dac, int value);
+	bool readAuxAdc(int which_adc, int *value);
+	int readAuxAdc(int which_adc);
 
-  bool writeAuxDac (int which_dac, int value);
-  bool readAuxAdc (int which_adc, int *value);
-  int  readAuxAdc (int which_adc);
-
-  int blockSize() const;
+	int blockSize() const;
 };
 
-
-class rnrad1Tx: public rnrad1Core
-{
-
- public:
-
- private:
-  fusb_devhandle	*mDevHandle;
-  fusb_ephandle		*mEndptHandle;
-  int			 mBytesSeen;		// how many bytes we've seen
-  bool			 mFirstWrite;
-  bool			 mEnabled;
-  
-  unsigned int mInterpRate;
-  int mSwMux;
-  int mHwMux;
-  double mTxFreq;
-  unsigned char mTxModulatorShadow;
-
- protected:
-
-  rnrad1Tx (int which_board,
-	    unsigned int wInterpRate,
-	    const std::string fpgaFilename,
-	    const std::string firmwareFilename);
-
-  bool enable (bool on);
-  bool enable () const { return mEnabled; }
-  
-  bool disable();		// conditional disable, return prev state
-  void restore(bool on);	// conditional set
-  
-  bool writeHwMuxReg();
+class rnrad1Tx : public rnrad1Core {
 
 public:
-  
-  bool setSampleRateDivisor (unsigned int div);
+private:
+	fusb_devhandle *mDevHandle;
+	fusb_ephandle *mEndptHandle;
+	int mBytesSeen; // how many bytes we've seen
+	bool mFirstWrite;
+	bool mEnabled;
 
-  int write (const void *buf, int len, bool *underrun);
+	unsigned int mInterpRate;
+	int mSwMux;
+	int mHwMux;
+	double mTxFreq;
+	unsigned char mTxModulatorShadow;
 
-  long dacRate() const { return 2*fpgaMasterClockFreq(); }
+protected:
+	rnrad1Tx(int which_board, unsigned int wInterpRate, const std::string fpgaFilename,
+		const std::string firmwareFilename);
 
-  bool setPga (int which_amp, double gain_in_db);
-  double pga (int which_amp) const;
-  double pgaMin () const {return -20.0;}
-  double pgaMax () const {return 0.0;}
-  double pgaDbPerStep () const {return 20.0/255.0;}
+	bool enable(bool on);
+	bool enable() const { return mEnabled; }
 
-  bool writeOE (int value, int mask);
-  bool writeIO (int value, int mask);
-  bool readIO (int *value);
-  int readIO (void);
-  bool writeRefClk(int value);
+	bool disable();	// conditional disable, return prev state
+	void restore(bool on); // conditional set
 
-  bool writeAuxDac (int which_dac, int value);
-  bool readAuxAdc (int which_adc, int *value);
-  int readAuxAdc (int which_adc);
+	bool writeHwMuxReg();
 
-  int blockSize() const;
+public:
+	bool setSampleRateDivisor(unsigned int div);
 
-  ~rnrad1Tx ();
+	int write(const void *buf, int len, bool *underrun);
 
-  static rnrad1Tx* make(int which_board,
-			unsigned int wInterpRate,
-			const std::string fpga_filename,
-			const std::string firmware_filename);
+	long dacRate() const { return 2 * fpgaMasterClockFreq(); }
 
-  bool setInterpRate (unsigned int rate);
+	bool setPga(int which_amp, double gain_in_db);
+	double pga(int which_amp) const;
+	double pgaMin() const { return -20.0; }
+	double pgaMax() const { return 0.0; }
+	double pgaDbPerStep() const { return 20.0 / 255.0; }
 
-  bool setMux (int mux);
+	bool writeOE(int value, int mask);
+	bool writeIO(int value, int mask);
+	bool readIO(int *value);
+	int readIO(void);
+	bool writeRefClk(int value);
 
-  bool setTxFreq (double freq);
+	bool writeAuxDac(int which_dac, int value);
+	bool readAuxAdc(int which_adc, int *value);
+	int readAuxAdc(int which_adc);
 
-  double txFreq(void) {return mTxFreq;}
+	int blockSize() const;
 
-  bool start();
+	~rnrad1Tx();
+
+	static rnrad1Tx *make(int which_board, unsigned int wInterpRate, const std::string fpga_filename,
+		const std::string firmware_filename);
+
+	bool setInterpRate(unsigned int rate);
+
+	bool setMux(int mux);
+
+	bool setTxFreq(double freq);
+
+	double txFreq(void) { return mTxFreq; }
+
+	bool start();
 };
-
 
 #endif

@@ -4,7 +4,7 @@
  *
  * Copyright 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
+ * This software is distributed under the terms of the GNU Affero General
  * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
@@ -14,9 +14,11 @@
 
 #ifndef UMTSPHCH_H
 #define UMTSPHCH_H
-#include "Threads.h"
+
+#include <CommonLibs/Threads.h>
+#include <TRXManager/TRXManager.h>
+
 #include "UMTSCommon.h"
-#include "TRXManager.h"
 
 namespace ASN {
 struct UL_DPCH_Info;
@@ -25,7 +27,7 @@ struct DL_DPCH_InfoCommon;
 struct DL_CommonInformation;
 struct DL_DPCH_InfoPerRL;
 struct DL_InformationPerRL_List;
-};
+}; // namespace ASN
 
 //#define RELEASE99
 
@@ -42,25 +44,25 @@ unsigned getDlRadioFrameSize(PhChType chtype, unsigned sf);
 // table 1+2 [page 11] uplink DBDCH, DPCCH fields.
 // table 11: [page 23] downlink DPDCH and DPCCH fields.
 struct SlotFormat {
-	int mSlotFormat;	// The index in this table; redundant - must match location in table.
+	int mSlotFormat; // The index in this table; redundant - must match location in table.
 	// int mBitRate;	// We dont need to keep this.
-	int mSF;			// We dont need to keep this, but it is a handy comment.
+	int mSF; // We dont need to keep this, but it is a handy comment.
 	// int mBitsPerFrame;	// This is always bitsperslot*15.
 	int mBitsPerSlot;
-	int mNData1;				// may be data1+data2.
-	int mNData2;				// if no data2 in table, then just 0.
+	int mNData1; // may be data1+data2.
+	int mNData2; // if no data2 in table, then just 0.
 	int mNPilot;
-	int mPilotIndex;		// Index into sDlPilotBitPatternTable;
-	int mNTfci;		// Number of raw tfci bits in the slot.
-	int mNTpc;		// transmit power control, not used for CCPCH, always 0.
+	int mPilotIndex; // Index into sDlPilotBitPatternTable;
+	int mNTfci;      // Number of raw tfci bits in the slot.
+	int mNTpc;       // transmit power control, not used for CCPCH, always 0.
 
 	// Currently the SlotForamt is used only by layer2, so I threw away the data1/data2 info and fbi,
 	// but I put those in the tables so it is trivial to add in here.
 	// transmitted slots per radio frame is always 15 because we do not use fractional.
 	// Guess L2 doesnt care about TPC either, but whatever.
-	//int mNData1;
-	//int mNData2;	// not used for CCPCH, always 0.
-	//int mNFbi;	// uplink dpcch only.  layer1 might be interested in this, but not layer2.
+	// int mNData1;
+	// int mNData2;	// not used for CCPCH, always 0.
+	// int mNFbi;	// uplink dpcch only.  layer1 might be interested in this, but not layer2.
 };
 
 extern SlotFormat SlotInfoPrachControl[1];
@@ -78,16 +80,16 @@ extern SlotFormat SlotInfoDownlinkDchREL99[17];
 // Here is the class preserved for posterity.
 class PhyChanDesc {
 
-	private: 
-	
+	private:
+
 	unsigned int mScramblingCodeIndex;
 	unsigned int mSpreadingCodeIndex;
 	unsigned int mSpreadingFactor;
-	PhyChanBranch mBranch;	
+	PhyChanBranch mBranch;
 
 	public:
 
-	PhyChanDesc(unsigned int wScramblingCodeIndex, unsigned int wSpreadingCodeIndex, 
+	PhyChanDesc(unsigned int wScramblingCodeIndex, unsigned int wSpreadingCodeIndex,
 		    unsigned int wSpreadingFactor, PhyChanBranch wBranch):
 		    mScramblingCodeIndex(wScramblingCodeIndex),
 		    mSpreadingCodeIndex(wSpreadingCodeIndex),
@@ -120,23 +122,21 @@ class PhyChanDesc {
 // This is a physical channel in the ChannelTree.
 // The primiary CPICH (sync) and PCCPCH (beacon) channels are reserved and non-programmable.
 // The others are generally  associated with a SlotFormat from one of the tables.
-class PhCh
-{
-	public:
-
-	protected:
-	PhChType mPhChType;	///< physical channel type
+class PhCh {
+public:
+protected:
+	PhChType mPhChType; ///< physical channel type
 	// (pat) I suspect we are going to use assymetric SF on the SF=4 DCH, so I separated them.
-	unsigned mDlSF;		///< downlink spreading factor
-	unsigned mDlSFLog2;     ///< log 2 of downlink spreading factor
-	unsigned mUlSF;		///< uplink spreading factor
-	unsigned mSpCode;	///< downlink spreading code (pat) aka channel code, in the range 0..(SF-1)
-	unsigned mSrCode;	///< uplink scrambling code
+	unsigned mDlSF;     ///< downlink spreading factor
+	unsigned mDlSFLog2; ///< log 2 of downlink spreading factor
+	unsigned mUlSF;     ///< uplink spreading factor
+	unsigned mSpCode;   ///< downlink spreading code (pat) aka channel code, in the range 0..(SF-1)
+	unsigned mSrCode;   ///< uplink scrambling code
 	ARFCNManager *mRadio;
 	// Uplink puncturing limit expressed as percent in the range 40 to 100.
 	// From sql "UMTS.Uplink.Puncturing.Limit"; default 100 (no puncturing); bounded if out of range.
 	int mUlPuncturingLimit;
-	bool mAllocated;	// Used by the ChannelTree
+	bool mAllocated; // Used by the ChannelTree
 	// For SCCPCH and DPDCH we will save the downlink slot format here.
 	SlotFormat *mDlSlot;
 
@@ -149,31 +149,33 @@ class PhCh
 	// so I left it out of here, although I did transcribe the data into the SlotFormat tables
 	// in case anyone wants it.
 
-	public:
+public:
 	// Bidirectional channel requires two SF and uplink scrambling code:
 	PhCh(PhChType chType,
-		unsigned wDlSF,		// downlink spreading factor
-		unsigned wSpCode,	// downlink spreading [aka channel] code
-		unsigned wUlSf,		// maximum uplink spreading factor; the actual SF varies for each TFC.
-		unsigned wSrCode,	// uplink scrambling code
+		unsigned wDlSF,   // downlink spreading factor
+		unsigned wSpCode, // downlink spreading [aka channel] code
+		unsigned wUlSf,   // maximum uplink spreading factor; the actual SF varies for each TFC.
+		unsigned wSrCode, // uplink scrambling code
 		ARFCNManager *wRadio);
 
-	SlotFormat *getDlSlot() {
+	SlotFormat *getDlSlot()
+	{
 		// This method should not be used for uplink channels (CPICH or PCCPCH or PRACH.)
 		assert(mPhChType == SCCPCHType || mPhChType == DPDCHType);
 		return mDlSlot;
 	}
 
-        SlotFormat *getUlDPCCH() {
-                assert(mPhChType == SCCPCHType || mPhChType == DPDCHType);
-                return mUlDPCCH;
-        }
+	SlotFormat *getUlDPCCH()
+	{
+		assert(mPhChType == SCCPCHType || mPhChType == DPDCHType);
+		return mUlDPCCH;
+	}
 
 	// ASN interface:
 	void toAsnUL_DPCH_Info(ASN::UL_DPCH_Info *iep);
 	ASN::UL_ChannelRequirement *toAsnUL_ChannelRequirement();
-	ASN::DL_DPCH_InfoCommon * toAsnDL_DPCH_InfoCommon();
-	ASN::DL_CommonInformation * toAsnDL_CommonInformation();
+	ASN::DL_DPCH_InfoCommon *toAsnDL_DPCH_InfoCommon();
+	ASN::DL_CommonInformation *toAsnDL_CommonInformation();
 	ASN::DL_DPCH_InfoPerRL *toAsnDL_DPCH_InfoPerRL();
 	ASN::DL_InformationPerRL_List *toAsnDL_InformationPerRL_List();
 
@@ -187,16 +189,15 @@ class PhCh
 	unsigned getUlSF() const { return mUlSF; }
 	unsigned getDlSF() const { return mDlSF; }
 	unsigned getDlSFLog2() const { return mDlSFLog2; }
-	unsigned SpCode() const { return mSpCode; }	// old name
+	unsigned SpCode() const { return mSpCode; } // old name
 	unsigned getSpCode() const { return mSpCode; }
-	unsigned SrCode() const { return mSrCode; }	// old name
+	unsigned SrCode() const { return mSrCode; } // old name
 	unsigned getSrCode() const { return mSrCode; }
 	ARFCNManager *getRadio() const { return mRadio; }
 
 	// Uplink uses 2 bit tfci on both RACH and DCH.
 	unsigned getUlNumTfciBits() { return 2; }
 	unsigned getDlNumTfciBits() { return mDlSlot->mNTfci; }
-
 
 	/**@name Ganged actions. */
 	// NOTE: These are used by the ChannelTree to allocate the underlying
@@ -212,41 +213,42 @@ class PhCh
 };
 
 // Downlink only channel has spreading factor and spreading [channel] code
-struct PhChDownlink: PhCh {
-	PhChDownlink(PhChType chType, unsigned wSF, unsigned wSpCode,ARFCNManager *wRadio):
-	PhCh(chType,wSF,wSpCode,0,0,wRadio) {}
+struct PhChDownlink : PhCh {
+	PhChDownlink(PhChType chType, unsigned wSF, unsigned wSpCode, ARFCNManager *wRadio)
+		: PhCh(chType, wSF, wSpCode, 0, 0, wRadio)
+	{
+	}
 };
 
 // Uplink only channel has scrambling code but no spreading factor.
 // The uplink does not need an ARFCNManager pointer, so we set it to 0
-struct PhChUplink: PhCh {
-	PhChUplink(PhChType chType, unsigned wSF, unsigned wUplinkScramblingCode):
-	PhCh(chType,0,0,wSF,wUplinkScramblingCode,(ARFCNManager*)0) {}
+struct PhChUplink : PhCh {
+	PhChUplink(PhChType chType, unsigned wSF, unsigned wUplinkScramblingCode)
+		: PhCh(chType, 0, 0, wSF, wUplinkScramblingCode, (ARFCNManager *)0)
+	{
+	}
 };
-
 
 // An element in the channel tree.
 // The channel allocation indication is not here,
 // it is inside the DCHFEC class accessed by active() method.
-struct ChannelTreeElt
-{
-	bool mReserved;	// This channel is reserved for something other than DCH.
-	bool mAlsoReserved;	// This channel is above a reserved channel, so you cant use it either.
-	DCHFEC *mDch;	// The DPDCH, although we could put the other PhChs in here too. (SCCPCH, PCCPCH, etc)
+struct ChannelTreeElt {
+	bool mReserved;     // This channel is reserved for something other than DCH.
+	bool mAlsoReserved; // This channel is above a reserved channel, so you cant use it either.
+	DCHFEC *mDch;       // The DPDCH, although we could put the other PhChs in here too. (SCCPCH, PCCPCH, etc)
 	bool available(bool checkOnlyReserved);
 	bool active(void);
 	ChannelTreeElt() : mReserved(0), mDch(0) {}
 };
 
-
-// The ChannelTree's primary purpose is to allocate DCH channels 
+// The ChannelTree's primary purpose is to allocate DCH channels
 // from the pool for a SF chosen to meet a bandwidth criteria.
 // DESIGN:
 // The channels are in a tree, where each level is called a tier,
 // with 4 channels at tier 0 (SF=4) and 256 channels at tier 7 (SF=256).
 // We assume that we are going to allocate DCH physical channel objects to populate
 // the entire tree on startup by the chPopulate() method.
-// 
+//
 // CHANNEL ALLOCATION:
 // Use the chChooseByBW() or chChooseBySF() methods to allocate a DCH channel.
 // It is dynamic, so you can mix and match SF, no restrictions except what is intrinsic.
@@ -259,7 +261,7 @@ struct ChannelTreeElt
 // It is the callers responsibility to close the channel when finished.
 //
 // RESERVATIONS:
-// Each physical channel that is used for some purpose other than a DCH 
+// Each physical channel that is used for some purpose other than a DCH
 // must be reserved in the tree by chReserve() prior to calling chPopulate()
 // I added chReserve() calls to the RACH and FACH classes, but make darned sure
 // you also call it for PICH, or whatever.
@@ -284,38 +286,39 @@ struct ChannelTreeElt
 // (That's KiloBytes/s, not Kilobits/s.)  This does not exactly match the available bandwidth for
 // our 7 available SF (SF=4 to SF=256) so we are going to be a little sloppy about that and
 // just say that 256KB/s maps to SF=4, and so on down, so the bottom three tiers (1,2,4KB/s)
-// all map to a SF=256 channel with a nominal bandwidth of 30kbs = 3.75KB/s 
-class ChannelTree
-{
-	Mutex mChLock;				// channel choosing must be atomic.
-	public:
+// all map to a SF=256 channel with a nominal bandwidth of 30kbs = 3.75KB/s
+class ChannelTree {
+	Mutex mChLock; // channel choosing must be atomic.
+public:
 	typedef int Tier;		// In the range 0..(sNumTiers-1) for SF=4 to SF=256.
-							// Use 'int' because we have loops for (...; tier >= 0; tier--)
-	static const int sNumTiers = 7;	// seven tree tiers for SF=4 to SF=256.
+					// Use 'int' because we have loops for (...; tier >= 0; tier--)
+	static const int sNumTiers = 7; // seven tree tiers for SF=4 to SF=256.
 
-	private:
-	ChannelTreeElt *mTree[sNumTiers];		// The tree itself is a pyramidal matrix.
+private:
+	ChannelTreeElt *mTree[sNumTiers]; // The tree itself is a pyramidal matrix.
 
 	// These are internal functions of chChooseByTier and chReserve:
-	bool isTierFreeUpward(Tier tier,unsigned chcode, bool checkOnlyReserved, Tier *badtier, unsigned *badcode);
-	bool isTierFreeDownward(Tier tier,unsigned startcode, unsigned width, bool checkOnlyReserved, Tier *badtier, unsigned *badcode);
-	void chConflict(Tier t1,unsigned ch1,Tier t2,unsigned ch2);
-	DCHFEC *chChooseByTier(Tier tier);	// Choose a DCH specified by SF expressed as a Tier.
+	bool isTierFreeUpward(Tier tier, unsigned chcode, bool checkOnlyReserved, Tier *badtier, unsigned *badcode);
+	bool isTierFreeDownward(Tier tier, unsigned startcode, unsigned width, bool checkOnlyReserved, Tier *badtier,
+		unsigned *badcode);
+	void chConflict(Tier t1, unsigned ch1, Tier t2, unsigned ch2);
+	DCHFEC *chChooseByTier(Tier tier); // Choose a DCH specified by SF expressed as a Tier.
 
-	public:
+public:
 	ChannelTree();
-	static unsigned sf2tier(unsigned sf);	// Return the tree tier for a given SF.
-	static unsigned tier2sf(Tier tier);		// Return the SF for a tree tier (0..7).
-	static Tier bw2tier(unsigned KBps, bool guaranteed);		// Return the tier needed for specified KBytes/s, approximately.
-	DCHFEC *chChooseByBW(unsigned KBps);	// Choose one of the DCH channels by bandwidth in KBytes/s.
-	DCHFEC *chChooseBySF(unsigned sf);		// Choose a DCH specified by SF.
+	static unsigned sf2tier(unsigned sf); // Return the tree tier for a given SF.
+	static unsigned tier2sf(Tier tier);   // Return the SF for a tree tier (0..7).
+	static Tier bw2tier(
+		unsigned KBps, bool guaranteed); // Return the tier needed for specified KBytes/s, approximately.
+	DCHFEC *chChooseByBW(unsigned KBps);     // Choose one of the DCH channels by bandwidth in KBytes/s.
+	DCHFEC *chChooseBySF(unsigned sf);       // Choose a DCH specified by SF.
 
 	// Is this exact ch reserved?  This does not check above and below in the ChannelTree and is used
 	// only to assert that we have correctly reserved a channel previously.
 	bool isReserved(unsigned sf, unsigned code) { return mTree[sf2tier(sf)][code].mReserved; }
 
 	// Permanently reserve the the specified channel in the tree for this channel.
-	void chReserve(unsigned sf,unsigned chcode);
+	void chReserve(unsigned sf, unsigned chcode);
 	// Populate the tree with DCH channels.
 	// Call after reserving dedicated channels with chReserve()
 	void chPopulate(ARFCNManager *downstream);
@@ -323,11 +326,11 @@ class ChannelTree
 	void chTest(std::ostream &os);
 	void chTestAlloc(int sf, int cnt, std::ostream &os);
 	void chTestFree(int sf, int cnt, std::ostream &os);
-	friend std::ostream& operator<<(std::ostream& os, const ChannelTree&);
+	friend std::ostream &operator<<(std::ostream &os, const ChannelTree &);
 };
-std::ostream& operator<<(std::ostream& os, const ChannelTree&);
+std::ostream &operator<<(std::ostream &os, const ChannelTree &);
 
-extern ChannelTree gChannelTree;	// And here it is.
+extern ChannelTree gChannelTree; // And here it is.
 
-};	// namespace UMTS
+}; // namespace UMTS
 #endif

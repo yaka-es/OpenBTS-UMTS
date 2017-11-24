@@ -4,7 +4,7 @@
  *
  * Copyright 2011, 2012, 2013, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
+ * This software is distributed under the terms of the GNU Affero General
  * See the COPYING and NOTICE files in the current or main directory for
  * directory for licensing information.
  *
@@ -27,8 +27,8 @@
 #define HAVE_LIBREADLINE
 
 #ifdef HAVE_LIBREADLINE
-#include <readline/readline.h>
 #include <readline/history.h>
+#include <readline/readline.h>
 #endif
 
 #include <config.h>
@@ -60,7 +60,7 @@ int main(int argc, char *argv[])
 
 	char prompt[strlen(cmdPath) + 20];
 
-	sprintf(prompt,"OpenBTS-UMTS> ");
+	sprintf(prompt, "OpenBTS-UMTS> ");
 
 	int sock = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (sock < 0) {
@@ -89,7 +89,7 @@ int main(int argc, char *argv[])
 	// start console
 	using_history();
 
-	static const char * const history_file_name = "/.openbts-umts_history";
+	static const char *const history_file_name = "/.openbts-umts_history";
 	char *history_name = 0;
 	char *home_dir = getenv("HOME");
 
@@ -113,13 +113,12 @@ int main(int argc, char *argv[])
 	}
 #endif
 
-
 	printf("Remote Interface Ready.\n"
-		"Type:\n"
-		" \"help\" to see commands,\n"
-		" \"version\" for version information,\n"
-		" \"notices\" for licensing information.\n"
-		" \"quit\" to exit console interface\n");
+	       "Type:\n"
+	       " \"help\" to see commands,\n"
+	       " \"version\" for version information,\n"
+	       " \"notices\" for licensing information.\n"
+	       " \"quit\" to exit console interface\n");
 
 	while (1) {
 		char *cmd;
@@ -132,7 +131,7 @@ int main(int argc, char *argv[])
 
 		if (*cmd)
 			add_history(cmd);
-#else /* !HAVE_LIBREADLINE */
+#else  /* !HAVE_LIBREADLINE */
 		printf("%s", prompt);
 		fflush(stdout);
 
@@ -164,7 +163,8 @@ int main(int argc, char *argv[])
 		}
 
 		// use the socket
-		ssize_t ret = sendto(sock, cmd, strlen(cmd) + 1, 0, (const struct sockaddr *)&cmdSockName, sizeof(cmdSockName));
+		ssize_t ret = sendto(
+			sock, cmd, strlen(cmd) + 1, 0, (const struct sockaddr *)&cmdSockName, sizeof(cmdSockName));
 		if (ret < 0) {
 			perror("sending datagram");
 			printf("Is the remote application running?\n");
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])
 		} else {
 			resbuf[nread] = '\0';
 
-			printf("%s\n",resbuf);
+			printf("%s\n", resbuf);
 
 			if (nread == (bufsz - 1))
 				printf("(response truncated at %ld characters)\n", (long)nread);

@@ -18,23 +18,17 @@
  * Foundation, Inc., 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA
  */
 
-#include <stdlib.h>
-#include <math.h>
-#include <string.h>
 #include <malloc.h>
+#include <math.h>
+#include <stdlib.h>
+#include <string.h>
+
 #include <iostream>
 
 #include "Resampler.h"
-
-extern "C" {
 #include "convolve.h"
-}
 
-#ifndef M_PI
-#define M_PI			3.14159265358979323846264338327f
-#endif
-
-#define MAX_OUTPUT_LEN		8192
+#define MAX_OUTPUT_LEN 8192
 
 static float sinc(float x)
 {
@@ -44,10 +38,10 @@ static float sinc(float x)
 	return sin(M_PI * x) / (M_PI * x);
 }
 
-/* 
+/*
  * Generate sinc prototype filter with a Blackman-harris window.
  * Scale coefficients with DC filter gain set to unity divided
- * by the number of filter partitions. 
+ * by the number of filter partitions.
  */
 static float gen_windowed_sinc(float *buf, size_t len, int p, int q, float bw)
 {
@@ -57,26 +51,24 @@ static float gen_windowed_sinc(float *buf, size_t len, int p, int q, float bw)
 	float a2 = 0.14128f;
 	float a3 = 0.01168f;
 	float cutoff;
-	float midpt = ((float) len - 1.0f) / 2.0f;
+	float midpt = ((float)len - 1.0f) / 2.0f;
 
 	if (p > q)
-		cutoff = (float) p;
+		cutoff = (float)p;
 	else
-		cutoff = (float) q;
+		cutoff = (float)q;
 
 	for (size_t i = 0; i < len; i++) {
-		buf[i] = sinc(((float) i - midpt) / cutoff * bw);
-		buf[i] *= a0 -
-			  a1 * cos(2.0f * M_PI * i / (float) (len - 1)) +
-			  a2 * cos(4.0f * M_PI * i / (float) (len - 1)) -
-			  a3 * cos(6.0f * M_PI * i / (float) (len - 1));
+		buf[i] = sinc(((float)i - midpt) / cutoff * bw);
+		buf[i] *= a0 - a1 * cos(2.0f * M_PI * i / (float)(len - 1)) +
+			  a2 * cos(4.0f * M_PI * i / (float)(len - 1)) - a3 * cos(6.0f * M_PI * i / (float)(len - 1));
 		sum += buf[i];
 	}
 
-	return (float) p / sum;
+	return (float)p / sum;
 }
 
-/* 
+/*
  * Generate UMTS root raised cosine prototype filter.
  */
 static float gen_umts_rrc_pulse(float *buf, size_t len, int p, int q, float bw)
@@ -84,12 +76,12 @@ static float gen_umts_rrc_pulse(float *buf, size_t len, int p, int q, float bw)
 	float alpha = 0.22f;
 	float Tc = 1.0f;
 	float sum = 0.0f;
-	float midpt = ((float) len - 1.0f) / 2.0f;
+	float midpt = ((float)len - 1.0f) / 2.0f;
 
 	for (size_t i = 0; i < len; i++) {
 		float t, a, b, c;
 
-		t = ((float) i - midpt) / (float) p * bw;
+		t = ((float)i - midpt) / (float)p * bw;
 		a = sinf(M_PI * t / Tc * (1.0f - alpha));
 		b = 4.0f * alpha * t / Tc * cosf(M_PI * t / Tc * (1 + alpha));
 		c = 4.0f * alpha * t / Tc;
@@ -98,7 +90,7 @@ static float gen_umts_rrc_pulse(float *buf, size_t len, int p, int q, float bw)
 		sum += buf[i];
 	}
 
-	return (float) p / sum;
+	return (float)p / sum;
 }
 
 bool Resampler::initFilters(int type, float bw)
@@ -106,7 +98,7 @@ bool Resampler::initFilters(int type, float bw)
 	size_t proto_len = p * filt_len;
 	float *proto, scale;
 
-	/* 
+	/*
 	 * Allocate partition filters and the temporary prototype filter
 	 * according to numerator of the rational rate. Coefficients are
 	 * real only and must be 16-byte memory aligned for SSE usage.
@@ -115,15 +107,14 @@ bool Resampler::initFilters(int type, float bw)
 	if (!proto)
 		return false;
 
-	partitions = (float **) malloc(sizeof(float *) * p);
+	partitions = (float **)malloc(sizeof(float *) * p);
 	if (!partitions) {
 		delete proto;
 		return false;
 	}
 
 	for (size_t i = 0; i < p; i++) {
-		partitions[i] = (float *)
-				memalign(16, filt_len * 2 * sizeof(float));
+		partitions[i] = (float *)memalign(16, filt_len * 2 * sizeof(float));
 	}
 
 	/* Filter type selection */
@@ -174,16 +165,14 @@ bool Resampler::checkLen(size_t in_len, size_t out_len)
 {
 	if (in_len % q) {
 #ifdef DEBUG
-		std::cerr << "Invalid input length " << in_len
-			  <<  " is not multiple of " << q << std::endl;
+		std::cerr << "Invalid input length " << in_len << " is not multiple of " << q << std::endl;
 #endif
 		return false;
 	}
 
 	if (out_len % p) {
 #ifdef DEBUG
-		std::cerr << "Invalid output length " << out_len
-			  <<  " is not multiple of " << p << std::endl;
+		std::cerr << "Invalid output length " << out_len << " is not multiple of " << p << std::endl;
 #endif
 		return false;
 	}
@@ -200,8 +189,7 @@ bool Resampler::checkLen(size_t in_len, size_t out_len)
 
 	if (out_len > path_len) {
 #ifdef DEBUG
-		std::cerr << "Block length of " << out_len
-			  << " exceeds max of " << path_len << std::endl;
+		std::cerr << "Block length of " << out_len << " exceeds max of " << path_len << std::endl;
 		std::cerr << "Resizing" << std::endl;
 #endif
 		computePaths(out_len * 2);
@@ -226,15 +214,11 @@ int Resampler::rotate(float *in, size_t in_len, float *out, size_t out_len)
 		n = in_index[i];
 		path = out_path[i];
 
-		convolve_real(in, in_len,
-			      partitions[path], filt_len,
-			      &out[2 * i], out_len - i,
-			      n, 1, 1, 0);
+		convolve_real(in, in_len, partitions[path], filt_len, &out[2 * i], out_len - i, n, 1, 1, 0);
 	}
 
 	/* Save history */
-	memcpy(history, &in[2 * (in_len - hist_len)],
-	       hist_len * 2 * sizeof(float));
+	memcpy(history, &in[2 * (in_len - hist_len)], hist_len * 2 * sizeof(float));
 
 	return out_len;
 }
@@ -278,10 +262,7 @@ bool Resampler::computePaths(int len)
 	return true;
 }
 
-size_t Resampler::len()
-{
-	return filt_len;
-}
+size_t Resampler::len() { return filt_len; }
 
 Resampler::Resampler(size_t p, size_t q, size_t filt_len)
 	: in_index(NULL), out_path(NULL), partitions(NULL), history(NULL)

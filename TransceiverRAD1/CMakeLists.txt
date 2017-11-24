@@ -13,7 +13,7 @@ add_library(transceiver-rad1-lib
 	Transceiver.cpp
 	radioInterface.cpp
 	rnrad1Core.cpp
-	sigProcLib.cpp
+#	sigProcLib.cpp # using UMTS/sigProcLib.cpp instead
         fusb.cpp
         rnrad1Rx.cpp
         rnrad1Tx.cpp
@@ -30,6 +30,7 @@ add_executable(RAD1SN RAD1SN.cpp)
 set(link_libs1 transceiver-rad1-lib)
 set(link_libs2
 	openbts-umts-common
+	openbts-umts-gsm
 	sqlite3
 	-pthread
 )

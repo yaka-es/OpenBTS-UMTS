@@ -1,5 +1,5 @@
 /*
- * Timestamped ring buffer implementation 
+ * Timestamped ring buffer implementation
  * Written by Tom Tsou <tom@tsou.cc>
  *
  * Copyright 2010-2011 Free Software Foundation, Inc.
@@ -21,20 +21,17 @@
  */
 
 #include <string.h>
+
 #include "SampleBuffer.h"
 
 SampleBuffer::SampleBuffer(int len, double rate)
-	: clock_rate(rate), time_start(0), time_end(0),
-	  data_start(0), data_end(0)
+	: clock_rate(rate), time_start(0), time_end(0), data_start(0), data_end(0)
 {
 	this->len = len;
 	data = new std::complex<short>[len];
 }
 
-SampleBuffer::~SampleBuffer()
-{
-	delete[] data;
-}
+SampleBuffer::~SampleBuffer() { delete[] data; }
 
 int SampleBuffer::avail_smpls(long long ts) const
 {
@@ -46,10 +43,7 @@ int SampleBuffer::avail_smpls(long long ts) const
 		return time_end - ts;
 }
 
-int SampleBuffer::avail_smpls(uhd::time_spec_t ts) const
-{
-	return avail_smpls(ts.to_ticks(clock_rate));
-}
+int SampleBuffer::avail_smpls(uhd::time_spec_t ts) const { return avail_smpls(ts.to_ticks(clock_rate)); }
 
 int SampleBuffer::read(void *buf, int len, long long ts)
 {
@@ -80,7 +74,7 @@ int SampleBuffer::read(void *buf, int len, long long ts)
 		int second_cp = len * type_size - first_cp;
 
 		memcpy(buf, data + read_start, first_cp);
-		memcpy((char*) buf + first_cp, data, second_cp);
+		memcpy((char *)buf + first_cp, data, second_cp);
 	}
 
 	data_start = (read_start + len) % this->len;
@@ -92,10 +86,7 @@ int SampleBuffer::read(void *buf, int len, long long ts)
 		return num_smpls;
 }
 
-int SampleBuffer::read(void *buf, int len, uhd::time_spec_t ts)
-{
-	return read(buf, len, ts.to_ticks(clock_rate));
-}
+int SampleBuffer::read(void *buf, int len, uhd::time_spec_t ts) { return read(buf, len, ts.to_ticks(clock_rate)); }
 
 int SampleBuffer::write(void *buf, int len, long long ts)
 {
@@ -119,7 +110,7 @@ int SampleBuffer::write(void *buf, int len, long long ts)
 		int second_cp = len * type_size - first_cp;
 
 		memcpy(data + write_start, buf, first_cp);
-		memcpy(data, (char*) buf + first_cp, second_cp);
+		memcpy(data, (char *)buf + first_cp, second_cp);
 	}
 
 	data_end = (write_start + len) % this->len;
@@ -133,10 +124,7 @@ int SampleBuffer::write(void *buf, int len, long long ts)
 		return len;
 }
 
-int SampleBuffer::write(void *buf, int len, uhd::time_spec_t ts)
-{
-	return write(buf, len, ts.to_ticks(clock_rate));
-}
+int SampleBuffer::write(void *buf, int len, uhd::time_spec_t ts) { return write(buf, len, ts.to_ticks(clock_rate)); }
 
 std::string SampleBuffer::str_status(long long ts) const
 {

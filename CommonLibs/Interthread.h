@@ -1,36 +1,31 @@
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2008, 2011 Free Software Foundation, Inc.
  * Copyright 2011-2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
  * See the LEGAL file in the main directory for details.
  */
 
-
 #ifndef INTERTHREAD_H
 #define INTERTHREAD_H
 
-#include "Timeval.h"
-#include "Threads.h"
-#include "LinkedLists.h"
 #include <map>
-#include <vector>
 #include <queue>
+#include <vector>
 
-
-
-
+#include "LinkedLists.h"
+#include "Threads.h"
+#include "Timeval.h"
 
 /**@defgroup Templates for interthread mechanisms. */
 //@{
-
 
 /** Pointer FIFO for interthread operations.  */
 // (pat) The elements in the queue are type T*, and
@@ -45,7 +40,7 @@ template <class T, class Fifo=PointerFIFO> class InterthreadQueue {
 
 	protected:
 
-	Fifo mQ;	
+	Fifo mQ;
 	mutable Mutex mLock;
 	mutable Signal mWriteSignal;
 
@@ -149,34 +144,32 @@ template <class T, class Fifo=PointerFIFO> class InterthreadQueue {
 #endif
 
 // (pat) Identical to above but with the threading problem fixed.
-template <class T, class Fifo=PointerFIFO> class InterthreadQueue {
+template <class T, class Fifo = PointerFIFO>
+class InterthreadQueue {
 
-	protected:
-
-	Fifo mQ;	
+protected:
+	Fifo mQ;
 	mutable Mutex mLock;
 	mutable Signal mWriteSignal;
 
-	public:
-
+public:
 	/** Delete contents. */
 	void clear()
 	{
 		ScopedLock lock(mLock);
-		while (mQ.size()>0) delete (T*)mQ.get();
+		while (mQ.size() > 0)
+			delete (T *)mQ.get();
 	}
 
 	/** Empty the queue, but don't delete. */
 	void flushNoDelete()
 	{
 		ScopedLock lock(mLock);
-		while (mQ.size()>0) mQ.get();
+		while (mQ.size() > 0)
+			mQ.get();
 	}
 
-
-	~InterthreadQueue()
-		{ clear(); }
-
+	~InterthreadQueue() { clear(); }
 
 	size_t size() const
 	{
@@ -184,7 +177,7 @@ template <class T, class Fifo=PointerFIFO> class InterthreadQueue {
 		return mQ.size();
 	}
 
-	size_t totalSize() const		// pat added
+	size_t totalSize() const // pat added
 	{
 		ScopedLock lock(mLock);
 		return mQ.totalSize();
@@ -194,19 +187,19 @@ template <class T, class Fifo=PointerFIFO> class InterthreadQueue {
 		Blocking read.
 		@return Pointer to object (will not be NULL).
 	*/
-	T* read()
+	T *read()
 	{
 		ScopedLock lock(mLock);
-		T* retVal = (T*)mQ.get();
-		while (retVal==NULL) {
+		T *retVal = (T *)mQ.get();
+		while (retVal == NULL) {
 			mWriteSignal.wait(mLock);
-			retVal = (T*)mQ.get();
+			retVal = (T *)mQ.get();
 		}
 		return retVal;
 	}
 
 	/** Non-blocking peek at the first element; returns NULL if empty. */
-	T* front()
+	T *front()
 	{
 		ScopedLock lock(mLock);
 		return mQ.front();
@@ -217,14 +210,15 @@ template <class T, class Fifo=PointerFIFO> class InterthreadQueue {
 		@param timeout The read timeout in ms.
 		@return Pointer to object or NULL on timeout.
 	*/
-	T* read(unsigned timeout)
+	T *read(unsigned timeout)
 	{
-		if (timeout==0) return readNoBlock();
+		if (timeout == 0)
+			return readNoBlock();
 		Timeval waitTime(timeout);
 		ScopedLock lock(mLock);
-		while ((mQ.size()==0) && (!waitTime.passed()))
-			mWriteSignal.wait(mLock,waitTime.remaining());
-		T* retVal = (T*)mQ.get();
+		while ((mQ.size() == 0) && (!waitTime.passed()))
+			mWriteSignal.wait(mLock, waitTime.remaining());
+		T *retVal = (T *)mQ.get();
 		return retVal;
 	}
 
@@ -232,14 +226,14 @@ template <class T, class Fifo=PointerFIFO> class InterthreadQueue {
 		Non-blocking read.
 		@return Pointer to object or NULL if FIFO is empty.
 	*/
-	T* readNoBlock()
+	T *readNoBlock()
 	{
 		ScopedLock lock(mLock);
-		return (T*)mQ.get();
+		return (T *)mQ.get();
 	}
 
 	/** Non-blocking write. */
-	void write(T* val)
+	void write(T *val)
 	{
 		// (pat) The Mutex mLock must be released before signaling the mWriteSignal condition.
 		// This is an implicit requirement of pthread_cond_signal() called from signal().
@@ -249,53 +243,49 @@ template <class T, class Fifo=PointerFIFO> class InterthreadQueue {
 		// This recurs (and the InterthreadQueue fills up with data)
 		// until the read thread's accumulated temporary priority causes it to
 		// get a second pre-emptive activation over the writing thread,
-		// resulting in bursts of activity by the read thread. 
-		{ ScopedLock lock(mLock);
-		  mQ.put(val);
+		// resulting in bursts of activity by the read thread.
+		{
+			ScopedLock lock(mLock);
+			mQ.put(val);
 		}
 		mWriteSignal.signal();
 	}
 
 	/** Non-block write to the front of the queue. */
-	void write_front(T* val)	// pat added
+	void write_front(T *val) // pat added
 	{
 		// (pat) See comments above.
-		{ ScopedLock lock(mLock);
-		  mQ.push_front(val);
+		{
+			ScopedLock lock(mLock);
+			mQ.push_front(val);
 		}
 		mWriteSignal.signal();
 	}
 };
 
-
-
 /** Pointer FIFO for interthread operations.  */
-template <class T> class InterthreadQueueWithWait {
+template <class T>
+class InterthreadQueueWithWait {
 
-	protected:
-
-	PointerFIFO mQ;	
+protected:
+	PointerFIFO mQ;
 	mutable Mutex mLock;
 	mutable Signal mWriteSignal;
 	mutable Signal mReadSignal;
 
-	virtual void freeElement(T* element) const { delete element; };
+	virtual void freeElement(T *element) const { delete element; };
 
-	public:
-
+public:
 	/** Delete contents. */
 	void clear()
 	{
 		ScopedLock lock(mLock);
-		while (mQ.size()>0) freeElement((T*)mQ.get());
+		while (mQ.size() > 0)
+			freeElement((T *)mQ.get());
 		mReadSignal.signal();
 	}
 
-
-
-	virtual ~InterthreadQueueWithWait()
-		{ clear(); }
-
+	virtual ~InterthreadQueueWithWait() { clear(); }
 
 	size_t size() const
 	{
@@ -307,13 +297,13 @@ template <class T> class InterthreadQueueWithWait {
 		Blocking read.
 		@return Pointer to object (will not be NULL).
 	*/
-	T* read()
+	T *read()
 	{
 		ScopedLock lock(mLock);
-		T* retVal = (T*)mQ.get();
-		while (retVal==NULL) {
+		T *retVal = (T *)mQ.get();
+		while (retVal == NULL) {
 			mWriteSignal.wait(mLock);
-			retVal = (T*)mQ.get();
+			retVal = (T *)mQ.get();
 		}
 		mReadSignal.signal();
 		return retVal;
@@ -324,15 +314,17 @@ template <class T> class InterthreadQueueWithWait {
 		@param timeout The read timeout in ms.
 		@return Pointer to object or NULL on timeout.
 	*/
-	T* read(unsigned timeout)
+	T *read(unsigned timeout)
 	{
-		if (timeout==0) return readNoBlock();
+		if (timeout == 0)
+			return readNoBlock();
 		Timeval waitTime(timeout);
 		ScopedLock lock(mLock);
-		while ((mQ.size()==0) && (!waitTime.passed()))
-			mWriteSignal.wait(mLock,waitTime.remaining());
-		T* retVal = (T*)mQ.get();
-		if (retVal!=NULL) mReadSignal.signal();
+		while ((mQ.size() == 0) && (!waitTime.passed()))
+			mWriteSignal.wait(mLock, waitTime.remaining());
+		T *retVal = (T *)mQ.get();
+		if (retVal != NULL)
+			mReadSignal.signal();
 		return retVal;
 	}
 
@@ -340,16 +332,17 @@ template <class T> class InterthreadQueueWithWait {
 		Non-blocking read.
 		@return Pointer to object or NULL if FIFO is empty.
 	*/
-	T* readNoBlock()
+	T *readNoBlock()
 	{
 		ScopedLock lock(mLock);
-		T* retVal = (T*)mQ.get();
-		if (retVal!=NULL) mReadSignal.signal();
+		T *retVal = (T *)mQ.get();
+		if (retVal != NULL)
+			mReadSignal.signal();
 		return retVal;
 	}
 
 	/** Non-blocking write. */
-	void write(T* val)
+	void write(T *val)
 	{
 		// (pat) 8-14: Taking out the threading problem fix temporarily for David to use in the field.
 		ScopedLock lock(mLock);
@@ -362,30 +355,25 @@ template <class T> class InterthreadQueueWithWait {
 	// at InterthreadQueue.write(), but I am not fixing it because I cannot test it.
 	// The caller of this function will eventually get to run, just not immediately
 	// after the mReadSignal condition is fulfilled.
-	void wait(size_t sz=0)
+	void wait(size_t sz = 0)
 	{
 		ScopedLock lock(mLock);
-		while (mQ.size()>sz) mReadSignal.wait(mLock);
+		while (mQ.size() > sz)
+			mReadSignal.wait(mLock);
 	}
-
 };
 
-
-
-
-
 /** Thread-safe map of pointers to class D, keyed by class K. */
-template <class K, class D > class InterthreadMap {
+template <class K, class D>
+class InterthreadMap {
 
 protected:
-
-	typedef std::map<K,D*> Map;
+	typedef std::map<K, D *> Map;
 	Map mMap;
 	mutable Mutex mLock;
 	Signal mWriteSignal;
 
 public:
-
 	void clear()
 	{
 		// Delete everything in the map.
@@ -405,11 +393,11 @@ public:
 		@param key The index to write to.
 		@param wData Pointer to data, not to be deleted until removed from the map.
 	*/
-	void write(const K &key, D * wData)
+	void write(const K &key, D *wData)
 	{
 		ScopedLock lock(mLock);
 		typename Map::iterator iter = mMap.find(key);
-		if (iter!=mMap.end()) {
+		if (iter != mMap.end()) {
 			delete iter->second;
 			iter->second = wData;
 		} else {
@@ -423,12 +411,13 @@ public:
 		@param key Key to read from.
 		@return Pointer at key or NULL if key not found, to be deleted by caller.
 	*/
-	D* getNoBlock(const K& key)
+	D *getNoBlock(const K &key)
 	{
 		ScopedLock lock(mLock);
 		typename Map::iterator iter = mMap.find(key);
-		if (iter==mMap.end()) return NULL;
-		D* retVal = iter->second;
+		if (iter == mMap.end())
+			return NULL;
+		D *retVal = iter->second;
 		mMap.erase(iter);
 		return retVal;
 	}
@@ -439,18 +428,20 @@ public:
 		@param timeout The blocking timeout in ms.
 		@return Pointer at key or NULL on timeout, to be deleted by caller.
 	*/
-	D* get(const K &key, unsigned timeout)
+	D *get(const K &key, unsigned timeout)
 	{
-		if (timeout==0) return getNoBlock(key);
+		if (timeout == 0)
+			return getNoBlock(key);
 		Timeval waitTime(timeout);
 		ScopedLock lock(mLock);
 		typename Map::iterator iter = mMap.find(key);
-		while ((iter==mMap.end()) && (!waitTime.passed())) {
-			mWriteSignal.wait(mLock,waitTime.remaining());
+		while ((iter == mMap.end()) && (!waitTime.passed())) {
+			mWriteSignal.wait(mLock, waitTime.remaining());
 			iter = mMap.find(key);
 		}
-		if (iter==mMap.end()) return NULL;
-		D* retVal = iter->second;
+		if (iter == mMap.end())
+			return NULL;
+		D *retVal = iter->second;
 		mMap.erase(iter);
 		return retVal;
 	}
@@ -460,45 +451,45 @@ public:
 		@param key The key to read from.
 		@return Pointer at key, to be deleted by caller.
 	*/
-	D* get(const K &key)
+	D *get(const K &key)
 	{
 		ScopedLock lock(mLock);
 		typename Map::iterator iter = mMap.find(key);
-		while (iter==mMap.end()) {
+		while (iter == mMap.end()) {
 			mWriteSignal.wait(mLock);
 			iter = mMap.find(key);
 		}
-		D* retVal = iter->second;
+		D *retVal = iter->second;
 		mMap.erase(iter);
 		return retVal;
 	}
-
 
 	/**
 		Remove an entry and delete it.
 		@param key The key of the entry to delete.
 		@return True if it was actually found and deleted.
 	*/
-	bool remove(const  K &key )
+	bool remove(const K &key)
 	{
-		D* val = getNoBlock(key);
-		if (!val) return false;
+		D *val = getNoBlock(key);
+		if (!val)
+			return false;
 		delete val;
 		return true;
 	}
-
 
 	/**
 		Non-blocking read.
 		@param key Key to read from.
 		@return Pointer at key or NULL if key not found.
 	*/
-	D* readNoBlock(const K& key) const
+	D *readNoBlock(const K &key) const
 	{
-		D* retVal=NULL;
+		D *retVal = NULL;
 		ScopedLock lock(mLock);
 		typename Map::const_iterator iter = mMap.find(key);
-		if (iter!=mMap.end()) retVal = iter->second;
+		if (iter != mMap.end())
+			retVal = iter->second;
 		return retVal;
 	}
 
@@ -508,18 +499,20 @@ public:
 		@param timeout The blocking timeout in ms.
 		@return Pointer at key or NULL on timeout.
 	*/
-	D* read(const K &key, unsigned timeout) const
+	D *read(const K &key, unsigned timeout) const
 	{
-		if (timeout==0) return readNoBlock(key);
+		if (timeout == 0)
+			return readNoBlock(key);
 		ScopedLock lock(mLock);
 		Timeval waitTime(timeout);
 		typename Map::const_iterator iter = mMap.find(key);
-		while ((iter==mMap.end()) && (!waitTime.passed())) {
-			mWriteSignal.wait(mLock,waitTime.remaining());
+		while ((iter == mMap.end()) && (!waitTime.passed())) {
+			mWriteSignal.wait(mLock, waitTime.remaining());
 			iter = mMap.find(key);
 		}
-		if (iter==mMap.end()) return NULL;
-		D* retVal = iter->second;
+		if (iter == mMap.end())
+			return NULL;
+		D *retVal = iter->second;
 		return retVal;
 	}
 
@@ -528,70 +521,53 @@ public:
 		@param key The key to read from.
 		@return Pointer at key.
 	*/
-	D* read(const K &key) const
+	D *read(const K &key) const
 	{
 		ScopedLock lock(mLock);
 		typename Map::const_iterator iter = mMap.find(key);
-		while (iter==mMap.end()) {
+		while (iter == mMap.end()) {
 			mWriteSignal.wait(mLock);
 			iter = mMap.find(key);
 		}
-		D* retVal = iter->second;
+		D *retVal = iter->second;
 		return retVal;
 	}
-
 };
-
-
-
-
-
-
 
 /** This class is used to provide pointer-based comparison in priority_queues. */
-template <class T> class PointerCompare {
+template <class T>
+class PointerCompare {
 
-	public:
-
+public:
 	/** Compare the objects pointed to, not the pointers themselves. */
-	bool operator()(const T *v1, const T *v2)
-		{ return (*v1)>(*v2); }
-
+	bool operator()(const T *v1, const T *v2) { return (*v1) > (*v2); }
 };
-
-
 
 /**
 	Priority queue for interthread operations.
 	Passes pointers to objects.
 */
-template <class T, class C = std::vector<T*>, class Cmp = PointerCompare<T> > class InterthreadPriorityQueue {
+template <class T, class C = std::vector<T *>, class Cmp = PointerCompare<T>>
+class InterthreadPriorityQueue {
 
-	protected:
-
-	std::priority_queue<T*,C,Cmp> mQ;
+protected:
+	std::priority_queue<T *, C, Cmp> mQ;
 	mutable Mutex mLock;
 	mutable Signal mWriteSignal;
 
-	public:
-
-
+public:
 	/** Clear the FIFO. */
 	void clear()
 	{
 		ScopedLock lock(mLock);
-		while (mQ.size()>0)	{
-			T* ptr = mQ.top();
+		while (mQ.size() > 0) {
+			T *ptr = mQ.top();
 			mQ.pop();
 			delete ptr;
 		}
 	}
 
-
-	~InterthreadPriorityQueue()
-	{
-		clear();
-	}
+	~InterthreadPriorityQueue() { clear(); }
 
 	size_t size() const
 	{
@@ -599,13 +575,12 @@ template <class T, class C = std::vector<T*>, class Cmp = PointerCompare<T> > cl
 		return mQ.size();
 	}
 
-
 	/** Non-blocking read. */
-	T* readNoBlock()
+	T *readNoBlock()
 	{
 		ScopedLock lock(mLock);
-		T* retVal = NULL;
-		if (mQ.size()!=0) {
+		T *retVal = NULL;
+		if (mQ.size() != 0) {
 			retVal = mQ.top();
 			mQ.pop();
 		}
@@ -613,58 +588,51 @@ template <class T, class C = std::vector<T*>, class Cmp = PointerCompare<T> > cl
 	}
 
 	/** Blocking read. */
-	T* read()
+	T *read()
 	{
 		ScopedLock lock(mLock);
-		T* retVal;
-		while (mQ.size()==0) mWriteSignal.wait(mLock);
+		T *retVal;
+		while (mQ.size() == 0)
+			mWriteSignal.wait(mLock);
 		retVal = mQ.top();
 		mQ.pop();
 		return retVal;
 	}
 
 	/** Non-blocking write. */
-	void write(T* val)
+	void write(T *val)
 	{
 		// (pat) 8-14: Taking out the threading problem fix temporarily for David to use in the field.
 		ScopedLock lock(mLock);
 		mQ.push(val);
 		mWriteSignal.signal();
 	}
-
 };
-
-
-
-
 
 // (pat) I cannot find any users of this Semaphore.
 class Semaphore {
 
-	private:
-
+private:
 	bool mFlag;
 	Signal mSignal;
 	mutable Mutex mLock;
 
-	public:
-
-	Semaphore()
-		:mFlag(false)
-	{ }
+public:
+	Semaphore() : mFlag(false) {}
 
 	void post()
 	{
 		ScopedLock lock(mLock);
-		mFlag=true;
-		mSignal.signal();	// does nothing if no threads are waiting.
+		mFlag = true;
+		mSignal.signal(); // does nothing if no threads are waiting.
 	}
 
 	void get()
 	{
 		ScopedLock lock(mLock);
-		while (!mFlag) mSignal.wait(mLock);
-		mFlag=false;
+		while (!mFlag)
+			mSignal.wait(mLock);
+		mFlag = false;
 	}
 
 	bool semtry()
@@ -674,17 +642,8 @@ class Semaphore {
 		mFlag = false;
 		return retVal;
 	}
-
 };
-
-
-
-
 
 //@}
 
-
-
-
 #endif
-// vim: ts=4 sw=4

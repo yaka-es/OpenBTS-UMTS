@@ -1,0 +1,51 @@
+BasedOnStyle: LLVM
+ColumnLimit: 120
+IndentWidth: 8
+UseTab: Always
+AccessModifierOffset: -8
+BreakBeforeBraces: Linux
+AllowShortIfStatementsOnASingleLine: false
+IndentCaseLabels: false
+ReflowComments: true
+SortIncludes: true
+SortUsingDeclarations: true
+BraceWrapping:   
+  AfterClass:      false
+  AfterControlStatement: false
+  AfterEnum:       false
+  AfterFunction:   true
+  AfterNamespace:  false
+  AfterObjCDeclaration: false
+  AfterStruct:     false
+  AfterUnion:      false
+  BeforeCatch:     false
+  BeforeElse:      false
+  IndentBraces:    false
+  SplitEmptyFunction: true
+  SplitEmptyRecord: true
+  SplitEmptyNamespace: true
+BreakBeforeBraces: Custom
+AlwaysBreakBeforeMultilineStrings: true
+AlwaysBreakTemplateDeclarations: true
+ConstructorInitializerIndentWidth: 8
+ContinuationIndentWidth: 8
+AlignAfterOpenBracket: DontAlign
+AlignEscapedNewlines: DontAlign
+IncludeCategories: 
+  - Regex:           '^<sys/types\.h>'
+    Priority:        1
+  - Regex:           '^<sys/'
+    Priority:        2
+  - Regex:           '^<(arpa|net|netinet)/'
+    Priority:        3
+  - Regex:           '^"(llvm|llvm-c|clang|clang-c)/'
+    Priority:        9
+  - Regex:           '^(<|"(gtest|gmock|isl|json)/)'
+    Priority:        10
+  - Regex:           '^<.*'
+    Priority:        6
+  - Regex:           '^".*'
+    Priority:        7
+  - Regex:           '.*'
+    Priority:        9
+#IncludeIsMainRegex: '(Test)?$'

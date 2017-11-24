@@ -7,30 +7,29 @@
  *
  * Copyright 2003, 2004, 2009 Free Software Foundation, Inc.
  * Copyright 2014 Range Networks, Inc.
- * 
- * This software is distributed under the terms of the GNU General Public 
+ *
+ * This software is distributed under the terms of the GNU General Public
  * License version 3. See the COPYING and NOTICE files in the current
  * directory for licensing information.
- * 
+ *
  * This use of this software may be subject to additional restrictions.
  * See the LEGAL file in the main directory for details.
  */
 
+#include <assert.h>
+#include <errno.h>
+#include <getopt.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+#include <unistd.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
-#include <stdio.h>
-#include <stdlib.h>
-#include <string.h>
-#include <unistd.h>
-#include <getopt.h>
-#include <assert.h>
-#include <errno.h>
-
-#include <Logger.h>
-#include <Configuration.h>
+#include <CommonLibs/Configuration.h>
+#include <CommonLibs/Logger.h>
 
 ConfigurationTable gConfig;
 
@@ -78,7 +77,7 @@ static int hexval(char ch)
 	return -1;
 }
 
-unsigned char * hex_string_to_binary(const char *string, int *lenptr)
+unsigned char *hex_string_to_binary(const char *string, int *lenptr)
 {
 	int sl = strlen(string);
 	if (sl & 0x01) {
@@ -91,9 +90,9 @@ unsigned char * hex_string_to_binary(const char *string, int *lenptr)
 	unsigned char *buf = new unsigned char[len];
 
 	for (int i = 0; i < len; i++) {
-		int hi = hexval (string[2 * i + 0]);
-		int lo = hexval (string[2 * i + 1]);
-		if (hi < 0 || lo < 0){
+		int hi = hexval(string[2 * i + 0]);
+		int lo = hexval(string[2 * i + 1]);
+		if (hi < 0 || lo < 0) {
 			fprintf(stderr, "%s: invalid char in <hex-string>\n", prog_name);
 			delete[] buf;
 			return 0;
@@ -131,20 +130,19 @@ bool get_on_off(const char *s)
 	return false;
 }
 
-
 int main(int argc, char **argv)
 {
 	int ch;
-	//bool verbose = false;
+	// bool verbose = false;
 	int which_board = 0;
-	//bool fx2_ok_p = false;
+	// bool fx2_ok_p = false;
 
 	set_progname(argv[0]);
 
-	while ((ch = getopt(argc, argv, "vw:x")) != EOF){
+	while ((ch = getopt(argc, argv, "vw:x")) != EOF) {
 		switch (ch) {
 		case 'v':
-			//verbose = true;
+			// verbose = true;
 			break;
 
 		case 'w':
@@ -152,7 +150,7 @@ int main(int argc, char **argv)
 			break;
 
 		case 'x':
-			//fx2_ok_p = true;
+			// fx2_ok_p = true;
 			break;
 
 		default:
@@ -171,21 +169,17 @@ int main(int argc, char **argv)
 
 	gLogInit("openbts", argv[1], LOG_LOCAL7);
 
-	rnrad1Core *core = new rnrad1Core(
-		which_board,
-		RAD1_CMD_INTERFACE,
-		RAD1_CMD_ALTINTERFACE,
-		"", "", true);
+	rnrad1Core *core = new rnrad1Core(which_board, RAD1_CMD_INTERFACE, RAD1_CMD_ALTINTERFACE, "", "", true);
 
 	if (nopts != 1) {
 		usage();
 	} else {
-		char *hex_string  = argv[optind];
+		char *hex_string = argv[optind];
 		int len;
 		unsigned char *buf = (unsigned char *)hex_string;
 		len = 8;
 
-		//hex_string_to_binary (hex_string, &len);
+		// hex_string_to_binary (hex_string, &len);
 
 		if (buf == 0)
 			chk_result(0);

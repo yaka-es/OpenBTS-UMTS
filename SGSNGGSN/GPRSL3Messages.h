@@ -1,11 +1,11 @@
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2011, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
@@ -16,18 +16,21 @@
 #define _GPRSL3MESSAGES_H_
 
 #include <stdio.h>
-//#include "GPRSInternal.h"
-#include "Configuration.h"
-#include "GSMCommon.h"
-#include "GSML3Message.h"
-#include "ByteVector.h"
-#include "Utils.h"
-#include "ScalarTypes.h"
+
+#include <CommonLibs/ByteVector.h>
+#include <CommonLibs/Configuration.h>
+#include <CommonLibs/ScalarTypes.h>
+#include <CommonLibs/Utils.h>
+#include <GSM/GSMCommon.h>
+#include <GSM/GSML3Message.h>
+
 #include "SgsnBase.h"
-//#include "GPRSL3New.h"
+
 extern ConfigurationTable gConfig;
+
 using namespace std;
-#define DEHEXIFY(c) ((c)>=10 ? (c)-10+'a' : (c)+'0')
+
+#define DEHEXIFY(c) ((c) >= 10 ? (c)-10 + 'a' : (c) + '0')
 
 namespace SGSN {
 struct LlcEntity;
@@ -35,10 +38,7 @@ struct LlcEntity;
 // 10.5.5.18 Update Type uses all four values.
 // 10.5.5.17 Update Result uses the first two values.
 // RA is for GPRS, and LA is for GSM CS [circuit switched].
-enum RAUpdateType {
-	RAUpdated = 0, CombinedRALAUpdated = 1, CombinedRALAWithImsiAttach = 2, PeriodicUpdating = 3
-};
-
+enum RAUpdateType { RAUpdated = 0, CombinedRALAUpdated = 1, CombinedRALAWithImsiAttach = 2, PeriodicUpdating = 3 };
 
 #if 0
 // An L3Message as known by the GPRS code.
@@ -61,101 +61,105 @@ enum RAUpdateType {
 
 // The L3Message is built on L3Frame which assumes that messages are in BitVectors,
 // but for GPRS messages come from RLC (and LLC and LLE) and they are ByteVectors.
-class L3GprsMsg : public Text2Str
-{	public:
+class L3GprsMsg : public Text2Str {
+public:
 	virtual void text(std::ostream &os) const = 0;
-	virtual int MTI() const =0;
-	virtual const char *mtname() const =0;
+	virtual int MTI() const = 0;
+	virtual const char *mtname() const = 0;
 };
 
 // All Gmm and Sm messages need a sense that is either reply or command.
 // For SM messages, the sense is encoded in the transaction-identifier field.
 // For both types, the sense is also encoded in one of the LLC headers.
 // Cant be be too too redundant redundant.
-class L3GprsDlMsg : public virtual L3GprsMsg
-{	public:
+class L3GprsDlMsg : public virtual L3GprsMsg {
+public:
 	enum MsgSense { senseInvalid, senseReply, senseCmd } mSense;
 	L3GprsDlMsg(MsgSense wSense) : mSense(wSense) {}
 	// This dummy constructor is used for uplink messages, when message can be both up and downlink:
 	L3GprsDlMsg() : mSense(senseInvalid) {}
 	// void setSense(MsgSense wSense) { mSense = wSense; }	//unused.
-	bool isSenseCmd() { 
+	bool isSenseCmd()
+	{
 		assert(mSense != senseInvalid);
 		return mSense == senseCmd;
 	}
 	virtual void gWrite(ByteVector &msg) = 0;
 };
 
-
 // An L3Frame for Gprs.
-class L3GprsFrame : public ByteVector
-{
-	public:
+class L3GprsFrame : public ByteVector {
+public:
 	void dump(std::ostream &os);
 	L3GprsFrame(ByteVector &vec) : ByteVector(vec) {}
 
-	GSM::L3PD getPD() { return (GSM::L3PD)getNibble(0,0); }		// protocol descriminator
-	//unsigned getSkip() { return getNibble(0,1); }	// skip indicator
+	GSM::L3PD getPD() { return (GSM::L3PD)getNibble(0, 0); } // protocol descriminator
+	// unsigned getSkip() { return getNibble(0,1); }	// skip indicator
 	virtual unsigned getMsgType() { assert(0); }
 	// TODO: Handle extended transaction id 24.007
 	virtual unsigned getBodyOffset() { assert(0); }
 
-	unsigned mIEI;	// cache for message parsers.
+	unsigned mIEI; // cache for message parsers.
 
-	unsigned readIEI(size_t &rp) {
+	unsigned readIEI(size_t &rp)
+	{
 		mIEI = readByte(rp);
 		return mIEI;
 	}
 
-	ByteVector readLVasBV(size_t &rp) {
+	ByteVector readLVasBV(size_t &rp)
+	{
 		int len = readByte(rp);
-		ByteVector result; result.clone(segment(rp,len));
+		ByteVector result;
+		result.clone(segment(rp, len));
 		rp += len;
 		return result;
 	}
 	// Skip over an IE we dont care about:
-	void skipLV(size_t &rp) {
+	void skipLV(size_t &rp)
+	{
 		int len = readByte(rp);
 		rp += len;
 	}
 
 	// The minlen and maxlen are of the IE itself, excluding to Type (if any) and Length byte.
-	void skipLV(size_t &rp, int minlen, int maxlen, const char *text) {
+	void skipLV(size_t &rp, int minlen, int maxlen, const char *text)
+	{
 		int len = readByte(rp);
 		if (len < minlen || len > maxlen) {
-			LLCWARN("unexpected message length for iei:"<<mIEI<<":"<<text);
+			LLCWARN("unexpected message length for iei:" << mIEI << ":" << text);
 		}
 		rp += len;
 	}
 };
 
-class L3GmmFrame : public L3GprsFrame
-{	public:
-	unsigned getSkip() { return getNibble(0,1); }	// skip indicator
+class L3GmmFrame : public L3GprsFrame {
+public:
+	unsigned getSkip() { return getNibble(0, 1); } // skip indicator
 	unsigned getMsgType() { return getByte(1); }
 	// TODO: Handle extended transaction id 24.007
-	unsigned getBodyOffset() { return 2; }	// Where message specific body begins.
+	unsigned getBodyOffset() { return 2; } // Where message specific body begins.
 	L3GmmFrame(ByteVector &vec) : L3GprsFrame(vec) {}
 };
 
-class L3SmFrame: public L3GprsFrame
-{	public:
+class L3SmFrame : public L3GprsFrame {
+public:
 	// 24.007 11.2.3.1.3: Transaction identifier - it may have an extension byte,
 	// which will also move the message type and the body location in the message.
-	unsigned getTIflag() { return getField(0,1); }	// First bit in message.
-	bool isTiExt() { return getField(1,3) == 7; }
-	unsigned getTI() {
-		unsigned ti = getField(1,3);
-		if (ti == 7) {	// special value indicates extension.
-			ti = getField2(1,1,7);
+	unsigned getTIflag() { return getField(0, 1); } // First bit in message.
+	bool isTiExt() { return getField(1, 3) == 7; }
+	unsigned getTI()
+	{
+		unsigned ti = getField(1, 3);
+		if (ti == 7) { // special value indicates extension.
+			ti = getField2(1, 1, 7);
 		}
 		return ti;
 	}
 	// 24.008 10.4: Top 2 bits do something else.
-	unsigned getMsgType() {
-		return getByte(isTiExt() ? 2 : 1);
-	}
-	unsigned getBodyOffset() { // Where message specific body begins.
+	unsigned getMsgType() { return getByte(isTiExt() ? 2 : 1); }
+	unsigned getBodyOffset()
+	{ // Where message specific body begins.
 		return isTiExt() ? 3 : 2;
 	}
 	L3SmFrame(ByteVector &vec) : L3GprsFrame(vec) {}
@@ -206,26 +210,28 @@ struct L3GmmMsg : public virtual L3GprsMsg //, public Text2Str
 		GMMInformation = 0x21,
 	};
 	const char *mtname() const { return name(MTI()); }
-	static const char *name(unsigned mt, bool ornull=0);
+	static const char *name(unsigned mt, bool ornull = 0);
 	static void dump(L3GmmFrame &frame, std::ostream &os);
-	virtual void textBody(std::ostream&os) const = 0;
-	void text(std::ostream&os) const;
+	virtual void textBody(std::ostream &os) const = 0;
+	void text(std::ostream &os) const;
 };
-std::ostream& operator<<(std::ostream& os, L3GmmMsg::MessageType mt);
+std::ostream &operator<<(std::ostream &os, L3GmmMsg::MessageType mt);
 
-class L3GmmDlMsg : public virtual L3GmmMsg, public L3GprsDlMsg
-{	protected:
+class L3GmmDlMsg : public virtual L3GmmMsg, public L3GprsDlMsg {
+protected:
 	virtual void gmmWriteBody(ByteVector &msg) = 0;
-	public:
-	L3GmmDlMsg(MsgSense wSense) : L3GprsDlMsg(wSense) {}	// For a downlink message
-	L3GmmDlMsg() {}			// For uplink messages
+
+public:
+	L3GmmDlMsg(MsgSense wSense) : L3GprsDlMsg(wSense) {} // For a downlink message
+	L3GmmDlMsg() {}					     // For uplink messages
 	void gWrite(ByteVector &msg);
 };
 
-class L3GmmUlMsg : public virtual L3GmmMsg
-{	protected:
+class L3GmmUlMsg : public virtual L3GmmMsg {
+protected:
 	virtual void gmmParseBody(L3GmmFrame &src, size_t &rp) = 0;
-	public:
+
+public:
 	void gmmParse(L3GmmFrame &frame);
 };
 
@@ -234,7 +240,8 @@ class L3GmmUlMsg : public virtual L3GmmMsg
 // The BTS does not worry about these, however, these are here to allow
 // debug inspection of LLC packets passing through the BTS.
 class L3SmMsg : public virtual L3GprsMsg //, public Text2Str
-{	public:
+{
+public:
 	// Init transaction id to invalid value.  It must be specified for every downlink SM message.
 	int mTransactionId;
 	L3SmMsg() : mTransactionId(-1) {}
@@ -248,12 +255,12 @@ class L3SmMsg : public virtual L3GprsMsg //, public Text2Str
 		ActivatePDPContextReject = 0x43,
 		RequestPDPContextActivation = 0x44,
 		RequestPDPContextActivationReject = 0x45,
-		DeactivatePDPContextRequest = 0x46,		// not a very symmetric naming system here.
+		DeactivatePDPContextRequest = 0x46, // not a very symmetric naming system here.
 		DeactivatePDPContextAccept = 0x47,
-		ModifyPDPContextRequest = 0x48,	// network to MS direction.
-		ModifyPDPContextAccept = 0x49,	// MS to netowrk direction.
-		ModifyPDPContextRequestMS = 0x4a,	// MS to network direction.
-		ModifyPDPContextAcceptMS = 0x4b,	// netowrk to MS direction.
+		ModifyPDPContextRequest = 0x48,   // network to MS direction.
+		ModifyPDPContextAccept = 0x49,    // MS to netowrk direction.
+		ModifyPDPContextRequestMS = 0x4a, // MS to network direction.
+		ModifyPDPContextAcceptMS = 0x4b,  // netowrk to MS direction.
 		ModifyPDPContextReject = 0x4c,
 		ActivateSecondaryPDPContextRequest = 0x4d,
 		ActivateSecondaryPDPContextAccept = 0x4e,
@@ -262,7 +269,7 @@ class L3SmMsg : public virtual L3GprsMsg //, public Text2Str
 		// GSM 24.008 says: 0x50 - 0x54: "Reserved: was allocated in
 		// earlier phases of the protocol"
 		// But here they are anyway:
-		ActivateAAPDPContextRequest = 0x50,		// Anonymous Access PDP.
+		ActivateAAPDPContextRequest = 0x50, // Anonymous Access PDP.
 		ActivateAAPDPContextAccept = 0x51,
 		ActivateAAPDPContextReject = 0x52,
 		DeactivateAAPDPContextRequest = 0x53,
@@ -281,28 +288,29 @@ class L3SmMsg : public virtual L3GprsMsg //, public Text2Str
 		Notification = 0x5d,
 	};
 	const char *mtname() const { return name(MTI()); }
-	static const char *name(unsigned mt, bool ornull=0);	// convert mt to a string name of the message.
-	static void dump(L3SmFrame &frame, std::ostream &os);	// just dump the header.  old routine.
-	virtual void textBody(std::ostream&os) const = 0;
-	void text(std::ostream&os) const;
+	static const char *name(unsigned mt, bool ornull = 0); // convert mt to a string name of the message.
+	static void dump(L3SmFrame &frame, std::ostream &os);  // just dump the header.  old routine.
+	virtual void textBody(std::ostream &os) const = 0;
+	void text(std::ostream &os) const;
 };
-std::ostream& operator<<(std::ostream& os, L3SmMsg::MessageType mt);
+std::ostream &operator<<(std::ostream &os, L3SmMsg::MessageType mt);
 
-class L3SmDlMsg : public virtual L3SmMsg, public L3GprsDlMsg
-{	protected:
+class L3SmDlMsg : public virtual L3SmMsg, public L3GprsDlMsg {
+protected:
 	// All SM downlink messages must have a ti [Transaction Identifier.]
 	// The assertion in smWrite guarantees that the correct constructor was called.
-	L3SmDlMsg(unsigned ti,MsgSense wSense) : L3GprsDlMsg(wSense) { mTransactionId = ti; }
+	L3SmDlMsg(unsigned ti, MsgSense wSense) : L3GprsDlMsg(wSense) { mTransactionId = ti; }
 	// This dummy constructor is used for uplink messages, when message can be both up and downlink:
 	L3SmDlMsg() {}
-	void appendTiPd(ByteVector &msg);	// Append Transaction Id and PD to msg.
+	void appendTiPd(ByteVector &msg); // Append Transaction Id and PD to msg.
 	virtual void smWriteBody(ByteVector &msg) = 0;
-	public:
+
+public:
 	void gWrite(ByteVector &msg);
 };
 
-class L3SmUlMsg : public virtual L3SmMsg
-{	protected:
+class L3SmUlMsg : public virtual L3SmMsg {
+protected:
 	virtual void smParseBody(L3SmFrame &src, size_t &rp) = 0;
 	void smParse(L3SmFrame &frame);
 };
@@ -312,31 +320,40 @@ const char *L3GprsMsgType2Name(ByteVector &vec);
 
 // 3GPP 24.008 10.5.7.3 Gprs Timer IE
 // The timers themselves are in 24.008 11.2.2
-struct GprsTimerIE
-{
-	unsigned mUnits;	// => 0 (2-sec interval) or 1 (minutes) or 2 (deci-hours) or 7 deactivated
-	unsigned mValue;	// 5 bit range.
-	GprsTimerIE() : mUnits(7), mValue(0) {}	// Deactivate.
-	void setSeconds(unsigned numSeconds) {
-		if (numSeconds > 62) { setMinutes((numSeconds+59)/60); return; }
-		mUnits = 0;				// 2-second increments.
-		mValue = numSeconds/2;	//
+struct GprsTimerIE {
+	unsigned mUnits; // => 0 (2-sec interval) or 1 (minutes) or 2 (deci-hours) or 7 deactivated
+	unsigned mValue; // 5 bit range.
+	GprsTimerIE() : mUnits(7), mValue(0) {} // Deactivate.
+	void setSeconds(unsigned numSeconds)
+	{
+		if (numSeconds > 62) {
+			setMinutes((numSeconds + 59) / 60);
+			return;
+		}
+		mUnits = 0;		 // 2-second increments.
+		mValue = numSeconds / 2; //
 	}
-	void setMinutes(unsigned numMinutes) {
+	void setMinutes(unsigned numMinutes)
+	{
 		if (numMinutes > 31) {
-			mUnits = 2;	// deci-hours
-			mValue = (numMinutes+5)/6;
+			mUnits = 2; // deci-hours
+			mValue = (numMinutes + 5) / 6;
 		} else {
-			mUnits = 1;	// minutes
+			mUnits = 1; // minutes
 			mValue = numMinutes;
 		}
 	}
-	unsigned getSeconds() const {
+	unsigned getSeconds() const
+	{
 		switch (mUnits) {
-		case 0: return mValue*2;
-		case 1: return mValue*60;
-		case 2: return mValue*600;
-		default: return 0x7fffffff;	// positive infinity
+		case 0:
+			return mValue * 2;
+		case 1:
+			return mValue * 60;
+		case 2:
+			return mValue * 600;
+		default:
+			return 0x7fffffff; // positive infinity
 		}
 	}
 	unsigned getIEValue() const { return (mUnits << 5) | (mValue & 0x1f); }
@@ -345,59 +362,62 @@ struct GprsTimerIE
 
 // 24.008 10.5.5.15
 // See also GSM::L3LocationAreaIdentity
-struct GMMRoutingAreaIdIE : Text2Str
-{
+struct GMMRoutingAreaIdIE : Text2Str {
 	unsigned char mMCC[3], mMNC[3];
 	uint16_t mLAC;
 	uint8_t mRAC;
 	void parseElement(ByteVector &pp, size_t &rp);
 	void raLoad();
 	void appendElement(ByteVector &msg);
-	void text(std::ostream&os) const;
-	GMMRoutingAreaIdIE();			// constructor zeros mMCC and mMNC
-	bool valid() { return mMCC[0] || mMCC[1] || mMCC[2]; }	// Has IE been set?
+	void text(std::ostream &os) const;
+	GMMRoutingAreaIdIE();				       // constructor zeros mMCC and mMNC
+	bool valid() { return mMCC[0] || mMCC[1] || mMCC[2]; } // Has IE been set?
 };
 
 // 24.008 10.5.1.4 Mobile Identity
 // We dont really care what the MS/UE tells us except for TMSI,
 // so treat TMSI specially, and otherwise just save the whole thing.
-struct GmmMobileIdentityIE : Text2Str
-{
-	Field_z<3> mTypeOfId;	// From the first byte.
+struct GmmMobileIdentityIE : Text2Str {
+	Field_z<3> mTypeOfId; // From the first byte.
 	// Either mTmsi or mIdData+mLen is valid.
-	uint32_t mTmsi;			// tmsi or ptmsi
-	unsigned char mIdData[8];	// Original data from the IEI.
-	unsigned mLen;		// Length of mIdData = length of IE.
+	uint32_t mTmsi;		  // tmsi or ptmsi
+	unsigned char mIdData[8]; // Original data from the IEI.
+	unsigned mLen;		  // Length of mIdData = length of IE.
 	bool mPresent;
 	GmmMobileIdentityIE() : mPresent(false) {}
 
 	bool isImsi() const { return mTypeOfId == 1; }
-	bool isTmsi() const { return mTypeOfId == 4; }	// TMSI or P-TMSI
+	bool isTmsi() const { return mTypeOfId == 4; } // TMSI or P-TMSI
 
 	// Parse out an IMSI from the data, and return it in the ByteVector, which must have room to hold it,
 	// and return true if it was found, false otherwise.
 	ByteVector getImsi() const;
-	uint32_t getTmsi() const { assert(isTmsi()); return mTmsi; }
+	uint32_t getTmsi() const
+	{
+		assert(isTmsi());
+		return mTmsi;
+	}
 	void decodeIM(ByteVector &result) const;
 	void parseLV(ByteVector &pp, size_t &rp);
-	const string getAsBcd() const;	// its not bcd but readable
-	void text(std::ostream&os) const;
+	const string getAsBcd() const; // its not bcd but readable
+	void text(std::ostream &os) const;
 	// write the length and value, but not the IEI type.
 	void appendLV(ByteVector &msg);
 
-	void setTmsi(uint32_t tmsi) {
+	void setTmsi(uint32_t tmsi)
+	{
 		mPresent = true;
 		mTypeOfId = 4;
-		mTmsi = tmsi;	// TMSI or P-TMSI
+		mTmsi = tmsi; // TMSI or P-TMSI
 	}
 };
 
 // We keep only the ByteVector of the QoS IE itself,
 // but the description in 24.008 of the IE numbers octets starting at 3,
 // and bits 8..1, so we will do the same:
-#define DEFINE_QOS_FIELD(name,octet,bitr,length) \
-	unsigned get##name() { return getField2(octet-3,8-bitr,length); } \
-	void set##name(unsigned val) { setField2(octet-3,8-bitr,val,length); }
+#define DEFINE_QOS_FIELD(name, octet, bitr, length) \
+	unsigned get##name() { return getField2(octet - 3, 8 - bitr, length); } \
+	void set##name(unsigned val) { setField2(octet - 3, 8 - bitr, val, length); }
 
 // 3GPP 24.008 10.5.6.5 Quality of Service
 // We leave it as a ByteVector, read the values out of it.
@@ -405,39 +425,39 @@ struct SmQoS : public ByteVector {
 	// We dont fill in every bit, and the unused ones are defined as zero,
 	// so just zero the whole thing before starting.
 	SmQoS(ByteVector &bv) : ByteVector(bv) {}
-	SmQoS(unsigned size) : ByteVector(size) {fill(0);}
+	SmQoS(unsigned size) : ByteVector(size) { fill(0); }
 	// Octet 3 (meaning first byte in the QoS ByteVector.)
-	DEFINE_QOS_FIELD(DelayClass,3,6,3)
-	DEFINE_QOS_FIELD(ReliabilityClass,3,3,3)
+	DEFINE_QOS_FIELD(DelayClass, 3, 6, 3)
+	DEFINE_QOS_FIELD(ReliabilityClass, 3, 3, 3)
 	// Octet 4:
-	DEFINE_QOS_FIELD(PeakThroughputCode,4,8,4)
-	DEFINE_QOS_FIELD(PrecedenceClass,4,3,3)
+	DEFINE_QOS_FIELD(PeakThroughputCode, 4, 8, 4)
+	DEFINE_QOS_FIELD(PrecedenceClass, 4, 3, 3)
 	// Octet 5:
-	DEFINE_QOS_FIELD(MeanThroughputCode,5,5,5)
+	DEFINE_QOS_FIELD(MeanThroughputCode, 5, 5, 5)
 	// Octet 6:
-	DEFINE_QOS_FIELD(TrafficClass,6,8,3)
-	DEFINE_QOS_FIELD(DeliveryOrder,6,5,2)
-	DEFINE_QOS_FIELD(DeliveryOfErrSdu,6,3,3)
+	DEFINE_QOS_FIELD(TrafficClass, 6, 8, 3)
+	DEFINE_QOS_FIELD(DeliveryOrder, 6, 5, 2)
+	DEFINE_QOS_FIELD(DeliveryOfErrSdu, 6, 3, 3)
 	// Octet 7:
-	DEFINE_QOS_FIELD(MaxSduSize,7,8,8)
+	DEFINE_QOS_FIELD(MaxSduSize, 7, 8, 8)
 	// Octet 8,9: (actual 0-based bytes number 5 and 6)
-	DEFINE_QOS_FIELD(MaxBitRateUplinkCode,8,8,8)
-	DEFINE_QOS_FIELD(MaxBitRateDownlinkCode,9,8,8)
+	DEFINE_QOS_FIELD(MaxBitRateUplinkCode, 8, 8, 8)
+	DEFINE_QOS_FIELD(MaxBitRateDownlinkCode, 9, 8, 8)
 	// Octet 10:
-	DEFINE_QOS_FIELD(ResidualBER,10,8,4)
-	DEFINE_QOS_FIELD(SduErrorRatio,10,4,4)
+	DEFINE_QOS_FIELD(ResidualBER, 10, 8, 4)
+	DEFINE_QOS_FIELD(SduErrorRatio, 10, 4, 4)
 	// Octet 11:
-	DEFINE_QOS_FIELD(TransferDelay,11,8,6)
-	DEFINE_QOS_FIELD(TrafficHandlingPriority,11,2,2)
+	DEFINE_QOS_FIELD(TransferDelay, 11, 8, 6)
+	DEFINE_QOS_FIELD(TrafficHandlingPriority, 11, 2, 2)
 	// Octet 12,13:
 	// "The Guaranteed Bit Rate is ignored if the Traffic Class is
 	// Interactive or Background class or the max bit rate for downlink is 0 kBps
 	// 0xff implies 0kBps, ie, unspecified.
-	DEFINE_QOS_FIELD(GuaranteedBitRateUplinkCode,12,8,8)
-	DEFINE_QOS_FIELD(GuaranteedBitRateDownlinkCode,13,8,8)
+	DEFINE_QOS_FIELD(GuaranteedBitRateUplinkCode, 12, 8, 8)
+	DEFINE_QOS_FIELD(GuaranteedBitRateDownlinkCode, 13, 8, 8)
 	// Octet 14:
-	DEFINE_QOS_FIELD(SignalingIndication,14,5,1)
-	DEFINE_QOS_FIELD(SourceStatisticsDescriptor,14,4,4)
+	DEFINE_QOS_FIELD(SignalingIndication, 14, 5, 1)
+	DEFINE_QOS_FIELD(SourceStatisticsDescriptor, 14, 4, 4)
 	// Optional Octets 15-18 are for extented Max and Guaranteed bit-rates.
 
 	// Encoding methods using raw methods above:
@@ -490,7 +510,7 @@ struct AccessCapabilities {
 	AccessTechnologyType mTechType;
 	Bool_z mSameAsPrevious;
 	enum CapType {
-		//AccessTechnologyType,
+		// AccessTechnologyType,
 		RFPowerCapability,
 		A5Bits,
 		ESInd,
@@ -504,7 +524,7 @@ struct AccessCapabilities {
 		GPRSExtendedDynamicAllocationCapability,
 		SMS_VALUE,
 		SM_VALUE,
-		ECSDMultislotClass,		// multislot additions in release 99
+		ECSDMultislotClass, // multislot additions in release 99
 		EGPRSMultislotClass,
 		EGPRSExtendedDynamicAllocationCapability,
 		DTMGPRSMultiSlotClass,
@@ -519,29 +539,36 @@ struct AccessCapabilities {
 		CDMA2000RadioAccessTechnologyCapability,
 		// Additions in release 4:
 		UMTS128McpsTDDRadioAccessTechnologyCapability,
-		GERANFeaturePackage1,		// Finally, something we care about.
+		GERANFeaturePackage1, // Finally, something we care about.
 		ExtendedDTMGPRSMultiSlotClass,
 		ExtendedDTMEGPRSMultiSlotClass,
 		ModulationBasedMultislotClassSupport,
 		// Addigions in release 5:
 		HighMultislotCapability,
-		//GMSKPowerClass,
-		//8PSKPowerClass,
-		CapsMax	// Here to indicate the length of the required list.
+		// GMSKPowerClass,
+		// 8PSKPowerClass,
+		CapsMax // Here to indicate the length of the required list.
 	};
 	// These are the capabilities that are actually of some interest to us,
 	// and will be printed in the message:
 	static CapType mPrintList[];
 	const char *CapName(CapType type) const;
 	short mCaps[CapsMax];
-	AccessCapabilities() { for (int i = 0; i < CapsMax; i++) { mCaps[i] = -1; } }
-	int getCap(CapType captype) {	// Return cap value or -1.
-		if (!mValid) return -1;
+	AccessCapabilities()
+	{
+		for (int i = 0; i < CapsMax; i++) {
+			mCaps[i] = -1;
+		}
+	}
+	int getCap(CapType captype)
+	{ // Return cap value or -1.
+		if (!mValid)
+			return -1;
 		assert(captype < CapsMax);
 		return mCaps[captype];
 	}
-	void parseAccessCapabilities(ByteVector &bv,size_t &rp,AccessCapabilities *prev,size_t end);
-	void text2(std::ostream &os,bool verbose) const;
+	void parseAccessCapabilities(ByteVector &bv, size_t &rp, AccessCapabilities *prev, size_t end);
+	void text2(std::ostream &os, bool verbose) const;
 	void text(std::ostream &os) const;
 };
 
@@ -549,24 +576,27 @@ struct AccessCapabilities {
 // It is a list of structures, each of which is either an AccessCapabilitiesStruct
 // or an AdditionalAccessTechnologiesStruct
 struct MsRaCapability : public ByteVector {
-	static const int sMsRaCapMaxTypes = 4;	// Keep the first four.
-	AccessCapabilities mCList[sMsRaCapMaxTypes];	// Keep first four.
+	static const int sMsRaCapMaxTypes = 4;       // Keep the first four.
+	AccessCapabilities mCList[sMsRaCapMaxTypes]; // Keep first four.
 	void parseMsRaCapability();
-	void text2(std::ostream &os,bool verbose) const;
+	void text2(std::ostream &os, bool verbose) const;
 	void text(std::ostream &os) const;
-	MsRaCapability(const ByteVector &bv) : ByteVector(bv) { if (bv.size()) parseMsRaCapability(); }
+	MsRaCapability(const ByteVector &bv) : ByteVector(bv)
+	{
+		if (bv.size())
+			parseMsRaCapability();
+	}
 };
 
-struct PdpContextStatus : public Text2Str
-{
+struct PdpContextStatus : public Text2Str {
 	unsigned char mStatus[2];
 	PdpContextStatus() { mStatus[0] = mStatus[1] = 0; }
-	void text(std::ostream &os) const {
-		os <<"PdpContextStatus="<<hex<<(int)mStatus[0]<<","<<(int)mStatus[1]<<dec;
+	void text(std::ostream &os) const
+	{
+		os << "PdpContextStatus=" << hex << (int)mStatus[0] << "," << (int)mStatus[1] << dec;
 	}
 	bool anyDefined() { return !!(mStatus[0] | mStatus[1]); }
 };
-
 
 // The only differences between RoutingAreaUpdateRequest and AttachRequest are:
 // The first nibble: for AttachRequest it is Attach Type 10.5.5.2
@@ -574,19 +604,18 @@ struct PdpContextStatus : public Text2Str
 // Mobile Identity: AttachRequest it is P-TMSI or IMSI; RAUpdate it is PTmsi.
 // DRXparameter : AttachRequest: required; RAupdate: optional.
 // PDP Context Status: RAUpdate: optional, AttachRequest: not present
-struct GMMAttach
-{
-	Field_z<4> mCypheringKeySequenceNumber;	// Only bottom 3 bits used.
-				// value 7 from MS means no key available, which it should be
-				// if we have not sent an Authentication Request.
+struct GMMAttach {
+	Field_z<4> mCypheringKeySequenceNumber; // Only bottom 3 bits used.
+						// value 7 from MS means no key available, which it should be
+						// if we have not sent an Authentication Request.
 	Field_z<16> mDrxParameter;
-	GmmMobileIdentityIE mMobileId;	// AttachRequest: PtmsiOrImsi; RAUpdate: mPTmsi;
-	Bool_z mTmsiStatus;				// 10.5.5.4: does ms have a valid TMSI?
-	ByteVector mMsRadioAccessCapability;// Required element in both AttachRequest and RAUpdate.
-	GMMRoutingAreaIdIE mOldRaId;	// Required element in both AttachRequest and RAUpdate.
+	GmmMobileIdentityIE mMobileId;       // AttachRequest: PtmsiOrImsi; RAUpdate: mPTmsi;
+	Bool_z mTmsiStatus;		     // 10.5.5.4: does ms have a valid TMSI?
+	ByteVector mMsRadioAccessCapability; // Required element in both AttachRequest and RAUpdate.
+	GMMRoutingAreaIdIE mOldRaId;	 // Required element in both AttachRequest and RAUpdate.
 	Field_z<24> mOldPtmsiSignature;
 	// For an incoming RAUpdate or AttachRequest, this is the mRequestedReadyTimerValue.
-	Field_z<8> mRequestedReadyTimerValue;	// Unit is encoded per 10.5.7.3
+	Field_z<8> mRequestedReadyTimerValue; // Unit is encoded per 10.5.7.3
 
 	ByteVector mMsNetworkCapability;
 
@@ -597,115 +626,98 @@ struct GMMAttach
 	GmmMobileIdentityIE mAdditionalMobileId;
 
 	void gmParseIEs(L3GmmFrame &src, size_t &rp, const char *culprit);
-	void text(std::ostream &os) const {
-		os 	<<LOGVAR2("mobileId",mMobileId.str())
-			<<LOGVAR2("addtionalMobileId",mAdditionalMobileId.str())
-			<<LOGVAR2("drx",mDrxParameter)
-			<<LOGVAR2("tmsiStatus",mTmsiStatus)
-			<<LOGVAR2("pdpContextStatus",mPdpContextStatus.str())
-			<<LOGVAR(mCypheringKeySequenceNumber)
-			//<<LOGVAR(mMsRadioAccessCapability)
-			<<LOGVAR2("oldRaId",mOldRaId.str())
-			<<LOGVAR(mOldPtmsiSignature)
-			<<LOGVAR(mRequestedReadyTimerValue)
-			<<LOGVAR(mMsNetworkCapability)
-			;
+	void text(std::ostream &os) const
+	{
+		os << LOGVAR2("mobileId", mMobileId.str()) << LOGVAR2("addtionalMobileId", mAdditionalMobileId.str())
+		   << LOGVAR2("drx", mDrxParameter) << LOGVAR2("tmsiStatus", mTmsiStatus)
+		   << LOGVAR2("pdpContextStatus", mPdpContextStatus.str())
+		   << LOGVAR(mCypheringKeySequenceNumber)
+		   //<<LOGVAR(mMsRadioAccessCapability)
+		   << LOGVAR2("oldRaId", mOldRaId.str()) << LOGVAR(mOldPtmsiSignature)
+		   << LOGVAR(mRequestedReadyTimerValue) << LOGVAR(mMsNetworkCapability);
 		MsRaCapability caps(mMsRadioAccessCapability);
-		os <<"\n";
+		os << "\n";
 		caps.text(os);
 	}
 };
 
 // 24.008 9.4.20 Service Request
-struct L3GmmMsgServiceRequest : L3GmmUlMsg
-{
-        Field<4> mCypheringKeySequenceNumber;   // Only bottom 3 bits used.
-        GmmMobileIdentityIE mMobileId;  // PTmsi;
-	Field<4> mServiceType; // Only bottom 3 bits are used
+struct L3GmmMsgServiceRequest : L3GmmUlMsg {
+	Field<4> mCypheringKeySequenceNumber; // Only bottom 3 bits used.
+	GmmMobileIdentityIE mMobileId;	// PTmsi;
+	Field<4> mServiceType;		      // Only bottom 3 bits are used
 
-        // For RA update the PDP context status indicates which PDP contexts
-        // are still active in the GGSN, because you can switch SGSNs
-        // while still having active PDP contexts.
-        PdpContextStatus mPdpContextStatus;
+	// For RA update the PDP context status indicates which PDP contexts
+	// are still active in the GGSN, because you can switch SGSNs
+	// while still having active PDP contexts.
+	PdpContextStatus mPdpContextStatus;
 	// MBMS context status -- not implemented yet
 	// Uplink data status -- not implemented yet;
 
-        int MTI() const {return ServiceRequest;}
-        void gmmParseBody(L3GmmFrame &src, size_t &rp);
-        void textBody(std::ostream &os) const {
-                os <<LOGVAR(mCypheringKeySequenceNumber) << LOGVAR(mServiceType)
-			<<LOGVAR2("PdpContextStatus",mPdpContextStatus.str());        
-                mMobileId.text(os);
-        }
+	int MTI() const { return ServiceRequest; }
+	void gmmParseBody(L3GmmFrame &src, size_t &rp);
+	void textBody(std::ostream &os) const
+	{
+		os << LOGVAR(mCypheringKeySequenceNumber) << LOGVAR(mServiceType)
+		   << LOGVAR2("PdpContextStatus", mPdpContextStatus.str());
+		mMobileId.text(os);
+	}
 };
 
 // 24.008 9.4.21 Service Accept
-struct L3GmmMsgServiceAccept : L3GmmDlMsg
-{
-        // For RA update the PDP context status indicates which PDP contexts
-        // are still active in the GGSN, because you can switch SGSNs
-        // while still having active PDP contexts.
-        PdpContextStatus mPdpContextStatus;
-        // MBMS context status -- not implemented yet
+struct L3GmmMsgServiceAccept : L3GmmDlMsg {
+	// For RA update the PDP context status indicates which PDP contexts
+	// are still active in the GGSN, because you can switch SGSNs
+	// while still having active PDP contexts.
+	PdpContextStatus mPdpContextStatus;
+	// MBMS context status -- not implemented yet
 
-        int MTI() const {return ServiceAccept;}
-        L3GmmMsgServiceAccept(PdpContextStatus wStatus):
-                mPdpContextStatus(wStatus)
-        {
-        }
-        void gmmWriteBody(ByteVector &msg);
-        void textBody(std::ostream &os) const {
-                os << LOGVAR2("PdpContextStatus",mPdpContextStatus.str());
-        }
+	int MTI() const { return ServiceAccept; }
+	L3GmmMsgServiceAccept(PdpContextStatus wStatus) : mPdpContextStatus(wStatus) {}
+	void gmmWriteBody(ByteVector &msg);
+	void textBody(std::ostream &os) const { os << LOGVAR2("PdpContextStatus", mPdpContextStatus.str()); }
 };
 
 // 24.008 9.4.22 Service Reject
-struct L3GmmMsgServiceReject : L3GmmDlMsg
-{
-        uint8_t mGmmCause;      // GMM cause 10.5.5.14
-        int MTI() const {return ServiceReject;}
-        L3GmmMsgServiceReject(uint8_t wGmmCause):
-                mGmmCause(wGmmCause)
-        {
-        }
-        void gmmWriteBody(ByteVector &msg);
-        void textBody(std::ostream &os) const {
-                os << LOGVAR2("GmmCause",mGmmCause);
-        }
-
+struct L3GmmMsgServiceReject : L3GmmDlMsg {
+	uint8_t mGmmCause; // GMM cause 10.5.5.14
+	int MTI() const { return ServiceReject; }
+	L3GmmMsgServiceReject(uint8_t wGmmCause) : mGmmCause(wGmmCause) {}
+	void gmmWriteBody(ByteVector &msg);
+	void textBody(std::ostream &os) const { os << LOGVAR2("GmmCause", mGmmCause); }
 };
 
-struct L3GmmMsgRAUpdateRequest : L3GmmUlMsg, GMMAttach
-{
-	Field<3> mUpdateType;	// 10.5.5.18:
-		// 0 => RA updating, 1 => Combined RA/LA updating
-		// 2 => Combined RA/LA updating with IMSI attach
-		// 3 => Periodic updating.
+struct L3GmmMsgRAUpdateRequest : L3GmmUlMsg, GMMAttach {
+	Field<3> mUpdateType; // 10.5.5.18:
+			      // 0 => RA updating, 1 => Combined RA/LA updating
+			      // 2 => Combined RA/LA updating with IMSI attach
+			      // 3 => Periodic updating.
 	bool mFollowOnRequestPending;
 
-	int MTI() const {return RoutingAreaUpdateRequest;}
+	int MTI() const { return RoutingAreaUpdateRequest; }
 	void gmmParseBody(L3GmmFrame &src, size_t &rp);
-	void textBody(std::ostream &os) const {
-		//os <<"RAUpdateRequest" <<LOGVAR(mUpdateType);
-		os <<LOGVAR(mUpdateType) << LOGVAR(mFollowOnRequestPending);
+	void textBody(std::ostream &os) const
+	{
+		// os <<"RAUpdateRequest" <<LOGVAR(mUpdateType);
+		os << LOGVAR(mUpdateType) << LOGVAR(mFollowOnRequestPending);
 		GMMAttach::text(os);
 	}
 };
 
 struct L3GmmMsgRAUpdateComplete : L3GmmUlMsg {
-	int MTI() const {return RoutingAreaUpdateComplete;}
-	void gmmParseBody(L3GmmFrame &src, size_t &rp) {
+	int MTI() const { return RoutingAreaUpdateComplete; }
+	void gmmParseBody(L3GmmFrame &src, size_t &rp)
+	{
 		// There is nothing interesting inside.
 		// The fact that it arrived is the message.
 	}
-	//void text(std::ostream &os) const { os <<"RaUpdateComplete"; }
+	// void text(std::ostream &os) const { os <<"RaUpdateComplete"; }
 	void textBody(std::ostream &os) const;
 };
 
 // 24.008 9.4.2 Attach Accept
-struct L3GmmMsgAttachAccept : public L3GmmDlMsg
-{
-	Field<4> mAttachResult;	// 1=> GPRS only attach, 3=>combined GPRS/IMSI attach.
+struct L3GmmMsgAttachAccept : public L3GmmDlMsg {
+	Field<4> mAttachResult; // 1=> GPRS only attach, 3=>combined GPRS/IMSI attach.
 	Bool_z mForceToStandby;
 	GprsTimerIE mPeriodicRAUpdateTimer;
 	GprsTimerIE mReadyTimer;
@@ -718,33 +730,28 @@ struct L3GmmMsgAttachAccept : public L3GmmDlMsg
 	// and that worked ok, but I am removing it as incorrect.
 	GmmMobileIdentityIE mMobileId;
 
-	int MTI() const {return AttachAccept;}
+	int MTI() const { return AttachAccept; }
 
 	// Constructor prior to 6-7-2012:
-	L3GmmMsgAttachAccept(unsigned wAttachResult, uint32_t wPTmsi,
-			GmmMobileIdentityIE wMobileId) :
-		L3GmmDlMsg(senseReply),
-		mAttachResult(wAttachResult),
-		mPTmsi(wPTmsi)
-		//mMobileId(wMobileId)
+	L3GmmMsgAttachAccept(unsigned wAttachResult, uint32_t wPTmsi, GmmMobileIdentityIE wMobileId)
+		: L3GmmDlMsg(senseReply), mAttachResult(wAttachResult), mPTmsi(wPTmsi)
+	// mMobileId(wMobileId)
 	{
 	}
 
 	// New constructor, no mobile id.
-	L3GmmMsgAttachAccept(unsigned wAttachResult, uint32_t wPTmsi):
-		L3GmmDlMsg(senseReply),
-		mAttachResult(wAttachResult),
-		mPTmsi(wPTmsi)
+	L3GmmMsgAttachAccept(unsigned wAttachResult, uint32_t wPTmsi)
+		: L3GmmDlMsg(senseReply), mAttachResult(wAttachResult), mPTmsi(wPTmsi)
 	{
 	}
 
 	void gmmWriteBody(ByteVector &msg);
-	void textBody(std::ostream &os) const {
-		//os <<"AttachAccept ";
-		os <<LOGVAR(mAttachResult) <<LOGHEX(mPTmsi)
-			<<LOGVAR(mForceToStandby)
-			<<LOGVAR2("PeriodicRAUpdateTimer",mPeriodicRAUpdateTimer.getSeconds())
-			<<LOGVAR2("mobileId",mMobileId.str());
+	void textBody(std::ostream &os) const
+	{
+		// os <<"AttachAccept ";
+		os << LOGVAR(mAttachResult) << LOGHEX(mPTmsi) << LOGVAR(mForceToStandby)
+		   << LOGVAR2("PeriodicRAUpdateTimer", mPeriodicRAUpdateTimer.getSeconds())
+		   << LOGVAR2("mobileId", mMobileId.str());
 		GMMRoutingAreaIdIE mRaId;
 		mRaId.raLoad();
 		mRaId.text(os);
@@ -752,90 +759,82 @@ struct L3GmmMsgAttachAccept : public L3GmmDlMsg
 };
 
 // 24.008 9.4.15 Routing Area Update Accept
-struct L3GmmMsgRAUpdateAccept : L3GmmDlMsg
-{
-	unsigned mUpdateResult;	// 10.5.5.17
-	Bool_z mForceToStandby;	// 0 means no, 1 means force to standby.
+struct L3GmmMsgRAUpdateAccept : L3GmmDlMsg {
+	unsigned mUpdateResult; // 10.5.5.17
+	Bool_z mForceToStandby; // 0 means no, 1 means force to standby.
 	GprsTimerIE mPeriodicRAUpdateTimer;
 	// "This IE may be included to assign or unassign a TMSI to a MS
 	// in case of a combined routing area updating procedure."
 	// Note: we do not need the MS id in this message because the L2 Layer takes care
 	// of delivering it back to the correct MS.
-	//GmmMobileIdentityIE mMobileId;
+	// GmmMobileIdentityIE mMobileId;
 	PdpContextStatus mPdpContextStatusCurrent;
-	uint32_t mAllocatedPTmsi;	// Allocated p-tmsi, or 0
-	uint32_t mTmsi;				// tmsi or 0, for combined raupdate, sent in the mobile-id ie.
+	uint32_t mAllocatedPTmsi; // Allocated p-tmsi, or 0
+	uint32_t mTmsi;		  // tmsi or 0, for combined raupdate, sent in the mobile-id ie.
 
-	L3GmmMsgRAUpdateAccept(RAUpdateType updatetype, PdpContextStatus wPdpContextStatus, uint32_t ptmsi,uint32_t tmsi) :
-		L3GmmDlMsg(senseReply),
-		mUpdateResult((unsigned)updatetype),
-		mPdpContextStatusCurrent(wPdpContextStatus),
-		mAllocatedPTmsi(ptmsi),
-		mTmsi(tmsi)
-		//mMobileId(mid),
+	L3GmmMsgRAUpdateAccept(
+		RAUpdateType updatetype, PdpContextStatus wPdpContextStatus, uint32_t ptmsi, uint32_t tmsi)
+		: L3GmmDlMsg(senseReply), mUpdateResult((unsigned)updatetype),
+		  mPdpContextStatusCurrent(wPdpContextStatus), mAllocatedPTmsi(ptmsi), mTmsi(tmsi)
+	// mMobileId(mid),
 	{
 		mPeriodicRAUpdateTimer.setSeconds(gConfig.getNum("SGSN.Timer.RAUpdate"));
 	}
 
-	int MTI() const {return RoutingAreaUpdateAccept;}
+	int MTI() const { return RoutingAreaUpdateAccept; }
 	void gmmWriteBody(ByteVector &msg);
-	void textBody(std::ostream &os) const {
-		//os <<"RaUpdateAccept"
-		os<<LOGVAR(mUpdateResult) <<LOGVAR(mForceToStandby)
-			// We did not bother to print out the GMMRoutingAreaIdIE
-			<<LOGHEX2("ptmsi",mAllocatedPTmsi) <<LOGHEX2("MSIdentity(mTmsi)",mTmsi)
-			<<LOGVAR2("PeriodicRAUpdateTimer",mPeriodicRAUpdateTimer.getSeconds())
-			<<LOGVAR2("PdpContextStatusCurrent",mPdpContextStatusCurrent.str());
+	void textBody(std::ostream &os) const
+	{
+		// os <<"RaUpdateAccept"
+		os << LOGVAR(mUpdateResult)
+		   << LOGVAR(mForceToStandby)
+		   // We did not bother to print out the GMMRoutingAreaIdIE
+		   << LOGHEX2("ptmsi", mAllocatedPTmsi) << LOGHEX2("MSIdentity(mTmsi)", mTmsi)
+		   << LOGVAR2("PeriodicRAUpdateTimer", mPeriodicRAUpdateTimer.getSeconds())
+		   << LOGVAR2("PdpContextStatusCurrent", mPdpContextStatusCurrent.str());
 	}
 };
 
-
 // 24.008 9.4.17 Routing Area Update Reject
 // Note there is no MS id here - the L2 Layer takes care of delivering it back to the correct MS.
-struct L3GmmMsgRAUpdateReject : L3GmmDlMsg
-{
-	uint8_t mGmmCause;	// GMM cause 10.5.5.14
-	L3GmmMsgRAUpdateReject(unsigned cause) :
-		L3GmmDlMsg(senseReply),
-		mGmmCause(cause)
-		{}
-	int MTI() const {return RoutingAreaUpdateReject;}
+struct L3GmmMsgRAUpdateReject : L3GmmDlMsg {
+	uint8_t mGmmCause; // GMM cause 10.5.5.14
+	L3GmmMsgRAUpdateReject(unsigned cause) : L3GmmDlMsg(senseReply), mGmmCause(cause) {}
+	int MTI() const { return RoutingAreaUpdateReject; }
 	void gmmWriteBody(ByteVector &msg);
 	void textBody(std::ostream &os) const;
 };
 
+struct L3GmmMsgAttachRequest : L3GmmUlMsg, GMMAttach {
+	Field<4> mAttachType; // 10.5.5.2
 
-struct L3GmmMsgAttachRequest : L3GmmUlMsg, GMMAttach
-{
-	Field<4> mAttachType;	// 10.5.5.2
-
-	int MTI() const {return AttachRequest;}
+	int MTI() const { return AttachRequest; }
 	void gmmParseBody(L3GmmFrame &src, size_t &rp);
 
-	void textBody(std::ostream &os) const {
-		os 	<<LOGVAR(mAttachType);
-			//<<LOGVAR2("mobileId",mMobileId.str())
-			//<<LOGVAR2("drx",mDrxParameter)
-			//<<LOGVAR2("tmsiStatus",mTmsiStatus);
+	void textBody(std::ostream &os) const
+	{
+		os << LOGVAR(mAttachType);
+		//<<LOGVAR2("mobileId",mMobileId.str())
+		//<<LOGVAR2("drx",mDrxParameter)
+		//<<LOGVAR2("tmsiStatus",mTmsiStatus);
 		GMMAttach::text(os);
 	}
 };
 
-struct L3GmmMsgAttachComplete : L3GmmUlMsg
-{
-	int MTI() const {return AttachComplete;}
-	void gmmParseBody(L3GmmFrame &src, size_t &rp) {
+struct L3GmmMsgAttachComplete : L3GmmUlMsg {
+	int MTI() const { return AttachComplete; }
+	void gmmParseBody(L3GmmFrame &src, size_t &rp)
+	{
 		// There is nothing interesting inside the message.
 		// The fact that it arrived is the message.
 	}
-	void textBody(std::ostream &os) const {/*nothing*/}
+	void textBody(std::ostream &os) const { /*nothing*/}
 };
 
 // 3GPP 24.008 9.4.5.1 Detach Request Network Originated
 // and 9.5.4.2 Detach Request Mobile Originated.
-struct L3GmmMsgDetachRequest : L3GmmDlMsg, L3GmmUlMsg
-{
-	int MTI() const {return DetachRequest;}
+struct L3GmmMsgDetachRequest : L3GmmDlMsg, L3GmmUlMsg {
+	int MTI() const { return DetachRequest; }
 
 	Field_z<4> mDetachType, mForceToStandby;
 	// The GmmCause and ForceToStandby are only present in the downlink direction.
@@ -843,7 +842,7 @@ struct L3GmmMsgDetachRequest : L3GmmDlMsg, L3GmmUlMsg
 	Bool_z mGmmCausePresent;
 
 	// The tmsi is only present in the uplink direction.
-	GmmMobileIdentityIE mMobileId;	// This is supposed to be a PTMSI only, so why encoded as a MobileIdentity IE?
+	GmmMobileIdentityIE mMobileId; // This is supposed to be a PTMSI only, so why encoded as a MobileIdentity IE?
 	Bool_z mMobileIdPresent;
 
 	// In the uplink direction there is also a P-TMSI signature that we dont use, so we dont parse.
@@ -854,58 +853,52 @@ struct L3GmmMsgDetachRequest : L3GmmDlMsg, L3GmmUlMsg
 	void gmmParseBody(L3GmmFrame &src, size_t &rp);
 
 	// This message is bidirectional.  This constructor is for making one to send downstream:
-	L3GmmMsgDetachRequest(unsigned type, unsigned cause) :
-		L3GmmDlMsg(senseCmd),
-		mDetachType(type),
-		mForceToStandby(0),
-		mGmmCause(cause),
-		mGmmCausePresent(cause != 0)
-	{}
+	L3GmmMsgDetachRequest(unsigned type, unsigned cause)
+		: L3GmmDlMsg(senseCmd), mDetachType(type), mForceToStandby(0), mGmmCause(cause),
+		  mGmmCausePresent(cause != 0)
+	{
+	}
 	void gmmWriteBody(ByteVector &msg);
 
 	void textBody(std::ostream &os) const;
 };
 
 // 3GPP 24.008 9.4.6 Detach Accept
-struct L3GmmMsgDetachAccept : L3GmmUlMsg, L3GmmDlMsg
-{
-	int MTI() const {return DetachAccept;}
+struct L3GmmMsgDetachAccept : L3GmmUlMsg, L3GmmDlMsg {
+	int MTI() const { return DetachAccept; }
 	Field_z<4> mForceToStandby;
 
 	// This message is bidirectional.  This constructor is for reading one in:
 	L3GmmMsgDetachAccept() {}
-	void gmmParseBody(L3GmmFrame &src, size_t &rp) {
+	void gmmParseBody(L3GmmFrame &src, size_t &rp)
+	{
 		// Nothing at all.  The presence of this message is the indication.
 	}
 
 	// This message is bidirectional.  This constructor is for making one to send downstream.
-	// Good old C++ requires us to make the constructor arguments unique so we will pass in the useless ForceToStandby.
-	L3GmmMsgDetachAccept(unsigned wForceToStandby) :
-		L3GmmDlMsg(senseReply),
-		mForceToStandby(wForceToStandby)
-		{}
+	// Good old C++ requires us to make the constructor arguments unique so we will pass in the useless
+	// ForceToStandby.
+	L3GmmMsgDetachAccept(unsigned wForceToStandby) : L3GmmDlMsg(senseReply), mForceToStandby(wForceToStandby) {}
 	void gmmWriteBody(ByteVector &msg);
 
 	void textBody(std::ostream &os) const;
 };
 
-struct L3GmmMsgIdentityRequest : L3GmmDlMsg
-{
+struct L3GmmMsgIdentityRequest : L3GmmDlMsg {
 	Field<4> mIdentityType, mForceToStandby;
-	int MTI() const {return IdentityRequest;}
-	L3GmmMsgIdentityRequest() :
-		L3GmmDlMsg(senseCmd),
-		mIdentityType(1),		// 1 means IMSI, the only kind we ever ask for.
-		mForceToStandby(0)
-		{}
+	int MTI() const { return IdentityRequest; }
+	L3GmmMsgIdentityRequest()
+		: L3GmmDlMsg(senseCmd), mIdentityType(1), // 1 means IMSI, the only kind we ever ask for.
+		  mForceToStandby(0)
+	{
+	}
 	void gmmWriteBody(ByteVector &msg);
 	void textBody(std::ostream &os) const;
 };
 
 // 24.008 9.4.9 Authenticaion and ciphering request.
-struct L3GmmMsgAuthentication : L3GmmDlMsg
-{
-	int MTI() const {return AuthenticationAndCipheringReq;}
+struct L3GmmMsgAuthentication : L3GmmDlMsg {
+	int MTI() const { return AuthenticationAndCipheringReq; }
 	// We wont use any of the IEs:
 	// Ciphering algorithm - always 0
 	// IMEISV request - request IMEI in response, nope.
@@ -915,38 +908,26 @@ struct L3GmmMsgAuthentication : L3GmmDlMsg
 	// GPRS ciphering key sequence - nope
 	// AUTN - if specified, it is a UMTS type challenge. nope.
 	void gmmWriteBody(ByteVector &msg);
-	L3GmmMsgAuthentication(ByteVector &rand) : L3GmmDlMsg(senseCmd), mRand(rand)
-	{
-		assert(rand.size() == 16);
-	}
-	void textBody(std::ostream &os) const {
-		os <<LOGVAR(mRand);
-	}
+	L3GmmMsgAuthentication(ByteVector &rand) : L3GmmDlMsg(senseCmd), mRand(rand) { assert(rand.size() == 16); }
+	void textBody(std::ostream &os) const { os << LOGVAR(mRand); }
 };
 
 // 24.008 9.4.9 Authenticaion and ciphering request.
-struct L3GmmMsgAuthenticationResponse : L3GmmUlMsg
-{
-        int MTI() const {return AuthenticationAndCipheringResp;}
-        ByteVector mSRES; // 32 bit authentication result.
-        void gmmParseBody(L3GmmFrame &src, size_t &rp);
-        void textBody(std::ostream &os) const {
-                os <<LOGVAR(mSRES);
-        }
+struct L3GmmMsgAuthenticationResponse : L3GmmUlMsg {
+	int MTI() const { return AuthenticationAndCipheringResp; }
+	ByteVector mSRES; // 32 bit authentication result.
+	void gmmParseBody(L3GmmFrame &src, size_t &rp);
+	void textBody(std::ostream &os) const { os << LOGVAR(mSRES); }
 };
 
-
-
-struct L3GmmMsgIdentityResponse : L3GmmUlMsg
-{
-	int MTI() const {return IdentityResponse;}
+struct L3GmmMsgIdentityResponse : L3GmmUlMsg {
+	int MTI() const { return IdentityResponse; }
 	GmmMobileIdentityIE mMobileId;
 	void gmmParseBody(L3GmmFrame &src, size_t &rp);
 	void textBody(std::ostream &os) const;
 };
 
-struct L3SmMsgActivatePdpContextRequest : L3SmUlMsg
-{
+struct L3SmMsgActivatePdpContextRequest : L3SmUlMsg {
 	unsigned mNSapi;
 	unsigned mLlcSapi;
 	unsigned mRequestType;
@@ -955,37 +936,38 @@ struct L3SmMsgActivatePdpContextRequest : L3SmUlMsg
 	ByteVector mApName;
 	ByteVector mPco;
 
-	L3SmMsgActivatePdpContextRequest() {};
+	L3SmMsgActivatePdpContextRequest(){};
 	L3SmMsgActivatePdpContextRequest(L3SmFrame &src) { smParse(src); }
-	int MTI() const {return ActivatePDPContextRequest;}
+	int MTI() const { return ActivatePDPContextRequest; }
 	void smParseBody(L3SmFrame &src, size_t &rp);
-	void textBody(std::ostream &os) const {
-		os<<LOGVAR(mNSapi)<<LOGVAR(mLlcSapi) <<LOGVAR(mRequestType)
-			<<LOGVAR(mPdpAddress)<<LOGVAR(mQoS)<<LOGVAR(mApName) <<LOGVAR(mPco);
+	void textBody(std::ostream &os) const
+	{
+		os << LOGVAR(mNSapi) << LOGVAR(mLlcSapi) << LOGVAR(mRequestType) << LOGVAR(mPdpAddress) << LOGVAR(mQoS)
+		   << LOGVAR(mApName) << LOGVAR(mPco);
 	}
 };
 
-struct L3SmMsgActivatePdpContextAccept : L3SmDlMsg
-{
+struct L3SmMsgActivatePdpContextAccept : L3SmDlMsg {
 	unsigned mLlcSapi;
 	ByteVector mQoS;
 	unsigned mRadioPriority;
-	ByteVector mPdpAddress;	// Would be optional if we supported static ips, but we dont.
-	ByteVector mPco;		// If  you dont pass these down, get: SM Status: Invalid Mandatory information.
+	ByteVector mPdpAddress; // Would be optional if we supported static ips, but we dont.
+	ByteVector mPco;	// If  you dont pass these down, get: SM Status: Invalid Mandatory information.
 
-	L3SmMsgActivatePdpContextAccept(unsigned wti) : L3SmDlMsg(wti,senseReply) {}	// Other fields filled in by caller.
-	int MTI() const {return ActivatePDPContextAccept;}
+	L3SmMsgActivatePdpContextAccept(unsigned wti)
+		: L3SmDlMsg(wti, senseReply) {} // Other fields filled in by caller.
+	int MTI() const { return ActivatePDPContextAccept; }
 	void smWriteBody(ByteVector &msg);
-	void textBody(std::ostream &os) const {
-		os<<LOGVAR(mLlcSapi)<<LOGVAR(mPdpAddress)<<LOGVAR(mQoS)<<LOGVAR(mRadioPriority)<<LOGVAR(mPco);
+	void textBody(std::ostream &os) const
+	{
+		os << LOGVAR(mLlcSapi) << LOGVAR(mPdpAddress) << LOGVAR(mQoS) << LOGVAR(mRadioPriority) << LOGVAR(mPco);
 	}
 };
 
-struct L3SmMsgActivatePdpContextReject : L3SmDlMsg
-{
-	unsigned mCause;	// type SmCause::Cause
-	L3SmMsgActivatePdpContextReject(unsigned wti, unsigned wcause) : L3SmDlMsg(wti,senseReply), mCause(wcause) {}
-	int MTI() const {return ActivatePDPContextReject;}
+struct L3SmMsgActivatePdpContextReject : L3SmDlMsg {
+	unsigned mCause; // type SmCause::Cause
+	L3SmMsgActivatePdpContextReject(unsigned wti, unsigned wcause) : L3SmDlMsg(wti, senseReply), mCause(wcause) {}
+	int MTI() const { return ActivatePDPContextReject; }
 	void smWriteBody(ByteVector &msg);
 	void textBody(std::ostream &os) const;
 };
@@ -993,75 +975,65 @@ struct L3SmMsgActivatePdpContextReject : L3SmDlMsg
 // TODO: How do you deactivate the contexts?  The PDP context is identified by its TI,
 // but if we just get a packet for an unconfigured NSAPI, then we dont have a TI...
 // I added sendPdpDeactivateAll to just deactivate them all.
-struct L3SmMsgDeactivatePdpContextRequest : L3SmUlMsg, L3SmDlMsg
-{
-	unsigned mCause;	// This is an SmCause
+struct L3SmMsgDeactivatePdpContextRequest : L3SmUlMsg, L3SmDlMsg {
+	unsigned mCause; // This is an SmCause
 	Bool_z mTearDownIndicator;
-	ByteVector mPco;	// Option PCO.  Added this so I can see what is in there.
+	ByteVector mPco; // Option PCO.  Added this so I can see what is in there.
 
 	// This message is bidirectional.  This constructor is for reading one in:
 	L3SmMsgDeactivatePdpContextRequest(L3SmFrame &src) { smParse(src); }
-	void smParseBody(L3SmFrame &src,size_t &rp);
+	void smParseBody(L3SmFrame &src, size_t &rp);
 
 	// This message is bidirectional.  This constructor is for making one to send downstream:
-	L3SmMsgDeactivatePdpContextRequest(unsigned ti, SmCause::Cause cause, bool wTearDownIndicator) :
-		L3SmDlMsg(ti,senseCmd), mCause(cause), mTearDownIndicator(wTearDownIndicator) {}
-	int MTI() const {return DeactivatePDPContextRequest;}
+	L3SmMsgDeactivatePdpContextRequest(unsigned ti, SmCause::Cause cause, bool wTearDownIndicator)
+		: L3SmDlMsg(ti, senseCmd), mCause(cause), mTearDownIndicator(wTearDownIndicator)
+	{
+	}
+	int MTI() const { return DeactivatePDPContextRequest; }
 	void smWriteBody(ByteVector &msg);
 	void textBody(std::ostream &os) const;
 };
 
 // 3GPP 24.008 9.5.15
-struct L3SmMsgDeactivatePdpContextAccept : L3SmDlMsg, L3SmUlMsg
-{
+struct L3SmMsgDeactivatePdpContextAccept : L3SmDlMsg, L3SmUlMsg {
 	// Message has optional PCO and MBMS IEs that we ignore.
 	// This message is bidirectional.  This constructor is for reading one in:
 	L3SmMsgDeactivatePdpContextAccept(L3SmFrame &src) { smParse(src); }
-	void smParseBody(L3SmFrame &src,size_t &rp) {/*nothing*/}
+	void smParseBody(L3SmFrame &src, size_t &rp) { /*nothing*/}
 
 	// This message is bidirectional.  This constructor is for making one to send downstream:
-	L3SmMsgDeactivatePdpContextAccept(unsigned ti) : L3SmDlMsg(ti,senseReply) {} 
-	int MTI() const {return DeactivatePDPContextAccept;}
-	void smWriteBody(ByteVector &msg) {/*nothing*/}
+	L3SmMsgDeactivatePdpContextAccept(unsigned ti) : L3SmDlMsg(ti, senseReply) {}
+	int MTI() const { return DeactivatePDPContextAccept; }
+	void smWriteBody(ByteVector &msg) { /*nothing*/}
 	void textBody(std::ostream &os) const;
 };
 
-
-struct L3SmMsgSmStatus : L3SmUlMsg, L3SmDlMsg
-{
+struct L3SmMsgSmStatus : L3SmUlMsg, L3SmDlMsg {
 	unsigned mCause;
-	int MTI() const {return SMStatus;}
+	int MTI() const { return SMStatus; }
 	// This message is bidirectional.  This constructor is for reading one in:
 	L3SmMsgSmStatus(L3SmFrame &src) { smParse(src); }
-	void smParseBody(L3SmFrame &src,size_t &rp) {
-		mCause = src.getByte(rp);
-	}
+	void smParseBody(L3SmFrame &src, size_t &rp) { mCause = src.getByte(rp); }
 
 	// This message is bidirectional.  This constructor is for making one to send downstream:
-	L3SmMsgSmStatus(unsigned tid, SmCause::Cause cause) : L3SmDlMsg(tid,senseReply), mCause(cause) {}
+	L3SmMsgSmStatus(unsigned tid, SmCause::Cause cause) : L3SmDlMsg(tid, senseReply), mCause(cause) {}
 	void smWriteBody(ByteVector &msg);
 
 	void textBody(std::ostream &os) const;
 };
 
-
 // This message is birectional.
-struct L3GmmMsgGmmStatus : L3GmmUlMsg, L3GmmDlMsg
-{
+struct L3GmmMsgGmmStatus : L3GmmUlMsg, L3GmmDlMsg {
 	unsigned mCause;
-	int MTI() const {return GMMStatus;}
-	void gmmParseBody(L3GmmFrame &src, size_t &rp) {
-		mCause = src.getByte(rp);
-	}
-	void gmmWriteBody(ByteVector &msg) {
-		msg.appendByte(mCause);
-	}
+	int MTI() const { return GMMStatus; }
+	void gmmParseBody(L3GmmFrame &src, size_t &rp) { mCause = src.getByte(rp); }
+	void gmmWriteBody(ByteVector &msg) { msg.appendByte(mCause); }
 	void textBody(std::ostream &os) const;
 	// This message is bidirectional.  This constructor is for reading one in:
 	L3GmmMsgGmmStatus() {}
 	// This message is bidirectional.  This constructor is for making one to send downstream.
-	L3GmmMsgGmmStatus(unsigned wCause): L3GmmDlMsg(senseCmd), mCause(wCause) {}
+	L3GmmMsgGmmStatus(unsigned wCause) : L3GmmDlMsg(senseCmd), mCause(wCause) {}
 };
 
-};	// namespace GPRS
+}; // namespace SGSN
 #endif

@@ -24,23 +24,21 @@
 
 */
 
-
-
-#include "Configuration.h"
 #include <iostream>
 #include <string>
+
+#include "Configuration.h"
 
 using namespace std;
 
 ConfigurationKeyMap getConfigurationKeys();
-ConfigurationTable gConfig("exampleconfig.db","test", getConfigurationKeys());
+ConfigurationTable gConfig("exampleconfig.db", "test", getConfigurationKeys());
 
-void purgeConfig(void*,int,char const*, char const*, sqlite3_int64)
+void purgeConfig(void *, int, char const *, char const *, sqlite3_int64)
 {
-	//cout << "update hook" << endl;
+	// cout << "update hook" << endl;
 	gConfig.purge();
 }
-
 
 int main(int argc, char *argv[])
 {
@@ -49,56 +47,57 @@ int main(int argc, char *argv[])
 
 	const char *keys[5] = {"key1", "key2", "key3", "key4", "key5"};
 
-	for (int i=0; i<5; i++) {
-		gConfig.set(keys[i],i);
+	for (int i = 0; i < 5; i++) {
+		gConfig.set(keys[i], i);
 	}
 
-	for (int i=0; i<5; i++) {
-		cout << "table[" << keys[i] << "]=" << gConfig.getStr(keys[i]) <<  endl;
-		cout << "table[" << keys[i] << "]=" << gConfig.getNum(keys[i]) <<  endl;
+	for (int i = 0; i < 5; i++) {
+		cout << "table[" << keys[i] << "]=" << gConfig.getStr(keys[i]) << endl;
+		cout << "table[" << keys[i] << "]=" << gConfig.getNum(keys[i]) << endl;
 	}
 
-	for (int i=0; i<5; i++) {
-		cout << "defined table[" << keys[i] << "]=" << gConfig.defines(keys[i]) <<  endl;
+	for (int i = 0; i < 5; i++) {
+		cout << "defined table[" << keys[i] << "]=" << gConfig.defines(keys[i]) << endl;
 	}
 
-	gConfig.set("key5","100 200 300  400 ");
+	gConfig.set("key5", "100 200 300  400 ");
 	std::vector<unsigned> vect = gConfig.getVector("key5");
 	cout << "vect length " << vect.size() << ": ";
-	for (unsigned i=0; i<vect.size(); i++) cout << " " << vect[i];
+	for (unsigned i = 0; i < vect.size(); i++)
+		cout << " " << vect[i];
 	cout << endl;
 	std::vector<string> svect = gConfig.getVectorOfStrings("key5");
 	cout << "vect length " << svect.size() << ": ";
-	for (unsigned i=0; i<svect.size(); i++) cout << " " << svect[i] << ":";
+	for (unsigned i = 0; i < svect.size(); i++)
+		cout << " " << svect[i] << ":";
 	cout << endl;
 
 	cout << "bool " << gConfig.getBool("booltest") << endl;
-	gConfig.set("booltest",1);
+	gConfig.set("booltest", 1);
 	cout << "bool " << gConfig.getBool("booltest") << endl;
-	gConfig.set("booltest",0);
+	gConfig.set("booltest", 0);
 	cout << "bool " << gConfig.getBool("booltest") << endl;
 
 	gConfig.getStr("newstring");
 	gConfig.getNum("numnumber");
 
-
 	SimpleKeyValue pairs;
 	pairs.addItems(" a=1 b=34 dd=143 ");
-	cout<< pairs.get("a") << endl;
-	cout<< pairs.get("b") << endl;
-	cout<< pairs.get("dd") << endl;
+	cout << pairs.get("a") << endl;
+	cout << pairs.get("b") << endl;
+	cout << pairs.get("dd") << endl;
 
-	gConfig.set("fkey","123.456");
+	gConfig.set("fkey", "123.456");
 	float fval = gConfig.getFloat("fkey");
 	cout << "fkey " << fval << endl;
 
 	cout << "search fkey:" << endl;
-	gConfig.find("fkey",cout);
+	gConfig.find("fkey", cout);
 	cout << "search fkey:" << endl;
-	gConfig.find("fkey",cout);
+	gConfig.find("fkey", cout);
 	gConfig.remove("fkey");
 	cout << "search fkey:" << endl;
-	gConfig.find("fkey",cout);
+	gConfig.find("fkey", cout);
 
 	try {
 		gConfig.getNum("supposedtoabort");
@@ -112,36 +111,18 @@ ConfigurationKeyMap getConfigurationKeys()
 	ConfigurationKeyMap map;
 	ConfigurationKey *tmp;
 
-	tmp = new ConfigurationKey("booltest","0",
-		"",
-		ConfigurationKey::DEVELOPER,
-		ConfigurationKey::BOOLEAN,
-		"",
-		false,
-		""
-	);
+	tmp = new ConfigurationKey(
+		"booltest", "0", "", ConfigurationKey::DEVELOPER, ConfigurationKey::BOOLEAN, "", false, "");
 	map[tmp->getName()] = *tmp;
 	delete tmp;
 
-	tmp = new ConfigurationKey("numnumber","42",
-		"",
-		ConfigurationKey::DEVELOPER,
-		ConfigurationKey::VALRANGE,
-		"0-100",
-		false,
-		""
-	);
+	tmp = new ConfigurationKey(
+		"numnumber", "42", "", ConfigurationKey::DEVELOPER, ConfigurationKey::VALRANGE, "0-100", false, "");
 	map[tmp->getName()] = *tmp;
 	delete tmp;
 
-	tmp = new ConfigurationKey("newstring","new string value",
-		"",
-		ConfigurationKey::DEVELOPER,
-		ConfigurationKey::STRING,
-		"",
-		false,
-		""
-	);
+	tmp = new ConfigurationKey("newstring", "new string value", "", ConfigurationKey::DEVELOPER,
+		ConfigurationKey::STRING, "", false, "");
 	map[tmp->getName()] = *tmp;
 	delete tmp;
 

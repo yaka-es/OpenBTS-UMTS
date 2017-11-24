@@ -2,10 +2,11 @@
 #define UHD_DEVICE_H
 
 #include <uhd/usrp/multi_usrp.hpp>
+
 #include "RadioDevice.h"
 #include "SampleBuffer.h"
 
-#define TX_AMPL          0.3
+#define TX_AMPL 0.3
 
 enum uhd_dev_type {
 	USRP1,
@@ -29,13 +30,11 @@ public:
 	void setPriority();
 	enum TxWindowType getWindowType() { return tx_window; }
 
-	int readSamples(short *buf, int len, bool *overrun,
-			long long timestamp, bool *underrun, unsigned *RSSI);
+	int readSamples(short *buf, int len, bool *overrun, long long timestamp, bool *underrun, unsigned *RSSI);
 
-	int writeSamples(short *buf, int len,
-			 bool *underrun, long long timestamp);
+	int writeSamples(short *buf, int len, bool *underrun, long long timestamp);
 
-        bool setVCTCXO(unsigned int) { return true; };
+	bool setVCTCXO(unsigned int) { return true; };
 
 	bool setTxFreq(double wFreq);
 	bool setRxFreq(double wFreq);

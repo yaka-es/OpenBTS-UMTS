@@ -1,12 +1,12 @@
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2008 Free Software Foundation, Inc.
  * Copyright 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
@@ -16,40 +16,35 @@
 #ifndef SIPINTERFACE_H
 #define SIPINTERFACE_H
 
-#include <Globals.h>
-#include <Interthread.h>
-#include <Sockets.h>
-#include <osip2/osip.h>
-
 #include <string>
 
+#include <osip2/osip.h>
+#undef WARNING
+
+#include <CommonLibs/Interthread.h>
+#include <CommonLibs/Sockets.h>
+#include <Globals/Globals.h>
 
 namespace GSM {
 
 class L3MobileIdentity;
-
 }
 
-
 namespace SIP {
-
 
 typedef InterthreadQueue<osip_message_t> _OSIPMessageFIFO;
 
 class OSIPMessageFIFO : public _OSIPMessageFIFO {
 
-	private:
-
+private:
 	struct sockaddr_in mReturnAddress;
 
-	virtual void freeElement(osip_message_t* element) const { osip_message_free(element); };
+	virtual void freeElement(osip_message_t *element) const { osip_message_free(element); };
 
-	public:
-
-	OSIPMessageFIFO(const struct sockaddr_in* wReturnAddress)
-		:_OSIPMessageFIFO()
+public:
+	OSIPMessageFIFO(const struct sockaddr_in *wReturnAddress) : _OSIPMessageFIFO()
 	{
-		memcpy(&mReturnAddress,wReturnAddress,sizeof(mReturnAddress));
+		memcpy(&mReturnAddress, wReturnAddress, sizeof(mReturnAddress));
 	}
 
 	virtual ~OSIPMessageFIFO()
@@ -62,93 +57,76 @@ class OSIPMessageFIFO : public _OSIPMessageFIFO {
 		clear();
 	}
 
-	const struct sockaddr_in* returnAddress() const { return &mReturnAddress; }
+	const struct sockaddr_in *returnAddress() const { return &mReturnAddress; }
 
 	size_t addressSize() const { return sizeof(mReturnAddress); }
-
 };
 
+class OSIPMessageFIFOMap : public InterthreadMap<std::string, OSIPMessageFIFO> {
+};
 
-
-class OSIPMessageFIFOMap : public InterthreadMap<std::string,OSIPMessageFIFO> {};
-
-
-std::ostream& operator<<(std::ostream& os, const OSIPMessageFIFO& m);
-
+std::ostream &operator<<(std::ostream &os, const OSIPMessageFIFO &m);
 
 /**
 	A Map the keeps a SIP message FIFO for each active SIP transaction.
 	Keyed by SIP call ID string.
 	Overall map is thread-safe.  Each FIFO is also thread-safe.
 */
-class SIPMessageMap 
-{
+class SIPMessageMap {
 
 private:
-
 	OSIPMessageFIFOMap mMap;
 
 public:
-
 	/** Write sip message to the map+fifo. used by sip interface. */
-	void write(const std::string& call_id, osip_message_t * sip_msg );
+	void write(const std::string &call_id, osip_message_t *sip_msg);
 
 	/** Read sip message out of map+fifo. used by sip engine. */
-	osip_message_t * read(const std::string& call_id, unsigned readTimeout=3600000);
-	
+	osip_message_t *read(const std::string &call_id, unsigned readTimeout = 3600000);
+
 	/** Create a new entry in the map. */
-	bool add(const std::string& call_id, const struct sockaddr_in* returnAddress);
+	bool add(const std::string &call_id, const struct sockaddr_in *returnAddress);
 
 	/**
 		Remove a fifo from map (called at the end of a sip interaction).
 		@param call_id The call_id key string.
 		@return True if the call_id was there in the first place.
 	*/
-	bool remove(const std::string& call_id);
+	bool remove(const std::string &call_id);
 
 	/** Direct access to the map. */
 	// FIXME -- This should probably be replaced with more specific methods.
-	OSIPMessageFIFOMap& map() {return mMap;}
-
+	OSIPMessageFIFOMap &map() { return mMap; }
 };
 
-std::ostream& operator<<(std::ostream& os, const SIPMessageMap& m);
+std::ostream &operator<<(std::ostream &os, const SIPMessageMap &m);
 
-
-
-
-class SIPInterface 
-{
+class SIPInterface {
 
 private:
-
-	char mReadBuffer[2048];		///< buffer for UDP reads
+	char mReadBuffer[2048]; ///< buffer for UDP reads
 
 	UDPSocket mSIPSocket;
 
 	Mutex mSocketLock;
-	Thread mDriveThread;	
-	SIPMessageMap mSIPMap;	
+	Thread mDriveThread;
+	SIPMessageMap mSIPMap;
 
 public:
-	// 2 ways to starte sip interface. 
+	// 2 ways to starte sip interface.
 	// Ex 1.
 	// SIPInterface si;
 	// si.localAdder(port0, ip_str, port1);
-	// si.open(); 
+	// si.open();
 	// or Ex 2.
 	// SIPInterface si(port0, ip_str, port1);
 	// Then after all that. si.start();
 
-
 	/**
 		Create the SIP interface to watch for incoming SIP messages.
 	*/
-	SIPInterface()
-		:mSIPSocket(gConfig.getNum("SIP.Local.Port"))
-	{ }
+	SIPInterface() : mSIPSocket(gConfig.getNum("SIP.Local.Port")) {}
 
-	
 	/** Start the SIP drive loop. */
 	void start();
 
@@ -160,38 +138,36 @@ public:
 		@param msg The SIP message to check.
 		@return true if the message is a new INVITE
 	*/
-	bool checkInvite( osip_message_t *);
-
+	bool checkInvite(osip_message_t *);
 
 	/**
 		Schedule SMS for delivery.
 	*/
-	//void deliverSMS(const GSM::L3MobileIdentity& mobile_id, const char* returnAddress, const char* text);
+	// void deliverSMS(const GSM::L3MobileIdentity& mobile_id, const char* returnAddress, const char* text);
 
-	// To write a msg to outside, make the osip_message_t 
+	// To write a msg to outside, make the osip_message_t
 	// then call si.write(msg);
 	// to read, you need to have the call_id
 	// then call si.read(call_id)
 
-	void write(const struct sockaddr_in*, osip_message_t*);
+	void write(const struct sockaddr_in *, osip_message_t *);
 
-	osip_message_t* read(const std::string& call_id , unsigned readTimeout=3600000)
-		{ return mSIPMap.read(call_id, readTimeout); }
+	osip_message_t *read(const std::string &call_id, unsigned readTimeout = 3600000)
+	{
+		return mSIPMap.read(call_id, readTimeout);
+	}
 
 	/** Create a new message FIFO in the SIP interface. */
-	bool addCall(const std::string& call_id);
+	bool addCall(const std::string &call_id);
 
-	bool removeCall(const std::string& call_id);
+	bool removeCall(const std::string &call_id);
 
-	int fifoSize(const std::string& call_id );
-
+	int fifoSize(const std::string &call_id);
 };
 
-void driveLoop(SIPInterface*);
-
+void driveLoop(SIPInterface *);
 
 }; // namespace SIP.
-
 
 /*@addtogroup Globals */
 //@{
@@ -199,6 +175,4 @@ void driveLoop(SIPInterface*);
 extern SIP::SIPInterface gSIPInterface;
 //@}
 
-
 #endif // SIPINTERFACE_H
-// vim: ts=4 sw=4

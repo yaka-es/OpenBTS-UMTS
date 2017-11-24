@@ -1,11 +1,11 @@
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
@@ -26,11 +26,11 @@
 //#define GPRS_TESTSI4 1
 //#define GPRS_TEST 1		// Compile in other GPRS stuff.
 //#define GPRS_PAT 1		// Compile in GPRS code.  Turn this off to get previous non-GRPS code,
-						// although I am not maintaining it so you may have to fix compile
-						// problems to use it.
+// although I am not maintaining it so you may have to fix compile
+// problems to use it.
 
 // __GNUG__ is true for g++ and __GNUC__ for gcc.
-#if __GNUC__&0==__GNUG__
+#if __GNUC__ & 0 == __GNUG__
 
 #define RN_UNUSED __attribute__((unused))
 
@@ -44,17 +44,20 @@
 
 // Suppress warning message about a variable or function being unused.
 // In C++ you can leave out the variable name to suppress the 'unused variable' warning.
-#define RN_UNUSED_PARAM(var)	/*nothing*/
-#define RN_UNUSED		/*not defined*/
-#define RN_PACKED 		/*not defined*/
+#define RN_UNUSED_PARAM(var) /*nothing*/
+#define RN_UNUSED	    /*not defined*/
+#define RN_PACKED	    /*not defined*/
 #endif
 
 // Bound value between min and max values.
-#define RN_BOUND(value,min,max) ( (value)<(min) ? (min) : (value)>(max) ? (max) : (value) )
+#define RN_BOUND(value, min, max) ((value) < (min) ? (min) : (value) > (max) ? (max) : (value))
 
 #define RN_PRETTY_TEXT(name) (" " #name "=(") << name << ")"
 #define RN_PRETTY_TEXT1(name) (" " #name "=") << name
 #define RN_WRITE_TEXT(name) os << RN_PRETTY_TEXT(name)
-#define RN_WRITE_OPT_TEXT(name,flag) if (flag) { os << RN_WRITE_TEXT(name); }
+#define RN_WRITE_OPT_TEXT(name, flag) \
+	if (flag) { \
+		os << RN_WRITE_TEXT(name); \
+	}
 
 #endif

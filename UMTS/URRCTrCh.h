@@ -4,7 +4,7 @@
  *
  * Copyright 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
+ * This software is distributed under the terms of the GNU Affero General
  * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
@@ -14,17 +14,20 @@
 
 #ifndef URRCTRCH_H
 #define URRCTRCH_H 1
-#include "UMTSCommon.h"
-#include "Logger.h"
 
-#include "ScalarTypes.h"
-#include "URRCDefs.h"
 #include <assert.h>
-#include "asn_system.h"	// Dont let other includes land in namespace ASN.
+
+#include <CommonLibs/Logger.h>
+#include <CommonLibs/ScalarTypes.h>
+
+#include "UMTSCommon.h"
+#include "URRCDefs.h"
+
+#include "asn_system.h" // Dont let other includes land in namespace ASN.
 namespace ASN {
-#include "TransportFormatSet.h"
-#include "TFCS.h"
 #include "RB-MappingInfo.h"
+#include "TFCS.h"
+#include "TransportFormatSet.h"
 };
 
 namespace UMTS {
@@ -60,36 +63,40 @@ class DCHFEC;
 //		Added or Reconfigured DL TrCH info 10.3.5.1
 // PhyCH Info Elements
 //	...
-//		
+//
 
-typedef unsigned RBIdentity;	// 1..32.  1-4 reserved for SRB1 - SRB4.
+typedef unsigned RBIdentity; // 1..32.  1-4 reserved for SRB1 - SRB4.
 struct TrChList;
 
-
 struct RrcTfsRlcSize {
-	//unsigned mValue;  Used to do it this way.
-	static void toAsnBitMode(ASN::BitModeRLC_SizeInfo*result,unsigned rlcsize);	// Used for dedciated ch (DCH)
-	static void toAsnOctetMode1(ASN::OctetModeRLC_SizeInfoType1 *result,unsigned rlcsize);
-	static void toAsnOctetMode2(ASN::OctetModeRLC_SizeInfoType2*result,unsigned rlcsize);	// Used for common ch (RACH/FACH)
+	// unsigned mValue;  Used to do it this way.
+	static void toAsnBitMode(ASN::BitModeRLC_SizeInfo *result, unsigned rlcsize); // Used for dedciated ch (DCH)
+	static void toAsnOctetMode1(ASN::OctetModeRLC_SizeInfoType1 *result, unsigned rlcsize);
+	static void toAsnOctetMode2(
+		ASN::OctetModeRLC_SizeInfoType2 *result, unsigned rlcsize); // Used for common ch (RACH/FACH)
 };
 
 struct RrcTfsNumberOfTransportBlocks {
-	//unsigned mValue;	// 0 .. 51
+	// unsigned mValue;	// 0 .. 51
 	static ASN::NumberOfTransportBlocks *toAsn(unsigned numtb);
 };
 
-struct RrcSemiStaticTFInfo : public virtual RrcDefs 	// 10.3.5.11
+struct RrcSemiStaticTFInfo : public virtual RrcDefs // 10.3.5.11
 {
-	// Note: The ASN encodes the static TTI in the tti CHOICE in the enclosing 
+	// Note: The ASN encodes the static TTI in the tti CHOICE in the enclosing
 	// CommonTransChTfs or DedicatedTransChTfs.  Note that it is still a single tti choice,
 	// it is just a non-obvious place to put it.
-	unsigned mTTI;	// 10, 20, 40, 80, or "dynamic" which we dont use
+	unsigned mTTI; // 10, 20, 40, 80, or "dynamic" which we dont use
 	CodingType mTypeOfChannelCoding;
 	CodingRate mCodingRate;
 	unsigned mRateMatchingAttribute;
 	unsigned mCRCSize;
 	void toAsnSSTF(ASN::SemistaticTF_Information *result);
-	void text(std::ostream &os) { os <<LOGVAR(mTTI)<<LOGVAR(mTypeOfChannelCoding)<<LOGVAR(mRateMatchingAttribute)<<LOGVAR(mCRCSize); }
+	void text(std::ostream &os)
+	{
+		os << LOGVAR(mTTI) << LOGVAR(mTypeOfChannelCoding) << LOGVAR(mRateMatchingAttribute)
+		   << LOGVAR(mCRCSize);
+	}
 };
 
 // 25.331 10.3.5.23 Transport Format Set. Defines the Transport Formats for one TrCh.
@@ -98,12 +105,12 @@ struct RrcSemiStaticTFInfo : public virtual RrcDefs 	// 10.3.5.11
 // there will only be one message size and one transport option and we will just
 // hard-code it into the MAC.
 // There are two kinds of these: for DCH or not, but the info we use is identical for both.
-class RrcTfs : public virtual RrcDefs  // 10.3.5.23 Transport Format Set
+class RrcTfs : public virtual RrcDefs // 10.3.5.23 Transport Format Set
 {
-	TrChInfo *mTrChPtr;	// Our owner.  The only reason we need this so far is for the multiplexed option
-						// flag needed to compute the confusing rlc_size from the Transport Block size.
-	UInt_z mMaxTfSize;	// Computed
-	UInt_z mMaxTbSize;	// Computed
+	TrChInfo *mTrChPtr; // Our owner.  The only reason we need this so far is for the multiplexed option
+			    // flag needed to compute the confusing rlc_size from the Transport Block size.
+	UInt_z mMaxTfSize;  // Computed
+	UInt_z mMaxTbSize;  // Computed
 
 	// This is from ASN, representing: CHOICE Transport channel type.
 	// The two choices for us represent DCH or RACH/FACH.
@@ -111,10 +118,19 @@ class RrcTfs : public virtual RrcDefs  // 10.3.5.23 Transport Format Set
 	// but with logical channels left out.
 	// You must call setDedicatedCh or setCommonCh
 	enum ASN::TransportFormatSet_PR mPresent;
-	public:
+
+public:
 	RrcTfs(TrChInfo *wtrch) : mTrChPtr(wtrch) {}
-	RrcTfs* setDedicatedCh() { mPresent = ASN::TransportFormatSet_PR_dedicatedTransChTFS; return this; }
-	RrcTfs* setCommonCh() { mPresent = ASN::TransportFormatSet_PR_commonTransChTFS; return this; }
+	RrcTfs *setDedicatedCh()
+	{
+		mPresent = ASN::TransportFormatSet_PR_dedicatedTransChTFS;
+		return this;
+	}
+	RrcTfs *setCommonCh()
+	{
+		mPresent = ASN::TransportFormatSet_PR_commonTransChTFS;
+		return this;
+	}
 
 	// And here is our ultra-light-weight RBMappingInfo data:
 	// We dont use logical-channel-mapping (the rbid is the logical channel id)
@@ -126,7 +142,7 @@ class RrcTfs : public virtual RrcDefs  // 10.3.5.23 Transport Format Set
 	bool isMacMultiplexed();
 	RbId getNonMultiplexedRbId();
 
-	//bool isDedicated() {
+	// bool isDedicated() {
 	//	switch (mPresent) {
 	//		case ASN::TransportFormatSet_PR_dedicatedTransChTFS: return true;
 	//		case ASN::TransportFormatSet_PR_commonTransChTFS: return false;
@@ -134,9 +150,8 @@ class RrcTfs : public virtual RrcDefs  // 10.3.5.23 Transport Format Set
 	//	}
 	//}
 
-	private:
+private:
 	RrcSemiStaticTFInfo mSemiStaticTFInfo;
-
 
 	// In the spec this structure is confusingly compressed to save space,
 	// by encoding the "Number of TBs and TTI List" as a sub-array, even though
@@ -156,8 +171,8 @@ class RrcTfs : public virtual RrcDefs  // 10.3.5.23 Transport Format Set
 		// There is a very useful example at 34.108 6.10.2.4.3.2.1.2.
 		// We dont save the "RLC-Size" as defined above, but rather that Transport Block Size,
 		// and then compute the "RLC-Size" needed to be sent to the MS in the IE when we create the ASN.
-		unsigned mTBSize;			// Size of the transport block in bits.  This is NOT the 'rlc_size' in the TFS IE.
-		//unsigned mTTI;		// Only if semi-static TTI is "dynamic", which it wont be.
+		unsigned mTBSize; // Size of the transport block in bits.  This is NOT the 'rlc_size' in the TFS IE.
+		// unsigned mTTI;		// Only if semi-static TTI is "dynamic", which it wont be.
 		unsigned mNumTB;
 
 		// We always just put the 'ALL' option in the ASN.
@@ -173,16 +188,15 @@ class RrcTfs : public virtual RrcDefs  // 10.3.5.23 Transport Format Set
 		// the dedicated channel TFS allows bit-aligned rlcSize control,
 		// while common channels are restricted to octet-aligned when using FDD.
 		ASN::CommonDynamicTF_Info *toAsnCommon1(ASN::CommonDynamicTF_Info *result, bool isDownlink);
-		ASN::DedicatedDynamicTF_Info *toAsnDedicated1(RrcTfs*tfs,ASN::DedicatedDynamicTF_Info *result);
-		void text(std::ostream &os) {
-			os <<"TF("<<LOGVAR(mTBSize)<<LOGVAR(mNumTB)<<")";
-		}
+		ASN::DedicatedDynamicTF_Info *toAsnDedicated1(RrcTfs *tfs, ASN::DedicatedDynamicTF_Info *result);
+		void text(std::ostream &os) { os << "TF(" << LOGVAR(mTBSize) << LOGVAR(mNumTB) << ")"; }
 	};
 
 	struct DynamicTFInfoList {
 		UInt_z mNumTF;
 		DynamicTFInfo mDynamicTFInfo[maxTFS];
-		void addTF(unsigned tbsize, unsigned numBlocks) {
+		void addTF(unsigned tbsize, unsigned numBlocks)
+		{
 			assert(mNumTF < maxTFS);
 			mDynamicTFInfo[mNumTF].mTBSize = tbsize;
 			mDynamicTFInfo[mNumTF].mNumTB = numBlocks;
@@ -190,56 +204,61 @@ class RrcTfs : public virtual RrcDefs  // 10.3.5.23 Transport Format Set
 		}
 		// This can be converted to two different asn structures:
 		void toAsnCommon(ASN::CommonDynamicTF_InfoList *list, bool isDownlink);
-		void toAsnDedicated(RrcTfs*tfs,ASN::DedicatedDynamicTF_InfoList *list);
-		void text(std::ostream &os) {
-			for (unsigned i=0;i<mNumTF;i++) { mDynamicTFInfo[i].text(os); os <<" ";}
+		void toAsnDedicated(RrcTfs *tfs, ASN::DedicatedDynamicTF_InfoList *list);
+		void text(std::ostream &os)
+		{
+			for (unsigned i = 0; i < mNumTF; i++) {
+				mDynamicTFInfo[i].text(os);
+				os << " ";
+			}
 		}
 	} mDynamic;
 
-
-	public:
-
+public:
 	RrcSemiStaticTFInfo *getSemiStatic() { return &mSemiStaticTFInfo; }
 	unsigned getTBSize(int tfnum) { return mDynamic.mDynamicTFInfo[tfnum].getTBSize(); }
-	//unsigned getCodedBlockSize(int tfnum);
+	// unsigned getCodedBlockSize(int tfnum);
 	unsigned getTfTotalSize(int tfnum) { return mDynamic.mDynamicTFInfo[tfnum].getTfTotalSize(); }
-	unsigned getNumTB(int tfnum) {
-		return mDynamic.mDynamicTFInfo[tfnum].getNumTB();
-	}
+	unsigned getNumTB(int tfnum) { return mDynamic.mDynamicTFInfo[tfnum].getNumTB(); }
 	unsigned getNumTf() { return mDynamic.mNumTF; }
 	TrChInfo *getTrCh() { return mTrChPtr; }
 
 	unsigned getPB() { return mSemiStaticTFInfo.mCRCSize; }
 	unsigned getRM() { return mSemiStaticTFInfo.mRateMatchingAttribute; }
 	TTICodes getTTICode() { return TTI2TTICode(mSemiStaticTFInfo.mTTI); }
-	unsigned getTTINumFrames() { return mSemiStaticTFInfo.mTTI / 10; }	// Return 1,2,4,8
+	unsigned getTTINumFrames() { return mSemiStaticTFInfo.mTTI / 10; } // Return 1,2,4,8
 	bool getTurboFlag() { return mSemiStaticTFInfo.mTypeOfChannelCoding == Turbo; }
 
 	// Used for AM and UM mode RLC, but we dont really expect there to be different
 	// TB sizes, only that there may be a zero-valued one that we want to ignore.
-	unsigned getMaxTBSize() {	// in bits.
+	unsigned getMaxTBSize()
+	{ // in bits.
 		if (mMaxTbSize == 0) {
 			for (unsigned i = 0; i < mDynamic.mNumTF; i++) {
 				unsigned tmp = getTBSize(i);
-				if (tmp > mMaxTbSize) mMaxTbSize = tmp;
+				if (tmp > mMaxTbSize)
+					mMaxTbSize = tmp;
 			}
 		}
 		return mMaxTbSize;
 	}
 
-	unsigned getMaxTfSize() {	// Return max number of bytes in any single TF.
+	unsigned getMaxTfSize()
+	{ // Return max number of bytes in any single TF.
 		if (mMaxTfSize == 0) {
 			for (unsigned i = 0; i < mDynamic.mNumTF; i++) {
 				unsigned tmp = getTfTotalSize(i);
-				if (tmp > mMaxTfSize) mMaxTfSize = tmp;
-				//LOG(NOTICE) << format("getMaxTfSize i=%d tmp=%d max=%d",i,tmp,(int)mMaxTfSize);
+				if (tmp > mMaxTfSize)
+					mMaxTfSize = tmp;
+				// LOG(NOTICE) << format("getMaxTfSize i=%d tmp=%d max=%d",i,tmp,(int)mMaxTfSize);
 			}
 		}
 		return mMaxTfSize;
 	};
 
 	// Configuration Functions:
-	RrcTfs *setSemiStatic(unsigned tti,CodingType ct, CodingRate cr, unsigned rm, unsigned crcSize) {
+	RrcTfs *setSemiStatic(unsigned tti, CodingType ct, CodingRate cr, unsigned rm, unsigned crcSize)
+	{
 		mSemiStaticTFInfo.mTTI = tti;
 		mSemiStaticTFInfo.mTypeOfChannelCoding = ct;
 		mSemiStaticTFInfo.mCodingRate = cr;
@@ -248,19 +267,20 @@ class RrcTfs : public virtual RrcDefs  // 10.3.5.23 Transport Format Set
 		return this;
 	}
 
-
 	// Note: We specify the Transport Block Size, not 'rlc-size' used in the TFS IE.
 	// If you transcribe these from an RRC spec, you may have to adjust the size.
-	RrcTfs *addTF(unsigned tbsize, unsigned numBlocks) {
-		mDynamic.addTF(tbsize,numBlocks);
+	RrcTfs *addTF(unsigned tbsize, unsigned numBlocks)
+	{
+		mDynamic.addTF(tbsize, numBlocks);
 		return this;
 	}
 
 	void toAsnTfs(ASN::TransportFormatSet *result, bool isDownlink = false);
 	unsigned getNumTF() { return mDynamic.mNumTF; }
-	void text(std::ostream &os) {
-		os <<LOGVAR(mPresent)<<LOGVAR(mMaxTfSize)<<LOGVAR(mMaxTbSize)<<
-			LOGVAR2("multiplexed",isMacMultiplexed());
+	void text(std::ostream &os)
+	{
+		os << LOGVAR(mPresent) << LOGVAR(mMaxTfSize) << LOGVAR(mMaxTbSize)
+		   << LOGVAR2("multiplexed", isMacMultiplexed());
 		mSemiStaticTFInfo.text(os);
 		os << " ";
 		mDynamic.text(os);
@@ -271,53 +291,65 @@ class RrcTfs : public virtual RrcDefs  // 10.3.5.23 Transport Format Set
 // The TF is part of a TFS, which has shared (semi-static) and non-shared (dynamic) parts,
 // so it is a pointer to the TFS plus the index into the dynamic part.
 // It also serves as a cheap iterator object.
-struct RrcTf
-{
-	RrcTfs *mTfs;	// The owner of this TF.
+struct RrcTf {
+	RrcTfs *mTfs; // The owner of this TF.
 	TfIndex mTfi;
 
 	RrcTf() : mTfs(0) {}
-	RrcTf(RrcTfs *wTfs,TfIndex wTfi) : mTfs(wTfs),mTfi(wTfi) {}
-	unsigned getNumTB() {
-		if (mTfs == 0) { return 0; }
+	RrcTf(RrcTfs *wTfs, TfIndex wTfi) : mTfs(wTfs), mTfi(wTfi) {}
+	unsigned getNumTB()
+	{
+		if (mTfs == 0) {
+			return 0;
+		}
 		return mTfs->getNumTB(mTfi);
 	}
-	unsigned getTBSize() {	// in bits
-		if (mTfs == 0) { return 0; }
+	unsigned getTBSize()
+	{ // in bits
+		if (mTfs == 0) {
+			return 0;
+		}
 		return mTfs->getTBSize(mTfi);
 	}
 	unsigned getTfTotalSize() { return getTBSize() * getNumTB(); }
-	RrcSemiStaticTFInfo *getSemiStaticInfo() {
-		if (mTfs == 0) { return 0; }
+	RrcSemiStaticTFInfo *getSemiStaticInfo()
+	{
+		if (mTfs == 0) {
+			return 0;
+		}
 		return mTfs->getSemiStatic();
 	}
 
-	// Cheap iterator for TF in TFS.  Does not iterate TF in TFCS:
-	// Return the first TF.
+		// Cheap iterator for TF in TFS.  Does not iterate TF in TFCS:
+		// Return the first TF.
 #if CURRENTLYUNUSED
-	void firstTf(RrcTfs *tfs) {
+	void firstTf(RrcTfs *tfs)
+	{
 		mTfs = tfs;
 		mTfi = 0;
 	}
 	bool valid() { return mTfs && mTfi < mTfs->getNumTf(); }
 	// Advance to the next TF in the TFS.
-	void nextTf() {
-		mTfi++;	// May be rendered invalid; caller must check.
+	void nextTf()
+	{
+		mTfi++; // May be rendered invalid; caller must check.
 	}
 #endif
 };
 
-
-struct PowerOffset {	// 10.3.5.8
-	Bool_z mPresent;	// Has this been specified?
+struct PowerOffset {     // 10.3.5.8
+	Bool_z mPresent; // Has this been specified?
 	unsigned char mGainFactorBetaC;
 	PowerOffset() { mPresent = false; }
-	PowerOffset(unsigned char val) { mPresent = true; mGainFactorBetaC = val; }
+	PowerOffset(unsigned char val)
+	{
+		mPresent = true;
+		mGainFactorBetaC = val;
+	}
 };
 
 // One Transport Format Combination, saves info for one CTFC.
-class RrcTfc : public virtual RrcDefs
-{
+class RrcTfc : public virtual RrcDefs {
 	// Each TrCh [Transport Channel] has a TFS [Transport Format Set] which specifies
 	// the legal TF [Transport Formats] allowed for that TrCh.
 	// The physical channel encodes CCTrCh consisting of 1 or more TrCh.
@@ -325,14 +357,15 @@ class RrcTfc : public virtual RrcDefs
 	// for all TrCh simultaneously for the PHY by picking one TF from each TrCh.
 	// The spec compresses this info into the CTFC, but we also keep a handle
 	// to the TF specified for each TrCh, which is not part of the IE.
-	TrChList *mTrChList;	// Who owns us, same pointer duplicated in all TFC in this TFCS.
-							// Note that it will be either a downlink or uplink one.
-							// It is inited not by constructor, but when the RrcTf are.
+	TrChList *mTrChList; // Who owns us, same pointer duplicated in all TFC in this TFCS.
+			     // Note that it will be either a downlink or uplink one.
+			     // It is inited not by constructor, but when the RrcTf are.
 	RrcTf mTfList[maxTrCh];
-	public:
-	unsigned mCTFC;			// This is what goes out over the PHY in the special spot in the RadioSlot.
+
+public:
+	unsigned mCTFC; // This is what goes out over the PHY in the special spot in the RadioSlot.
 	PowerOffset mPowerOffset;
-	unsigned mTfcsIndex;		// The index of this TFC in the TFCS.
+	unsigned mTfcsIndex; // The index of this TFC in the TFCS.
 
 	// A way to get back to the TrChInfo if you have a handle to the TFC, but
 	// not to the TrChConfig or MasterChConfig in which it resides.
@@ -342,7 +375,7 @@ class RrcTfc : public virtual RrcDefs
 	RrcTf *getTf(TrChId trchid);
 	unsigned getTfcsIndex() { return mTfcsIndex; }
 	unsigned getTfIndex(TrChId trchid) { return getTf(trchid)->mTfi; }
-	void setTfc(TrChList *chlist, TfIndex tfa, TfIndex tfb=0, TfIndex tfc=0, TfIndex tfd=0);
+	void setTfc(TrChList *chlist, TfIndex tfa, TfIndex tfb = 0, TfIndex tfc = 0, TfIndex tfd = 0);
 	unsigned getSize();
 	unsigned getNumTrCh() const;
 };
@@ -361,35 +394,34 @@ class RrcTfc : public virtual RrcDefs
 // CTFC(tf0,tf0,tf0) = 0*1 + 0*3 + 0*6 = 0;
 // CTFC(tf2,tf0,tf0) = 2*1 + 0*3* + 0*6 = 2;
 // CTFC(tf1,tf1,tf1) = 1*1 + 1*3  + 1*6 = 10;
-struct RrcTfcs : public virtual RrcDefs 	// 10.3.5.15 Transport Format Combination Set
+struct RrcTfcs : public virtual RrcDefs // 10.3.5.15 Transport Format Combination Set
 {
-	unsigned mCtfcSize;	// number of bits, chosen from: 2,4,6,8,12,16.
+	unsigned mCtfcSize; // number of bits, chosen from: 2,4,6,8,12,16.
 	unsigned mNumTfc;
 	RrcTfc mTfcList[maxTfc];
-	RrcTfcs() : mCtfcSize(0), mNumTfc(0) {
-		for (unsigned i = 0; i < maxTfc; i++) { mTfcList[i].mTfcsIndex = i; }
+	RrcTfcs() : mCtfcSize(0), mNumTfc(0)
+	{
+		for (unsigned i = 0; i < maxTfc; i++) {
+			mTfcList[i].mTfcsIndex = i;
+		}
 	}
 
-	//void setCTFCSize(unsigned val) { mCtfcSize = val; }
+	// void setCTFCSize(unsigned val) { mCtfcSize = val; }
 
 	// Add a new TFC and set to the specified TF Indicies for up to four TrChs.
-	RrcTfcs *addTFC2(TrChList *chlist, TfIndex tfa, TfIndex tfb=0, TfIndex tfc=0, TfIndex tfd=0);
+	RrcTfcs *addTFC2(TrChList *chlist, TfIndex tfa, TfIndex tfb = 0, TfIndex tfc = 0, TfIndex tfd = 0);
 	// Set the PowerOffset for the most recently defined CTFC
-	void setPower(PowerOffset po) {
-		mTfcList[mNumTfc-1].mPowerOffset = po;
-	}
+	void setPower(PowerOffset po) { mTfcList[mNumTfc - 1].mPowerOffset = po; }
 
 	// If the spec gives a ctfc, make sure we calculate it properly:
 	// Check the most recent CTFC to see if it matches ctfc.
-	void checkCTFC(unsigned ctfc) {
-		assert(mTfcList[mNumTfc-1].mCTFC == ctfc);
-	}
-	//void toAsnTfcs(ASN::TFCS *result, bool powerInfo = true);
+	void checkCTFC(unsigned ctfc) { assert(mTfcList[mNumTfc - 1].mCTFC == ctfc); }
+	// void toAsnTfcs(ASN::TFCS *result, bool powerInfo = true);
 	void toAsnTfcs(ASN::TFCS *result, TrChType tctype);
 
 	RrcTfc *getTfc(unsigned tfci) { return &mTfcList[tfci]; }
 
-	//unused: bool isTrivialTfcs();
+	// unused: bool isTrivialTfcs();
 
 	unsigned getNumTfc() { return mNumTfc; }
 	RrcTfc *iterBegin() { return &mTfcList[0]; }
@@ -397,7 +429,7 @@ struct RrcTfcs : public virtual RrcDefs 	// 10.3.5.15 Transport Format Combinati
 	/***
 	class iter {
 		unsigned pos;
-		iter(unsigned wpos) : pos(wpos) {} 
+		iter(unsigned wpos) : pos(wpos) {}
 		bool end() { return pos == mNumTfc; }
 		iter operator++() { pos++; return *this; }
 	};
@@ -407,20 +439,18 @@ struct RrcTfcs : public virtual RrcDefs 	// 10.3.5.15 Transport Format Combinati
 // 10.3.5.13 TFCS Explicit Configuration.
 // also 10.3.5.20 - TFCS, which consists entirely of one TFCS struct.
 // All this contains is a TFCS to be reconfigured, added, removed or replaced
-//struct TfcsExplicitConfiguration {	// 10.3.5.13, Explicit TFCS configuration
-	//TFCS ...;
+// struct TfcsExplicitConfiguration {	// 10.3.5.13, Explicit TFCS configuration
+// TFCS ...;
 //};
-
 
 struct TfcSubset {
 	// todo?
 };
 
 // Container for DlTrChInfo or UlTrChInfo
-struct TrChInfo : public virtual RrcDefs
-{
+struct TrChInfo : public virtual RrcDefs {
 	TrChType mTransportChType;
-	UInt_z mTransportChannelIdentity;	// We use TrCh id 1..4, so 0 means uninitialized.
+	UInt_z mTransportChannelIdentity; // We use TrCh id 1..4, so 0 means uninitialized.
 
 	// Normally the RBMappingInfo specifies the mapping of rb->trch.
 	// We do that statically, so the RBMappingInfo appears in two places:
@@ -431,7 +461,7 @@ struct TrChInfo : public virtual RrcDefs
 	// this TrCh, and is used to specify if the MAC uses the CT field for logical channel mapping.
 	// Multiplexing is almost always true.
 	// The major exception is voice channels where the AMR codec data channels
-	// are on rbid 1,2,3 mapped to non-multiplexed trch 1,2,3, and 
+	// are on rbid 1,2,3 mapped to non-multiplexed trch 1,2,3, and
 	// everything else (SRB1,2,3) are mapped to multiplexed trch 4
 	// It would also be possible to use multiple trch for PS channels,
 	// but we are not doing that in the initial implementation.
@@ -447,7 +477,8 @@ struct TrChInfo : public virtual RrcDefs
 	// 0 means undefined, as SRB0 is never one of the options here.
 	RbId mTcRbId;
 
-	void setTrCh(TrChType type, unsigned trchid1based, bool mMultiplexed, RbId rbid=0) {
+	void setTrCh(TrChType type, unsigned trchid1based, bool mMultiplexed, RbId rbid = 0)
+	{
 		assert(mMultiplexed || rbid);
 		mTransportChType = type;
 		mTransportChannelIdentity = trchid1based;
@@ -456,8 +487,8 @@ struct TrChInfo : public virtual RrcDefs
 	}
 
 	virtual RrcTfs *getTfs() = 0;
-	//virtual TrChInfo *bler_QualityValue(double val);	// Only in dl.
-	//virtual RrcTfs *setSemiStatic(unsigned tti,CodingType ct, CodingRate cr, unsigned rm, unsigned crcSize);
+	// virtual TrChInfo *bler_QualityValue(double val);	// Only in dl.
+	// virtual RrcTfs *setSemiStatic(unsigned tti,CodingType ct, CodingRate cr, unsigned rm, unsigned crcSize);
 };
 
 // 10.3.5.24: UL TrCh info common for all DCH transport channels.
@@ -466,11 +497,11 @@ struct TrChInfo : public virtual RrcDefs
 // I also use this structure for the PRACH TFC subset.
 // Note there is a PRACH Tfcs "omitted in this version of spec"
 // Rather the PRACH informaion is in SIB5 or SIB6
-struct UlTrChInfoCommon
-{
+struct UlTrChInfoCommon {
 	// CHOICE mode = FDD:
 	struct RrcTfcs mTfcs;
-	TfcSubset mTfcSubset;	// MD - Mandatory with default value. (gotta love that) In different location for REL-4 or REL-10
+	TfcSubset mTfcSubset; // MD - Mandatory with default value. (gotta love that) In different location for REL-4 or
+			      // REL-10
 	struct RrcTfcs *getTfcs() { return &mTfcs; }
 };
 
@@ -478,7 +509,7 @@ struct DlTrChInfoCommon // 10.3.5.6: DL TrCh common for all TrCh
 {
 	// SCCPCH TFCS - omitted in this version (v4-v10) of the spec.
 	// CHOICE mode = FDD:
-	//union DlParameters_t {  This is a union, but C++ does not allow it, so oh well...
+	// union DlParameters_t {  This is a union, but C++ does not allow it, so oh well...
 	enum ChoiceDlParameters { eExplicit, eSameAsUL } mChoiceDlParameters;
 	struct Explicit {
 		RrcTfcs mTfcs;
@@ -491,16 +522,16 @@ struct UlTrChInfo : TrChInfo // 10.3.5.2: Added or Reconfigured UL TrCh informat
 {
 	RrcTfs mTfs;
 	RrcTfs *getTfs() { return &mTfs; }
-	UlTrChInfo() : mTfs(this) { }
+	UlTrChInfo() : mTfs(this) {}
 };
 
 class UlTrChList;
-struct DlTrChInfo  : TrChInfo // 10.3.5.1: Added or Reconfigured DL TrCh information
+struct DlTrChInfo : TrChInfo // 10.3.5.1: Added or Reconfigured DL TrCh information
 {
-	//union {	// C++ cant initialize unions.
+	// union {	// C++ cant initialize unions.
 	enum ChoiceDlParameters { eExplicit, eSameAsUL } mChoiceDlParameters;
-	//struct {
-		RrcTfs mTfs;		// This is used for Explicit TFS.
+	// struct {
+	RrcTfs mTfs; // This is used for Explicit TFS.
 	//} mExplicit;
 	struct {
 		// NOT IMPLEMENTED!!!!
@@ -509,7 +540,7 @@ struct DlTrChInfo  : TrChInfo // 10.3.5.1: Added or Reconfigured DL TrCh informa
 		unsigned mChId;
 	} mSameAsUL;
 	//} DlParameters;
-	double mDCHQualityTarget;	// Only in the DL TrChInfo
+	double mDCHQualityTarget; // Only in the DL TrChInfo
 
 	// TODO: If it is not explicit, we would fish TFS out of the UL info.
 	RrcTfs *getTfs() { return &mTfs; }
@@ -518,51 +549,71 @@ struct DlTrChInfo  : TrChInfo // 10.3.5.1: Added or Reconfigured DL TrCh informa
 	DlTrChInfo() : mTfs(this) {}
 };
 #if URRC_IMPLEMENTATION
-	DlTrChInfo *DlTrChInfo::bler_QualityValue(double val) { mDCHQualityTarget = val; return this; }
+DlTrChInfo *DlTrChInfo::bler_QualityValue(double val)
+{
+	mDCHQualityTarget = val;
+	return this;
+}
 #endif
 
 // Container for "TrCh Information Elements" part of 10.2.50: Transport Channel Reconfiguration.
 // or 10.2.33: Radio Bearer Setup.
 // It contains a list of transport channels.
 // Each channel has a RrcTfs; the TFCS applies to the entire list.
-struct TrChList : public virtual RrcDefs, public Text2Str
-{
-	//virtual unsigned getNumTF(unsigned TrChNum0) =0;
-	virtual RrcTfcs *getTfcs() =0;
-	virtual RrcTfs *getTfs(TrChId tcid) =0;
+struct TrChList : public virtual RrcDefs, public Text2Str {
+	// virtual unsigned getNumTF(unsigned TrChNum0) =0;
+	virtual RrcTfcs *getTfcs() = 0;
+	virtual RrcTfs *getTfs(TrChId tcid) = 0;
 	// If macMultiplexed is false, rbid must be specified, and not otherwise.
-	virtual TrChInfo *defineTrCh(TrChType type, unsigned id, bool macMultiplexed, RbId rbid=0) =0;
+	virtual TrChInfo *defineTrCh(TrChType type, unsigned id, bool macMultiplexed, RbId rbid = 0) = 0;
 	virtual unsigned getNumTrCh() const = 0;
-	virtual TrChInfo *getTrChInfo(TrChId tcid) =0;
+	virtual TrChInfo *getTrChInfo(TrChId tcid) = 0;
 
-	void text(std::ostream &os) const {
+	void text(std::ostream &os) const
+	{
 		for (TrChId i = 0; i < getNumTrCh(); i++) {
-			os << "TrCh "<<i<<":";
-			const_cast<TrChList*>(this)->getTfs(i)->text(os); // unconst foo bar.
+			os << "TrCh " << i << ":";
+			const_cast<TrChList *>(this)->getTfs(i)->text(os); // unconst foo bar.
 			os << "\n";
 		}
 	}
 
 	// Return the maximum size in bits of any transport format on any single TrCh.
 	// Note that the entire Transport Format Combination could be bigger.
-	unsigned getMaxAnyTfSize() {
+	unsigned getMaxAnyTfSize()
+	{
 		unsigned maxtfsize = 0;
 		for (TrChId tcid = 0; tcid < getNumTrCh(); tcid++) {
 			unsigned tfsize = getTfs(tcid)->getMaxTfSize();
-			if (tfsize > maxtfsize) {maxtfsize = tfsize;}
-			//LOG(NOTICE)<<"getMaxAnyTfSize"<<LOGVAR(tfsize)<<LOGVAR(maxtfsize);
+			if (tfsize > maxtfsize) {
+				maxtfsize = tfsize;
+			}
+			// LOG(NOTICE)<<"getMaxAnyTfSize"<<LOGVAR(tfsize)<<LOGVAR(maxtfsize);
 		}
 		return maxtfsize;
 	}
 
 	// Max of 4 transport channels for this function:
-	TrChList *addTFC(TfIndex tfa, TfIndex tfb=0, TfIndex tfc=0, TfIndex tfd=0) {
-		getTfcs()->addTFC2(this,tfa,tfb,tfc,tfd);
+	TrChList *addTFC(TfIndex tfa, TfIndex tfb = 0, TfIndex tfc = 0, TfIndex tfd = 0)
+	{
+		getTfcs()->addTFC2(this, tfa, tfb, tfc, tfd);
 		return this;
 	}
-	TrChList *setCTFCSize(unsigned size) { getTfcs()->mCtfcSize = size; return this; }
-	TrChList *checkCTFC(unsigned ctfc) { getTfcs()->checkCTFC(ctfc); return this; }
-	TrChList *setPower(PowerOffset po) { getTfcs()->setPower(po); return this; }
+	TrChList *setCTFCSize(unsigned size)
+	{
+		getTfcs()->mCtfcSize = size;
+		return this;
+	}
+	TrChList *checkCTFC(unsigned ctfc)
+	{
+		getTfcs()->checkCTFC(ctfc);
+		return this;
+	}
+	TrChList *setPower(PowerOffset po)
+	{
+		getTfcs()->setPower(po);
+		return this;
+	}
 
 	unsigned iterTrChBegin() { return 0; }
 	unsigned iterTrChEnd() { return getNumTrCh(); }
@@ -571,7 +622,7 @@ struct TrChList : public virtual RrcDefs, public Text2Str
 	unsigned getTTINumFrames(TrChId tcid) { return getTfs(tcid)->getTTINumFrames(); }
 	TTICodes getTTICode(TrChId tcid) { return getTfs(tcid)->getTTICode(); }
 	unsigned getRM(TrChId tcid) { return getTfs(tcid)->getRM(); }
-	//unsigned getTFCSize(TrChId tcid, TfcId j) { return getTfcs()->? }
+	// unsigned getTFCSize(TrChId tcid, TfcId j) { return getTfcs()->? }
 };
 
 // ASC Access Service Class - included in RACH.
@@ -599,7 +650,7 @@ struct TrChList : public virtual RrcDefs, public Text2Str
 // or 10.2.33: Radio Bearer Setup.
 // or 10.2.40: RRC Connection Setup, which includes:
 //		10.3.4.24 Signalling RB info to setup.
-//			10.3.4.23 RLC Info 
+//			10.3.4.23 RLC Info
 //		10.3.4.0a Default config for CELL_FACH (rel-8)
 //			If present use default config 0.
 //		10.3.5.24 UL TrChInfo common for all transport channels.
@@ -614,7 +665,7 @@ struct TrChList : public virtual RrcDefs, public Text2Str
 //		Default or preconfiguration options (rel-5)
 //		10.3.6.36 Freq Info
 //			ARFCN
-//	
+//
 // NOTE: If SIB6 is present then:
 // SIB6 specifies PRACH and SCCPCH for UE in connected mode.
 // SIB5 specifies PRACH and SCCPCH for UE in idle mode.
@@ -623,11 +674,11 @@ struct TrChList : public virtual RrcDefs, public Text2Str
 //		10.3.6.72 Secondary CCPCH system information
 //			includes FACH TFS and FACH TFCS.
 // 		10.3.6.55 PRACH system information list
-//			includes RACH TFS, RACH TFCS, 
+//			includes RACH TFS, RACH TFCS,
 //			Additional RACH TFS for CCCH (rel-6).
 //			Additional RACH TFCS for CCCH (rel-6) - includes only
 //				PowerOffsetInformation 10.3.5.8.
-//			
+//
 // For DCH, they put the TFCS and TFC subset in:
 // UlTrChInfoCommon: "UL Tranport Channel Information for all Transport Channels",
 // which is used, for example, by 10.2.50: Transport Channel Reconfiguration.
@@ -641,15 +692,18 @@ struct TrChList : public virtual RrcDefs, public Text2Str
 // Note that 8.6.5: Transport Channel Information Setup starts out saying if the Tfcs is
 // received for a RACH channel in SIB5 or SIB6, but those are in IEs only applicable to TDD,
 // for example, there is a Tfcs buried in TDD only 10.3.6.46: PDSCH system info.
-struct UlTrChList : public TrChList, public UlTrChInfoCommon
-{
+struct UlTrChList : public TrChList, public UlTrChInfoCommon {
 	UInt_z mNumTrCh;
-	UlTrChInfo mChInfo[maxTrCh];	// Only 1 for RACH/PRACH
+	UlTrChInfo mChInfo[maxTrCh]; // Only 1 for RACH/PRACH
 
 	// TODO CPCH set id ?  OP optional
 	// TODO: Added or Reconfigured TrCh information for DRAC list.  OP optional
 	// The TrChId is 0 based.
-	RrcTfs *getTfs(TrChId tcid) { assert(tcid < getNumTrCh()); return mChInfo[tcid].getTfs(); }
+	RrcTfs *getTfs(TrChId tcid)
+	{
+		assert(tcid < getNumTrCh());
+		return mChInfo[tcid].getTfs();
+	}
 	RrcTfcs *getTfcs() { return UlTrChInfoCommon::getTfcs(); }
 	unsigned getNumTrCh() const { return mNumTrCh; }
 	UlTrChInfo *getTrChInfo(TrChId tcid) { return &mChInfo[tcid]; }
@@ -666,33 +720,46 @@ struct UlTrChList : public TrChList, public UlTrChInfoCommon
 	// More comments at mRlcSize in DynamicTFInfo.
 	// If macMultiplexed is false, rbid must be specified, and not otherwise.
 	// The rbid is 1 for SRB1, etc, so 5 is the first available user rbid.
-	UlTrChInfo *defineTrCh(TrChType type, unsigned trchid1based, bool macMultiplexed, RbId rbid=0) {
-		UlTrChInfo *result = &mChInfo[trchid1based-1];
-		if (result->mTransportChannelIdentity) { assert(0); }	// Already defined.
-		result->setTrCh(type,trchid1based,macMultiplexed,rbid);
-		if (trchid1based > mNumTrCh) { mNumTrCh = trchid1based; }
+	UlTrChInfo *defineTrCh(TrChType type, unsigned trchid1based, bool macMultiplexed, RbId rbid = 0)
+	{
+		UlTrChInfo *result = &mChInfo[trchid1based - 1];
+		if (result->mTransportChannelIdentity) {
+			assert(0);
+		} // Already defined.
+		result->setTrCh(type, trchid1based, macMultiplexed, rbid);
+		if (trchid1based > mNumTrCh) {
+			mNumTrCh = trchid1based;
+		}
 		return result;
 	}
 };
 
 // This does not correspond to a specific IE.
 // It represents the downlink TrCh Information Elements part of 10.2.50: Transport Channel Reconfiguration.
-struct DlTrChList : public TrChList, public DlTrChInfoCommon
-{
+struct DlTrChList : public TrChList, public DlTrChInfoCommon {
 	UInt_z mNumTrCh;
-	DlTrChInfo mChInfo[maxTrCh];	// Only one for FACH/SCCPCH
+	DlTrChInfo mChInfo[maxTrCh]; // Only one for FACH/SCCPCH
 
-	RrcTfs *getTfs(TrChId tcid) { assert(tcid < getNumTrCh()); return mChInfo[tcid].getTfs(); }
+	RrcTfs *getTfs(TrChId tcid)
+	{
+		assert(tcid < getNumTrCh());
+		return mChInfo[tcid].getTfs();
+	}
 	RrcTfcs *getTfcs() { return DlTrChInfoCommon::getTfcs(); }
 	unsigned getNumTrCh() const { return mNumTrCh; }
 	DlTrChInfo *getTrChInfo(TrChId tcid) { return &mChInfo[tcid]; }
 
 	// See comments for identical function in UlTrChList.
-	DlTrChInfo *defineTrCh(TrChType type, unsigned trchid1based, bool macMultiplexed,RbId rbid=0) {
-		DlTrChInfo *result = &mChInfo[trchid1based-1];
-		if (result->mTransportChannelIdentity) { assert(0); }	// Already defined.
-		result->setTrCh(type,trchid1based,macMultiplexed,rbid);
-		if (trchid1based > mNumTrCh) { mNumTrCh = trchid1based; }
+	DlTrChInfo *defineTrCh(TrChType type, unsigned trchid1based, bool macMultiplexed, RbId rbid = 0)
+	{
+		DlTrChInfo *result = &mChInfo[trchid1based - 1];
+		if (result->mTransportChannelIdentity) {
+			assert(0);
+		} // Already defined.
+		result->setTrCh(type, trchid1based, macMultiplexed, rbid);
+		if (trchid1based > mNumTrCh) {
+			mNumTrCh = trchid1based;
+		}
 		return result;
 	}
 };
@@ -701,11 +768,10 @@ struct DlTrChList : public TrChList, public DlTrChInfoCommon
 // It provides the info for the "TrCh Information Elements" part of
 // 10.2.50: Transport Channel Reconfiguration.
 // TODO: Simplify the ChList by getting rid of the Common struct.
-struct TrChConfig : public virtual RrcDefs
-{
-	//todo? TfcSubset
+struct TrChConfig : public virtual RrcDefs {
+	// todo? TfcSubset
 	// How many transport formats defined for TrCh, numbered starting at 0.
-	//unsigned getNumTF(unsigned TrChNum0) { return mChInfo[TrChNum0].getNumTF(); }
+	// unsigned getNumTF(unsigned TrChNum0) { return mChInfo[TrChNum0].getNumTF(); }
 	UlTrChList mUlTrChs;
 	DlTrChList mDlTrChs;
 
@@ -717,32 +783,35 @@ struct TrChConfig : public virtual RrcDefs
 	UlTrChList *ul() { return &mUlTrChs; }
 	DlTrChList *dl() { return &mDlTrChs; }
 
-	// It will be FACH or DCH.  All the TrCh are the same type, so just return the first one. 
+	// It will be FACH or DCH.  All the TrCh are the same type, so just return the first one.
 	// unused...
-	//TrChType getDlTrChType() {
+	// TrChType getDlTrChType() {
 	//	return dl()->getTrChInfo(0)->mTransportChType;
 	//}
 
 	// Just dump TrCh 0.
-	void tcdump() {
+	void tcdump()
+	{
 		TrChId chid = 0;
-		std::cout << format("UL:%p tfcs=%p mNumTfc=%d numTF=%d\n",ul(),ul()->getTfcs(),
-			ul()->getTfcs()->getNumTfc(),ul()->getTfs(chid)->getNumTf());
-		std::cout << format("DL:%p tfcs=%p mNumTfc=%d numTF=%d\n",dl(),dl()->getTfcs(),
-			dl()->getTfcs()->getNumTfc(),dl()->getTfs(chid)->getNumTf());
+		std::cout << format("UL:%p tfcs=%p mNumTfc=%d numTF=%d\n", ul(), ul()->getTfcs(),
+			ul()->getTfcs()->getNumTfc(), ul()->getTfs(chid)->getNumTf());
+		std::cout << format("DL:%p tfcs=%p mNumTfc=%d numTF=%d\n", dl(), dl()->getTfcs(),
+			dl()->getTfcs()->getNumTfc(), dl()->getTfs(chid)->getNumTf());
 	}
 
 	// TODO: this goes where now?
 	// bool mSameAsUplink;	// Only in downlink, means just use the uplink.
 
 	// These are generic TrCh configuration.
-	void configRachTrCh(int ulSF,TTICodes ulTTICode, int ulPB, int TBSize);
-	void configFachTrCh(int ulSF,TTICodes ulTTICode, int ulPB, int TBSize);
-	bool configDchPS(DCHFEC *dch, TTICodes tticode, unsigned pb, bool useTurbo, unsigned ulTBSize, unsigned dlTBSize);
+	void configRachTrCh(int ulSF, TTICodes ulTTICode, int ulPB, int TBSize);
+	void configFachTrCh(int ulSF, TTICodes ulTTICode, int ulPB, int TBSize);
+	bool configDchPS(
+		DCHFEC *dch, TTICodes tticode, unsigned pb, bool useTurbo, unsigned ulTBSize, unsigned dlTBSize);
 
 	// From 25.331 13.7: Parameter values for default radio configurations.
-	void defaultConfig3TrCh();	// Default config number 3, used for voice.
-	//void defaultConfig1TrCh();	// Default config number 1 for low-rate signalling.
+	void
+	defaultConfig3TrCh(); // Default config number 3, used for voice.
+			      // void defaultConfig1TrCh();	// Default config number 1 for low-rate signalling.
 };
 
 // And I quote: "RB Mapping Info: A multiplexing option for each possible transport channel
@@ -755,10 +824,10 @@ struct TrChConfig : public virtual RrcDefs
 // mapping to hook them together.
 // It specifies the TrCh and mac logical channel to use for the RB.
 // We only use a small subset of this, and here it is:
-	// From 25.331 6.3 and I quote: "Additionally, RBs whose identities shall be set
-	// between 5 and 32 may be used as signalling radio bearer for the
-	// RRC messages on the DCCH sent in RLC transparent mode (RLC-TM)."
-	// Lets just leave the SRB mapping options out for now.
+// From 25.331 6.3 and I quote: "Additionally, RBs whose identities shall be set
+// between 5 and 32 may be used as signalling radio bearer for the
+// RRC messages on the DCCH sent in RLC transparent mode (RLC-TM)."
+// Lets just leave the SRB mapping options out for now.
 
 // There can be two mappings: one for RACH or FACH and one for DCH.
 // For RACH/FACH you need:
@@ -782,7 +851,7 @@ struct TrChConfig : public virtual RrcDefs
 // But if it becomes necessary to support two RBMappingInfo options, all we have
 // to do is add two mTrChAssigned to RBInfo - one for RACH/FACH and one for DCH.
 // We dont need this messy confusing RBMappingInfo structure.
-struct RBMappingInfo : public virtual RrcDefs 	// 10.3.4.21
+struct RBMappingInfo : public virtual RrcDefs // 10.3.4.21
 {
 	// "ALL" means the entire TFS, "Configured" means the RLC sizes
 	// configured for this logical channel in the TFS.
@@ -791,83 +860,82 @@ struct RBMappingInfo : public virtual RrcDefs 	// 10.3.4.21
 	// Very easy to goof up the configuration here.
 	enum ChoiceRlcSizeList { eAll, eConfigured, eExplicitList };
 
-	unsigned mNumberOfUplinkRlcLogicalChannels;	// 1..2  This is unused historic nonsense.
+	unsigned mNumberOfUplinkRlcLogicalChannels; // 1..2  This is unused historic nonsense.
 	struct ulRBMappingInfo_s {
 		// TODO
 		// RLC logical channel mapping indicator is always TRUE, so not included here.
 		TrChType mUplinkTransportChType;
-		int mUlTransportChannelIdentity;	// 1..31,  sec 10.3.5.18  One-based, not Zero-based!!
+		int mUlTransportChannelIdentity; // 1..31,  sec 10.3.5.18  One-based, not Zero-based!!
 		// logical channel 1..15. Used to distinguish logical chans by MAC on TrCh.
 		// It is optional because if there is no logical channel mapping by MAC it is unneeded.
 		int mUlLogicalChannelIdentity;
 		enum ChoiceRlcSizeList mChoiceRlcSizeList;
-		//union {
+		// union {
 		struct ExplicitList_t {
 			// This is always just one integer, so dont bother making it an array.
-			//unsigned mRlcSizeIndex[maxTFS];	// If choice == ExplicitList.
-			unsigned mRlcSizeIndex;	// If choice == ExplicitList.  Which it wont.
+			// unsigned mRlcSizeIndex[maxTFS];	// If choice == ExplicitList.
+			unsigned mRlcSizeIndex; // If choice == ExplicitList.  Which it wont.
 		} ExplicitList;
 		//} RlcSizeList;
 		// E-DCH stuff skipped.
-		unsigned mMacLogicalChannelPriority;	// 1..8
+		unsigned mMacLogicalChannelPriority; // 1..8
 
-		ulRBMappingInfo_s() :
-			mUplinkTransportChType(TrChInvalid),	// Must specify this
-			mUlTransportChannelIdentity(1),			// Default is almost always used
-			mUlLogicalChannelIdentity(-1),			// Must specify this.
-			mChoiceRlcSizeList(eAll),				// Default is ok.
-			mMacLogicalChannelPriority(1)			// Default is ok.
-			{}
+		ulRBMappingInfo_s()
+			: mUplinkTransportChType(TrChInvalid), // Must specify this
+			  mUlTransportChannelIdentity(1),      // Default is almost always used
+			  mUlLogicalChannelIdentity(-1),       // Must specify this.
+			  mChoiceRlcSizeList(eAll),	    // Default is ok.
+			  mMacLogicalChannelPriority(1)	// Default is ok.
+		{
+		}
 	} ul[maxRBMuxOptions];
 
-	unsigned mNumberOfDownlinkRlcLogicalChannels;	// 1..2  This is unused nonsense.
+	unsigned mNumberOfDownlinkRlcLogicalChannels; // 1..2  This is unused nonsense.
 	struct dlRBMappingInfo_s {
 		TrChType mDownlinkTransportChType;
-		unsigned mDlDchTransportChannelIdentity;	// 1..31
-		int mDlLogicalChannelIdentity;	// 1..15. Optional. Used to distinguish logical chans by MAC on transport chan
-		dlRBMappingInfo_s() :
-			mDownlinkTransportChType(TrChInvalid),	// Must specify this.
-			mDlDchTransportChannelIdentity(1),		// Default is almost always used
-			mDlLogicalChannelIdentity(-1)			// Must specify this
-		{}
+		unsigned mDlDchTransportChannelIdentity; // 1..31
+		int mDlLogicalChannelIdentity; // 1..15. Optional. Used to distinguish logical chans by MAC on transport
+					       // chan
+		dlRBMappingInfo_s()
+			: mDownlinkTransportChType(TrChInvalid), // Must specify this.
+			  mDlDchTransportChannelIdentity(1),     // Default is almost always used
+			  mDlLogicalChannelIdentity(-1)		 // Must specify this
+		{
+		}
 	} dl[maxRBMuxOptions];
 
-	RBMappingInfo() :
-		mNumberOfUplinkRlcLogicalChannels(1),
-		mNumberOfDownlinkRlcLogicalChannels(1)
-		{}
+	RBMappingInfo() : mNumberOfUplinkRlcLogicalChannels(1), mNumberOfDownlinkRlcLogicalChannels(1) {}
 
 	// Write this IE out to an RRC Message:
 	void toAsnRB_MappingOption(ASN::RB_MappingOption *thing);
 
 	// Default Config setup methods:
 
-	//bool parse_ul;
+	// bool parse_ul;
 	void UL_LogicalChannelMappings(unsigned val) { mNumberOfUplinkRlcLogicalChannels = val; }
 	// I'm not sure I have this option mapped properly, but it doesnt
 	// matter because it is always just 1:
 	void MappingOption(unsigned val) { mNumberOfDownlinkRlcLogicalChannels = val; }
 	void ul_TransportChannelType(TrChType type) { /*parse_ul=true;*/ ul->mUplinkTransportChType = type; }
-	void ul_transportChannelIdentity(unsigned id) {ul->mUlTransportChannelIdentity = id;}
-	void dl_transportChannelIdentity(unsigned id) {dl->mDlDchTransportChannelIdentity = id;}
-	void ul_logicalChannelIdentity(unsigned id) {ul->mUlLogicalChannelIdentity = id;}
-	void dl_logicalChannelIdentity(unsigned id) {dl->mDlLogicalChannelIdentity = id;}
+	void ul_transportChannelIdentity(unsigned id) { ul->mUlTransportChannelIdentity = id; }
+	void dl_transportChannelIdentity(unsigned id) { dl->mDlDchTransportChannelIdentity = id; }
+	void ul_logicalChannelIdentity(unsigned id) { ul->mUlLogicalChannelIdentity = id; }
+	void dl_logicalChannelIdentity(unsigned id) { dl->mDlLogicalChannelIdentity = id; }
 
-	//void transportChannelIdentity(unsigned id) {
+	// void transportChannelIdentity(unsigned id) {
 	//	if (parse_ul) mUlTransportChannelIdentity = id;
 	//	else mDlDchTransportChannelIdentity = id;
 	//}
-	//void logicalChannelIdentity(unsigned id) {
+	// void logicalChannelIdentity(unsigned id) {
 	//	if (parse_ul) mUlLogicalChannelIdentity = id;
 	//	else mDlLogicalChannelIdentity = id;
 	//}
 	// rlc_SizeList(configured);
 	void mac_LogicalChannelPriority(unsigned val) { ul->mMacLogicalChannelPriority = val; }
 	void dl_TransportChannelType(TrChType type) { dl->mDownlinkTransportChType = type; }
-	void rlc_SizeList(ChoiceRlcSizeList choice) {
-		ul->mChoiceRlcSizeList = choice;
-	}
-	void rlc_SizeIndex(int val) {
+	void rlc_SizeList(ChoiceRlcSizeList choice) { ul->mChoiceRlcSizeList = choice; }
+	void rlc_SizeIndex(int val)
+	{
 		assert(ul->mChoiceRlcSizeList == eExplicitList);
 		ul->ExplicitList.mRlcSizeIndex = val;
 	}
@@ -880,7 +948,7 @@ struct RBMappingInfo : public virtual RrcDefs 	// 10.3.4.21
 //		TransportChannelReconfiguration, TransportChannelReconfigurationComplete, URAUpdateConfirm
 // todo?  I dont think we will ever need this for anything because it has to do with SRRC handoff.
 
-void defaultRbMappingInfoToAsn(TrChInfo *tcul,TrChInfo *tcdl,RbId rbid,ASN::RB_MappingInfo_t *asnmsg);
+void defaultRbMappingInfoToAsn(TrChInfo *tcul, TrChInfo *tcdl, RbId rbid, ASN::RB_MappingInfo_t *asnmsg);
 int quantizeRlcSize(bool common, int tbsize);
 
 }; // namespace UMTS

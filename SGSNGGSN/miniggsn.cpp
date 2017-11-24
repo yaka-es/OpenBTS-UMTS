@@ -1,18 +1,18 @@
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2011, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
  * See the LEGAL file in the main directory for details.
  */
 
-//TODO - include the TCP sequence number in the message,
+// TODO - include the TCP sequence number in the message,
 // and identify the duplicate packets,
 // then rerun a test downloading a single jpg
 // with tossing off, to see what is happening.
@@ -74,38 +74,41 @@
 //		Note: The comment is backwards.
 //		Allows you to ping any device on 10.0.0.0/24 from router_1 (not from router_2)
 //		Allows any 10.0.0.) device to ping router1 using 10.0.1.1
-#include <unistd.h>
+
+#include <sys/types.h>
+#include <sys/fcntl.h>
+#include <sys/socket.h>
+#include <sys/stat.h>
+#include <sys/time.h>
+//#include <sys/ioctl.h>			// pat added, then removed because it defines NCC used in GSMConfig.
+#undef NCC // Make sure.  This is defined in ioctl.h, but used as a name in GSMConfig.h.
+
+#include <arpa/inet.h>
+#include <netinet/in.h>
+#include <netinet/ip.h>  // pat added for IPv4 iphdr
+#include <netinet/tcp.h> // pat added for tcphdr
+#include <netinet/udp.h> // pat added for udphdr
+
+#include <assert.h> // pat added
+#include <errno.h>
+#include <getopt.h>
+#include <netdb.h> // pat added for gethostbyname
+#include <poll.h>
+#include <signal.h>
+#include <stdarg.h> // pat added
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include <getopt.h>
-#include <errno.h>
-#include <signal.h>
-#include <sys/fcntl.h>
-#include <sys/stat.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
-#include <arpa/inet.h>
-#include <poll.h>
-
-#include <netdb.h>			// pat added for gethostbyname
-#include <netinet/ip.h>		// pat added for IPv4 iphdr
-#include <netinet/tcp.h>		// pat added for tcphdr
-#include <netinet/udp.h>		// pat added for udphdr
-
-#include <linux/if.h>			// pat added.
-#include <linux/if_tun.h>			// pat added.
-//#include <sys/ioctl.h>			// pat added, then removed because it defines NCC used in GSMConfig.
-#include <assert.h>				// pat added
-#include <stdarg.h>				// pat added
-#include <time.h>				// pat added.
-#include <sys/time.h>
-#include <sys/types.h>
+#include <unistd.h>
 #include <wait.h>
-#include "miniggsn.h"
-#undef NCC	// Make sure.  This is defined in ioctl.h, but used as a name in GSMConfig.h.
+
+#include <linux/if.h>     // pat added.
+#include <linux/if_tun.h> // pat added.
+
+#include <CommonLibs/Configuration.h>
+
 #include "Ggsn.h"
-#include <Configuration.h>
+#include "miniggsn.h"
 
 // A mini-GGSN included inside the SGSN.
 // Each MS will be assigned a dynamic IP address.
@@ -122,21 +125,20 @@
 namespace SGSN {
 
 int pdpWriteHighSide(PdpContext *pdp, unsigned char *packet, unsigned len);
-int tun_fd = -1; // This is the tunnel we use to talk with the MSs.
-FILE *mg_log_fp = NULL;		// Extra log file for IP traffic.
+int tun_fd = -1;	// This is the tunnel we use to talk with the MSs.
+FILE *mg_log_fp = NULL; // Extra log file for IP traffic.
 int mg_debug_level = 0;
 
-
 // old:
-//static char const *mg_base_ip_str = "192.168.99.1";	// This did not raw bind.
-//static char const *mg_base_ip_route = "192.168.99.0/24";
-//static char const *mg_net_mask = "255.255.255.0";	// todo: get this from "/24" above.
+// static char const *mg_base_ip_str = "192.168.99.1";	// This did not raw bind.
+// static char const *mg_base_ip_route = "192.168.99.0/24";
+// static char const *mg_net_mask = "255.255.255.0";	// todo: get this from "/24" above.
 static struct GgsnConfig {
 	unsigned mgMaxPduSize;
-	int mgMaxConnections;		// The maximum number of PDP contexts, which is roughly
-								// the maximum number of simultaneous MS allowed.
-	unsigned mgIpTimeout;	// Dont reuse a connection for this many seconds.
-	unsigned mgIpTossDup;	// Toss duplicate packets.
+	int mgMaxConnections; // The maximum number of PDP contexts, which is roughly
+			      // the maximum number of simultaneous MS allowed.
+	unsigned mgIpTimeout; // Dont reuse a connection for this many seconds.
+	unsigned mgIpTossDup; // Toss duplicate packets.
 
 } ggConfig;
 
@@ -145,20 +147,21 @@ struct GgsnFirewallRule {
 	GgsnFirewallRule *next;
 	uint32_t ipBasenl;
 	uint32_t ipMasknl;
-	GgsnFirewallRule(GgsnFirewallRule *wnext,uint32_t wipbasenl, uint32_t wmasknl) :
-		next(wnext),ipBasenl(wipbasenl),ipMasknl(wmasknl) {}
+	GgsnFirewallRule(GgsnFirewallRule *wnext, uint32_t wipbasenl, uint32_t wmasknl)
+		: next(wnext), ipBasenl(wipbasenl), ipMasknl(wmasknl)
+	{
+	}
 };
 GgsnFirewallRule *gFirewallRules = NULL;
-void addFirewallRule(uint32_t ipbasenl,uint32_t masknl) {
-	gFirewallRules = new GgsnFirewallRule(gFirewallRules,ipbasenl,masknl);
+void addFirewallRule(uint32_t ipbasenl, uint32_t masknl)
+{
+	gFirewallRules = new GgsnFirewallRule(gFirewallRules, ipbasenl, masknl);
 }
-
 
 static mg_con_t *mg_cons = 0;
 
-
 // Now in Utils.cpp
-//const char *timestr()
+// const char *timestr()
 //{
 //    struct timeval tv;
 //    struct tm tm;
@@ -169,8 +172,6 @@ static mg_con_t *mg_cons = 0;
 //    sprintf(result," %02d:%02d:%02d.%1d",tm.tm_hour,tm.tm_min,tm.tm_sec,tenths);
 //    return result;
 //}
-
-
 
 // Find a free IP connection or return NULL.
 // Each PDP context activation gets a new IP address.
@@ -185,7 +186,7 @@ mg_con_t *mg_con_find_free(uint32_t ptmsi, int nsapi)
 	// TODO: This should use a map for efficiency.
 	int i;
 	mg_con_t *mgp = &mg_cons[0];
-	for (i=0; i < ggConfig.mgMaxConnections; i++, mgp++) {
+	for (i = 0; i < ggConfig.mgMaxConnections; i++, mgp++) {
 		if (mgp->mg_ptmsi == ptmsi && mgp->mg_nsapi == nsapi) {
 			return mgp;
 		}
@@ -194,15 +195,18 @@ mg_con_t *mg_con_find_free(uint32_t ptmsi, int nsapi)
 	// Look for an unused IP address.
 	double now = pat_timef();
 	static int mgnextindex = 0;
-	for (i=0; i < ggConfig.mgMaxConnections; i++) {
+	for (i = 0; i < ggConfig.mgMaxConnections; i++) {
 		mgp = &mg_cons[mgnextindex];
-		if (++mgnextindex == ggConfig.mgMaxConnections) { mgnextindex = 0; }
+		if (++mgnextindex == ggConfig.mgMaxConnections) {
+			mgnextindex = 0;
+		}
 		if (mgp->mg_pdp == NULL) {
 			// Dont reuse an ip address for mg_ip_timeout.
 			// TCP packets will continue to arrive for an IP address
 			// for quite some time after it becomes inactive.
-			if (mgp->mg_time_last_close && mgp->mg_time_last_close + ggConfig.mgIpTimeout > now) continue;
-			//mgp->mg_pdp = pctx;
+			if (mgp->mg_time_last_close && mgp->mg_time_last_close + ggConfig.mgIpTimeout > now)
+				continue;
+			// mgp->mg_pdp = pctx;
 			mgp->mg_ptmsi = ptmsi;
 			mgp->mg_nsapi = nsapi;
 			return mgp;
@@ -211,10 +215,7 @@ mg_con_t *mg_con_find_free(uint32_t ptmsi, int nsapi)
 	return NULL;
 }
 
-void mg_con_open(mg_con_t *mgp,PdpContext *pdp)
-{
-	mgp->mg_pdp = pdp;
-}
+void mg_con_open(mg_con_t *mgp, PdpContext *pdp) { mgp->mg_pdp = pdp; }
 
 void mg_con_close(mg_con_t *mgp)
 {
@@ -235,58 +236,58 @@ static mg_con_t *mg_con_find_by_ctx(PdpContext *pctx)
 
 static mg_con_t *mg_con_find_by_ip(uint32_t addr)
 {
-	int i; mg_con_t *mgp = mg_cons;
-	for (i=0; i < ggConfig.mgMaxConnections; i++, mgp++) {
-		if (mgp->mg_ip == addr) { return mgp; }
+	int i;
+	mg_con_t *mgp = mg_cons;
+	for (i = 0; i < ggConfig.mgMaxConnections; i++, mgp++) {
+		if (mgp->mg_ip == addr) {
+			return mgp;
+		}
 	}
 	return NULL;
 }
 
 static bool verbose = true;
 
-static char *packettoa(char *result,unsigned char *packet, int len)
+static char *packettoa(char *result, unsigned char *packet, int len)
 {
-	struct iphdr *iph = (struct iphdr*)packet;
+	struct iphdr *iph = (struct iphdr *)packet;
 	char nbuf1[40], nbuf2[40];
 	if (verbose && iph->protocol == IPPROTO_TCP) {
-		struct tcphdr *tcph = (struct tcphdr*) (packet + 4 * iph->ihl);
-		sprintf(result,"proto=%s %d byte packet seq=%u ack=%u id=%u frag=%u from %s:%d to %s:%d",
-			ip_proto_name(iph->protocol), len, tcph->seq, tcph->ack_seq,
-			iph->id, iph->frag_off,
-			ip_ntoa(iph->saddr,nbuf1),tcph->source,
-			ip_ntoa(iph->daddr,nbuf2),tcph->dest);
+		struct tcphdr *tcph = (struct tcphdr *)(packet + 4 * iph->ihl);
+		sprintf(result, "proto=%s %d byte packet seq=%u ack=%u id=%u frag=%u from %s:%d to %s:%d",
+			ip_proto_name(iph->protocol), len, tcph->seq, tcph->ack_seq, iph->id, iph->frag_off,
+			ip_ntoa(iph->saddr, nbuf1), tcph->source, ip_ntoa(iph->daddr, nbuf2), tcph->dest);
 	} else {
-		sprintf(result,"proto=%s %d byte packet from %s to %s",
-			ip_proto_name(iph->protocol), len,
-			ip_ntoa(iph->saddr,nbuf1),
-			ip_ntoa(iph->daddr,nbuf2));
+		sprintf(result, "proto=%s %d byte packet from %s to %s", ip_proto_name(iph->protocol), len,
+			ip_ntoa(iph->saddr, nbuf1), ip_ntoa(iph->daddr, nbuf2));
 	}
 	return result;
 }
-
 
 unsigned char *miniggsn_rcv_npdu(int *plen, uint32_t *dstaddr)
 {
 	static unsigned char *recvbuf = NULL;
 
 	if (recvbuf == NULL) {
-		recvbuf = (unsigned char*)malloc(ggConfig.mgMaxPduSize+2);
-		if (!recvbuf) { /**error = -ENOMEM;*/ return NULL; }
+		recvbuf = (unsigned char *)malloc(ggConfig.mgMaxPduSize + 2);
+		if (!recvbuf) { /**error = -ENOMEM;*/
+			return NULL;
+		}
 	}
 
 	// The O_NONBLOCK was set by default!  Is not happening any more.
 	{
-		int flags = fcntl(tun_fd,F_GETFL,0);
+		int flags = fcntl(tun_fd, F_GETFL, 0);
 		if (flags & O_NONBLOCK) {
-			//MGDEBUG(4,"O_NONBLOCK = %d",O_NONBLOCK & flags);
-			flags &= ~O_NONBLOCK;	// Want Blocking!
-			int fcntlstat = fcntl(tun_fd,F_SETFL,flags);
-			MGWARN("ggsn: WARNING: Turning off tun_fd blocking flag, fcntl=%d",fcntlstat);
+			// MGDEBUG(4,"O_NONBLOCK = %d",O_NONBLOCK & flags);
+			flags &= ~O_NONBLOCK; // Want Blocking!
+			int fcntlstat = fcntl(tun_fd, F_SETFL, flags);
+			MGWARN("ggsn: WARNING: Turning off tun_fd blocking flag, fcntl=%d", fcntlstat);
 		}
 	}
 
 	// We can just read from the tunnel.
-	int ret = read(tun_fd,recvbuf,ggConfig.mgMaxPduSize);
+	int ret = read(tun_fd, recvbuf, ggConfig.mgMaxPduSize);
 	if (ret < 0) {
 		MGERROR("ggsn: error: reading from tunnel: %s", strerror(errno));
 		//*error = ret;
@@ -296,14 +297,14 @@ unsigned char *miniggsn_rcv_npdu(int *plen, uint32_t *dstaddr)
 		//*error = ret;	// huh?
 		return NULL;
 	} else {
-		struct iphdr *iph = (struct iphdr*)recvbuf;
+		struct iphdr *iph = (struct iphdr *)recvbuf;
 		{
 			char infobuf[200];
-			MGINFO("ggsn: received %s at %s",packettoa(infobuf,recvbuf,ret), timestr().c_str());
-			//MGLOGF("ggsn: received proto=%s %d byte npdu from %s for %s at %s",
-				//ip_proto_name(iph->protocol), ret,
-				//ip_ntoa(iph->saddr,nbuf),
-				//ip_ntoa(iph->daddr,NULL), timestr());
+			MGINFO("ggsn: received %s at %s", packettoa(infobuf, recvbuf, ret), timestr().c_str());
+			// MGLOGF("ggsn: received proto=%s %d byte npdu from %s for %s at %s",
+			// ip_proto_name(iph->protocol), ret,
+			// ip_ntoa(iph->saddr,nbuf),
+			// ip_ntoa(iph->daddr,NULL), timestr());
 		}
 
 		*dstaddr = iph->daddr;
@@ -320,47 +321,49 @@ unsigned char *miniggsn_rcv_npdu(int *plen, uint32_t *dstaddr)
 // which are unnecessary because we have reliable communication between here
 // and the MS, so just toss them.
 // Update 3-2012: Always do the check to print messages for dup packets even if not discarded.
-static int mg_toss_dup_packet(mg_con_t*mgp,unsigned char *packet, int packetlen)
+static int mg_toss_dup_packet(mg_con_t *mgp, unsigned char *packet, int packetlen)
 {
-	struct iphdr *iph = (struct iphdr*)packet;
-	if (iph->protocol != IPPROTO_TCP) { return 0; }
-	struct tcphdr *tcph = (struct tcphdr*) (packet + 4 * iph->ihl);
-	if (tcph->rst | tcph->urg) { return 0; }
+	struct iphdr *iph = (struct iphdr *)packet;
+	if (iph->protocol != IPPROTO_TCP) {
+		return 0;
+	}
+	struct tcphdr *tcph = (struct tcphdr *)(packet + 4 * iph->ihl);
+	if (tcph->rst | tcph->urg) {
+		return 0;
+	}
 	int i;
 	for (i = 0; i < MG_PACKET_HISTORY; i++) {
 		// 3-2012: Jpegs are not going through the system properly.
 		// I am adding some more checks here to see if we are tossing packets inappropriately.
 		// The tot_len includes headers, but if they are not the same in the duplicate packet, oh well.
 		// TODO: If the connection is reset we should zero out our history.
-		if (mgp->mg_packets[i].saddr == iph->saddr &&
-		    mgp->mg_packets[i].daddr == iph->daddr &&
-		    mgp->mg_packets[i].totlen == iph->tot_len &&
-		    //mgp->mg_packets[i].ipfragoff == iph->frag_off &&
-		    //mgp->mg_packets[i].ipid == iph->id &&
-		    mgp->mg_packets[i].seq == tcph->seq &&
-		    mgp->mg_packets[i].source == tcph->source &&
-		    mgp->mg_packets[i].dest == tcph->dest
-			) {
-				const char *what = ggConfig.mgIpTossDup ? "discarding " : "";
-				char buf1[40],buf2[40];
-				MGINFO("ggsn: %sduplicate %d byte packet seq=%d frag=%d id=%d src=%s:%d dst=%s:%d",what,
-					packetlen,tcph->seq,iph->frag_off,iph->id,
-					ip_ntoa(iph->saddr,buf1),tcph->source,
-					ip_ntoa(iph->daddr,buf2),tcph->dest);
-				return ggConfig.mgIpTossDup;	// Toss duplicate tcp packet if option set.
-			}
+		if (mgp->mg_packets[i].saddr == iph->saddr && mgp->mg_packets[i].daddr == iph->daddr &&
+			mgp->mg_packets[i].totlen == iph->tot_len &&
+			// mgp->mg_packets[i].ipfragoff == iph->frag_off &&
+			// mgp->mg_packets[i].ipid == iph->id &&
+			mgp->mg_packets[i].seq == tcph->seq && mgp->mg_packets[i].source == tcph->source &&
+			mgp->mg_packets[i].dest == tcph->dest) {
+			const char *what = ggConfig.mgIpTossDup ? "discarding " : "";
+			char buf1[40], buf2[40];
+			MGINFO("ggsn: %sduplicate %d byte packet seq=%d frag=%d id=%d src=%s:%d dst=%s:%d", what,
+				packetlen, tcph->seq, iph->frag_off, iph->id, ip_ntoa(iph->saddr, buf1), tcph->source,
+				ip_ntoa(iph->daddr, buf2), tcph->dest);
+			return ggConfig.mgIpTossDup; // Toss duplicate tcp packet if option set.
+		}
 	}
 	i = mgp->mg_oldest_packet;
-	if (++mgp->mg_oldest_packet >= MG_PACKET_HISTORY) { mgp->mg_oldest_packet = 0; }
+	if (++mgp->mg_oldest_packet >= MG_PACKET_HISTORY) {
+		mgp->mg_oldest_packet = 0;
+	}
 	mgp->mg_packets[i].saddr = iph->saddr;
 	mgp->mg_packets[i].daddr = iph->daddr;
 	mgp->mg_packets[i].totlen = iph->tot_len;
-	//mgp->mg_packets[i].ipfragoff = iph->frag_off;
-	//mgp->mg_packets[i].ipid = iph->id;
+	// mgp->mg_packets[i].ipfragoff = iph->frag_off;
+	// mgp->mg_packets[i].ipid = iph->id;
 	mgp->mg_packets[i].seq = tcph->seq;
 	mgp->mg_packets[i].source = tcph->source;
 	mgp->mg_packets[i].dest = tcph->dest;
-	return 0;	// Do not toss.
+	return 0; // Do not toss.
 }
 
 // There is data available on the socket.  Go get it.
@@ -370,94 +373,101 @@ void miniggsn_handle_read()
 	int packetlen;
 	uint32_t dstaddr;
 	unsigned char *packet = miniggsn_rcv_npdu(&packetlen, &dstaddr);
-	if (!packet) { return; }
+	if (!packet) {
+		return;
+	}
 
 	// We need to reassociate the packet with the PdpContext to which it belongs.
 	mg_con_t *mgp = mg_con_find_by_ip(dstaddr);
 	if (mgp == NULL || mgp->mg_pdp == NULL) {
 		MGERROR("ggsn: error: cannot find PDP context for incoming packet for IP dstaddr=%s",
-			ip_ntoa(dstaddr,NULL));
-		return;	// -1;
+			ip_ntoa(dstaddr, NULL));
+		return; // -1;
 	}
 
-	if (mg_toss_dup_packet(mgp,packet,packetlen)) { return; }
+	if (mg_toss_dup_packet(mgp, packet, packetlen)) {
+		return;
+	}
 
 	PdpContext *pdp = mgp->mg_pdp;
-	//MGDEBUG(2,"miniggsn_handle_read pdp=%p",pdp);
-	pdp->pdpWriteHighSide(packet,packetlen);
+	// MGDEBUG(2,"miniggsn_handle_read pdp=%p",pdp);
+	pdp->pdpWriteHighSide(packet, packetlen);
 }
 
-
 // The npdu is a raw packet including the ip header.
-int miniggsn_snd_npdu_by_mgc(mg_con_t *mgp,unsigned char *npdu, unsigned len)
+int miniggsn_snd_npdu_by_mgc(mg_con_t *mgp, unsigned char *npdu, unsigned len)
 {
-    // Verify the IP header.
-    struct iphdr *ipheader = (struct iphdr*)npdu;
-    // The return address must be the MS itself.
-    uint32_t ms_ip_address = mgp->mg_ip;
-    uint32_t packet_source_ip_addr = ipheader->saddr;
-    uint32_t packet_dest_ip_addr = ipheader->daddr;
+	// Verify the IP header.
+	struct iphdr *ipheader = (struct iphdr *)npdu;
+	// The return address must be the MS itself.
+	uint32_t ms_ip_address = mgp->mg_ip;
+	uint32_t packet_source_ip_addr = ipheader->saddr;
+	uint32_t packet_dest_ip_addr = ipheader->daddr;
 
 	char infobuf[200];
-	MGINFO("ggsn: writing %s at %s",packettoa(infobuf,npdu,len),timestr().c_str());
-	//MGLOGF("ggsn: writing proto=%s %d byte npdu to %s from %s at %s",
-		//ip_proto_name(ipheader->protocol),
-		//len,ip_ntoa(packet_dest_ip_addr,NULL),
-		//ip_ntoa(packet_source_ip_addr,nbuf), timestr().c_str());
+	MGINFO("ggsn: writing %s at %s", packettoa(infobuf, npdu, len), timestr().c_str());
+	// MGLOGF("ggsn: writing proto=%s %d byte npdu to %s from %s at %s",
+	// ip_proto_name(ipheader->protocol),
+	// len,ip_ntoa(packet_dest_ip_addr,NULL),
+	// ip_ntoa(packet_source_ip_addr,nbuf), timestr().c_str());
 
 #define MUST_HAVE(assertion) \
-    if (! (assertion)) { MGERROR("ggsn: Packet failed test, discarded: %s",#assertion); return -1; }
+	if (!(assertion)) { \
+		MGERROR("ggsn: Packet failed test, discarded: %s", #assertion); \
+		return -1; \
+	}
 
-    if (mg_debug_level > 2) ip_hdr_dump(npdu,"npdu");
-    MUST_HAVE(ipheader->version == 4);	// 4 as in IPv4
-    MUST_HAVE(ipheader->ihl >= 5);		// Minimum header length is 5 words.
+	if (mg_debug_level > 2)
+		ip_hdr_dump(npdu, "npdu");
+	MUST_HAVE(ipheader->version == 4); // 4 as in IPv4
+	MUST_HAVE(ipheader->ihl >= 5);     // Minimum header length is 5 words.
 
-    int checksum = ip_checksum(ipheader,sizeof(*ipheader),NULL);
-    MUST_HAVE(checksum == 0);				// If fails, packet is bad.
+	int checksum = ip_checksum(ipheader, sizeof(*ipheader), NULL);
+	MUST_HAVE(checksum == 0); // If fails, packet is bad.
 
-    MUST_HAVE(ipheader->ttl > 0);		// Time to live - how many hops allowed.
-
+	MUST_HAVE(ipheader->ttl > 0); // Time to live - how many hops allowed.
 
 	// The blackberry sends ICMP packets, so we better support.
 	// I'm just going to allow any protocol through.
-    //MUST_HAVE(ipheader->protocol == IPPROTO_TCP || 
+	// MUST_HAVE(ipheader->protocol == IPPROTO_TCP ||
 	//	ipheader->protocol == IPPROTO_UDP ||
 	//	ipheader->protocol == IPPROTO_ICMP);
 
-    MUST_HAVE(packet_source_ip_addr == ms_ip_address);
+	MUST_HAVE(packet_source_ip_addr == ms_ip_address);
 
 #if OLD_FIREWALL
-    // The destination address may not be a local address on this machine
+	// The destination address may not be a local address on this machine
 	// as configured by the operator.
 	// Note these are all in network order, so be careful.
-    //uint32_t local_ip_addr = inet_addr(mg_base_ip_str); // probably "192.168.99.1"
-	uint32_t net_mask = inet_addr(mg_net_mask);			// probably "255.255.255.0"
-    MUST_HAVE((packet_dest_ip_addr & net_mask) != (local_ip_addr & net_mask));
+	// uint32_t local_ip_addr = inet_addr(mg_base_ip_str); // probably "192.168.99.1"
+	uint32_t net_mask = inet_addr(mg_net_mask); // probably "255.255.255.0"
+	MUST_HAVE((packet_dest_ip_addr & net_mask) != (local_ip_addr & net_mask));
 #endif
 
 	for (GgsnFirewallRule *rp = gFirewallRules; rp; rp = rp->next) {
 		// 12-17: Change the message to indicate that this was a firewall rule violation.
-		//MUST_HAVE((packet_dest_ip_addr & rp->ipMasknl) != (rp->ipBasenl & rp->ipMasknl));
-		if (! ((packet_dest_ip_addr & rp->ipMasknl) != (rp->ipBasenl & rp->ipMasknl)) ) {
-			char ipaddrbuf[50]; ip_ntoa(packet_dest_ip_addr,ipaddrbuf);
-			MGERROR("ggsn: Packet wth dest ip = %s discarded by firewall",ipaddrbuf);
+		// MUST_HAVE((packet_dest_ip_addr & rp->ipMasknl) != (rp->ipBasenl & rp->ipMasknl));
+		if (!((packet_dest_ip_addr & rp->ipMasknl) != (rp->ipBasenl & rp->ipMasknl))) {
+			char ipaddrbuf[50];
+			ip_ntoa(packet_dest_ip_addr, ipaddrbuf);
+			MGERROR("ggsn: Packet wth dest ip = %s discarded by firewall", ipaddrbuf);
 			return -1;
 		}
 	}
 
-    // Decrement ttl and recompute checksum.  We are doing this in place.
-    ipheader->ttl--;
-    ipheader->check = 0;
-    //ipheader->check = htons(ip_checksum(ipheader,sizeof(*ipheader),NULL));
-    ipheader->check = ip_checksum(ipheader,sizeof(*ipheader),NULL);
+	// Decrement ttl and recompute checksum.  We are doing this in place.
+	ipheader->ttl--;
+	ipheader->check = 0;
+	// ipheader->check = htons(ip_checksum(ipheader,sizeof(*ipheader),NULL));
+	ipheader->check = ip_checksum(ipheader, sizeof(*ipheader), NULL);
 
 	// Just write to the MS-side tunnel device.
 
-	int result = write(tun_fd,npdu,len);
-	if (result != (int) len) {
-		MGERROR("ggsn: error: write(tun_fd,%d) result=%d %s",len,result,strerror(errno));
+	int result = write(tun_fd, npdu, len);
+	if (result != (int)len) {
+		MGERROR("ggsn: error: write(tun_fd,%d) result=%d %s", len, result, strerror(errno));
 	}
-    return 0;
+	return 0;
 }
 
 #if 0 // not needed
@@ -476,10 +486,11 @@ time_t gGgsnInitTime;
 
 bool miniggsn_init()
 {
-	static int initstatus = -1;		// -1: uninited; 0:init failed; 1: init succeeded.
-	if (initstatus >= 0) {return initstatus;}
-	initstatus = 0;	// assume failure.
-
+	static int initstatus = -1; // -1: uninited; 0:init failed; 1: init succeeded.
+	if (initstatus >= 0) {
+		return initstatus;
+	}
+	initstatus = 0; // assume failure.
 
 	// We init config options at GGSN startup.
 	// They cannot be changed while running.
@@ -489,22 +500,21 @@ bool miniggsn_init()
 	ggConfig.mgMaxConnections = gConfig.getNum("GGSN.MS.IP.MaxCount");
 	ggConfig.mgIpTossDup = gConfig.getBool("GGSN.IP.TossDuplicatePackets");
 
-
 	string logfile = gConfig.getStr("GGSN.Logfile.Name");
 	if (logfile.length()) {
-		mg_log_fp = fopen(logfile.c_str(),"w");
+		mg_log_fp = fopen(logfile.c_str(), "w");
 		if (mg_log_fp == 0) {
-			MGERROR("could not open %s log file:%s","GGSN.Logfile.Name",logfile.c_str());
+			MGERROR("could not open %s log file:%s", "GGSN.Logfile.Name", logfile.c_str());
 		}
 	}
 
 	// This is the first message in the newly opened file.
 	time(&gGgsnInitTime);
-	MGINFO("Initializing Mini GGSN %s",ctime(&gGgsnInitTime));	// ctime includes a newline.
+	MGINFO("Initializing Mini GGSN %s", ctime(&gGgsnInitTime)); // ctime includes a newline.
 
 	if (mg_log_fp) {
 		mg_debug_level = 1;
-		MGINFO("GGSN logging to file %s",logfile.c_str());
+		MGINFO("GGSN logging to file %s", logfile.c_str());
 	}
 
 	if (ggConfig.mgMaxConnections > 254) {
@@ -523,12 +533,12 @@ bool miniggsn_init()
 	const char *ip_base_str = gConfig.getStr("GGSN.MS.IP.Base").c_str();
 	uint32_t mgIpBasenl = inet_addr(ip_base_str);
 	if (mgIpBasenl == INADDR_NONE) {
-		MGERROR("miniggn: GGSN.MS.IP.Base address invalid:%s",ip_base_str);
+		MGERROR("miniggn: GGSN.MS.IP.Base address invalid:%s", ip_base_str);
 		return false;
 	}
 
 	if ((ntohl(mgIpBasenl) & 0xff) == 0) {
-		MGERROR("miniggn: GGSN.MS.IP.Base address should not end in .0 but proceeding anyway: %s",ip_base_str);
+		MGERROR("miniggn: GGSN.MS.IP.Base address should not end in .0 but proceeding anyway: %s", ip_base_str);
 	}
 
 	const char *route_str = 0;
@@ -541,13 +551,13 @@ bool miniggsn_init()
 
 	uint32_t route_basenl, route_masknl;
 	if (route_str && *route_str && *route_str != ' ') {
-		if (strlen(route_str) > strlen("aaa.bbb.ccc.ddd/yy") + 2) {	// add some slop.
-			MGWARN("miniggn: GGSN.MS.IP.Route address is too long:%s",route_str);
+		if (strlen(route_str) > strlen("aaa.bbb.ccc.ddd/yy") + 2) { // add some slop.
+			MGWARN("miniggn: GGSN.MS.IP.Route address is too long:%s", route_str);
 			// but use it anyway.
 		}
 
-		if (! ip_addr_crack(route_str,&route_basenl,&route_masknl) || route_basenl == INADDR_NONE) {
-			MGWARN("miniggsn: GGSN.MS.IP.Route is not a valid ip address: %s",route_str);
+		if (!ip_addr_crack(route_str, &route_basenl, &route_masknl) || route_basenl == INADDR_NONE) {
+			MGWARN("miniggsn: GGSN.MS.IP.Route is not a valid ip address: %s", route_str);
 			// but use it anyway.
 		}
 		if (route_masknl == 0) {
@@ -558,17 +568,18 @@ bool miniggsn_init()
 
 		// We would like to check that the base ip is within the ip route range,
 		// which is tricky, but check the most common case:
-		if ((route_basenl&route_masknl) != (mgIpBasenl&route_masknl)) {
-			MGWARN("miniggsn: GGSN.MS.IP.Base = %s ip address does not appear to be in range of GGSN.MS.IP.Route = %s",
+		if ((route_basenl & route_masknl) != (mgIpBasenl & route_masknl)) {
+			MGWARN("miniggsn: GGSN.MS.IP.Base = %s ip address does not appear to be in range of "
+			       "GGSN.MS.IP.Route = %s",
 				ip_base_str, route_str);
 			// but use it anyway.
 		}
 	} else {
 		// Manufacture a route string.  Assume route is 24 bits.
 		route_masknl = inet_addr("255.255.255.0");
-		route_basenl = mgIpBasenl & route_masknl;	// Set low byte to 0.
-		ip_ntoa(route_basenl,route_buf);
-		strcat(route_buf,"/24");
+		route_basenl = mgIpBasenl & route_masknl; // Set low byte to 0.
+		ip_ntoa(route_basenl, route_buf);
+		strcat(route_buf, "/24");
 		route_str = route_buf;
 	}
 
@@ -576,91 +587,93 @@ bool miniggsn_init()
 	int firewall_enable;
 	if ((firewall_enable = gConfig.getNum("GGSN.Firewall.Enable"))) {
 		// Block anything in the routed range:
-		addFirewallRule(route_basenl,route_masknl);
+		addFirewallRule(route_basenl, route_masknl);
 		// Block local loopback:
-		uint32_t tmp_basenl,tmp_masknl;
-		if (ip_addr_crack("127.0.0.1/24",&tmp_basenl,&tmp_masknl)) {
-			addFirewallRule(tmp_basenl,tmp_masknl);
+		uint32_t tmp_basenl, tmp_masknl;
+		if (ip_addr_crack("127.0.0.1/24", &tmp_basenl, &tmp_masknl)) {
+			addFirewallRule(tmp_basenl, tmp_masknl);
 		}
 		// Block the OpenBTS station itself:
 		uint32_t *myaddrs = ip_findmyaddr();
-		for ( ; *myaddrs != (unsigned)-1; myaddrs++) {
-			addFirewallRule(*myaddrs,0xffffffff);
+		for (; *myaddrs != (unsigned)-1; myaddrs++) {
+			addFirewallRule(*myaddrs, 0xffffffff);
 		}
 		if (firewall_enable >= 2) {
 			// Block all private addresses:
 			// 16-bit block (/16 prefix, 256 × C) 	192.168.0.0 	192.168.255.255 	65536
 			uint32_t private_addrnl = inet_addr("192.168.0.0");
 			uint32_t private_masknl = inet_addr("255.255.0.0");
-			addFirewallRule(private_addrnl,private_masknl);
+			addFirewallRule(private_addrnl, private_masknl);
 			// 20-bit block (/12 prefix, 16 × B) 	172.16.0.0 	172.31.255.255 	1048576
 			private_addrnl = inet_addr("172.16.0.0");
 			private_masknl = inet_addr("255.240.0.0");
-			addFirewallRule(private_addrnl,private_masknl);
+			addFirewallRule(private_addrnl, private_masknl);
 			// 24-bit block (/8 prefix, 1 × A) 	10.0.0.0 	10.255.255.255 	16777216
 			private_addrnl = inet_addr("10.0.0.0");
 			private_masknl = inet_addr("255.0.0.0");
-			addFirewallRule(private_addrnl,private_masknl);
+			addFirewallRule(private_addrnl, private_masknl);
 		}
 	}
 
 	MGINFO("GGSN Configuration:");
-		MGINFO("  GGSN.MS.IP.Base=%s", ip_ntoa(mgIpBasenl,NULL));
-		MGINFO("  GGSN.MS.IP.MaxCount=%d", ggConfig.mgMaxConnections);
-		MGINFO("  GGSN.MS.IP.Route=%s", route_str);
-		MGINFO("  GGSN.IP.MaxPacketSize=%d", ggConfig.mgMaxPduSize);
-		MGINFO("  GGSN.IP.ReuseTimeout=%d", ggConfig.mgIpTimeout);
-		MGINFO("  GGSN.Firewall.Enable=%d", firewall_enable);
-		MGINFO("  GGSN.IP.TossDuplicatePackets=%d", ggConfig.mgIpTossDup);
+	MGINFO("  GGSN.MS.IP.Base=%s", ip_ntoa(mgIpBasenl, NULL));
+	MGINFO("  GGSN.MS.IP.MaxCount=%d", ggConfig.mgMaxConnections);
+	MGINFO("  GGSN.MS.IP.Route=%s", route_str);
+	MGINFO("  GGSN.IP.MaxPacketSize=%d", ggConfig.mgMaxPduSize);
+	MGINFO("  GGSN.IP.ReuseTimeout=%d", ggConfig.mgIpTimeout);
+	MGINFO("  GGSN.Firewall.Enable=%d", firewall_enable);
+	MGINFO("  GGSN.IP.TossDuplicatePackets=%d", ggConfig.mgIpTossDup);
 	if (firewall_enable) {
 		MGINFO("GGSN Firewall Rules:");
 		for (GgsnFirewallRule *rp = gFirewallRules; rp; rp = rp->next) {
 			char buf1[40], buf2[40];
-			MGINFO("  block ip=%s mask=%s",ip_ntoa(rp->ipBasenl,buf1),ip_ntoa(rp->ipMasknl,buf2));
+			MGINFO("  block ip=%s mask=%s", ip_ntoa(rp->ipBasenl, buf1), ip_ntoa(rp->ipMasknl, buf2));
 		}
 	}
-	uint32_t dns[2];	// We dont use the result, we just want to print out the DNS servers now.
-	ip_finddns(dns);	// The dns servers are polled again later.
+	uint32_t dns[2]; // We dont use the result, we just want to print out the DNS servers now.
+	ip_finddns(dns); // The dns servers are polled again later.
 
 	const char *tun_if_name = gConfig.getStr("GGSN.TunName").c_str();
 
 	if (tun_fd == -1) {
 		ip_init();
-		tun_fd = ip_tun_open(tun_if_name,route_str);
+		tun_fd = ip_tun_open(tun_if_name, route_str);
 		if (tun_fd < 0) {
-			MGERROR("ggsn: ERROR: Could not open tun device %s",tun_if_name);
-			LOG(ALERT) << "Cound not open tun device:"<<tun_if_name;	// TEMPORARY MESSAGE
+			MGERROR("ggsn: ERROR: Could not open tun device %s", tun_if_name);
+			LOG(ALERT) << "Cound not open tun device:" << tun_if_name; // TEMPORARY MESSAGE
 			return false;
 		}
 	}
 
 	// DEBUG: Try it again.
-	//printf("DEBUG: Opening tunnel again: %d\n",ip_tun_open(tun_if_name,route_str));
+	// printf("DEBUG: Opening tunnel again: %d\n",ip_tun_open(tun_if_name,route_str));
 
-	if (mg_cons) free(mg_cons);
-	mg_cons = (mg_con_t*)calloc(ggConfig.mgMaxConnections,sizeof(mg_con_t));
+	if (mg_cons)
+		free(mg_cons);
+	mg_cons = (mg_con_t *)calloc(ggConfig.mgMaxConnections, sizeof(mg_con_t));
 	if (mg_cons == 0) {
 		MGERROR("ggsn: ERROR: out of memory");
 		return false;
 	}
-	//memset(mg_cons,0,sizeof(mg_cons));
+	// memset(mg_cons,0,sizeof(mg_cons));
 
 	uint32_t base_iphl = ntohl(mgIpBasenl);
 	// 8-15:  no dont do this.  It subverts the purpose of the BASE ip address.
-	//base_iphl &= ~255;			// In case they specify 192.168.2.1, make it 192.168.2.0
+	// base_iphl &= ~255;			// In case they specify 192.168.2.1, make it 192.168.2.0
 	int i;
 	// If the last digit is 0 (192.168.99.0), change it to 1 for the first IP addr served.
-	if ((base_iphl & 255) == 0) { base_iphl++; }
-	for (i=0; i < ggConfig.mgMaxConnections; i++) {
+	if ((base_iphl & 255) == 0) {
+		base_iphl++;
+	}
+	for (i = 0; i < ggConfig.mgMaxConnections; i++) {
 		mg_cons[i].mg_ip = htonl(base_iphl + i);
-		//mg_cons[i].mg_ip = htonl(base_iphl + 1 + i);
+		// mg_cons[i].mg_ip = htonl(base_iphl + 1 + i);
 		// DEBUG!!!!!  Use my own ip address.
-		//mg_cons[i].mg_ip = inet_addr("192.168.1.99");
-		//printf("adding IP=%s\n",ip_ntoa(mg_cons[i].mg_ip,NULL));
+		// mg_cons[i].mg_ip = inet_addr("192.168.1.99");
+		// printf("adding IP=%s\n",ip_ntoa(mg_cons[i].mg_ip,NULL));
 	}
 	initstatus = 1;
 	return initstatus;
 }
 
-
-};	// namespace
+}; // namespace SGSN

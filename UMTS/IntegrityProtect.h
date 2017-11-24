@@ -1,11 +1,11 @@
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
@@ -13,17 +13,17 @@
  */
 
 #include <stdint.h>
-#include "ByteVector.h"
+
+#include <CommonLibs/ByteVector.h>
 
 // This is the algorithm as defined in the spec.
-uint32_t AlgorithmF9( uint8_t *key, int count, int fresh, int dir, uint8_t *data, int length );
+uint32_t AlgorithmF9(uint8_t *key, int count, int fresh, int dir, uint8_t *data, int length);
 
-class IntegrityProtect
-{
+class IntegrityProtect {
 	static const int sIpNumSrbs = 5;
 	// For GSM subscribers (no USIM) IK is generated from Kc, after which we could discard Kc.
-	uint64_t mKc;		// Used to generate mIK.
-	uint8_t mIK[16];	// 128 bit Integrity Key; see setKc().
+	uint64_t mKc;    // Used to generate mIK.
+	uint8_t mIK[16]; // 128 bit Integrity Key; see setKc().
 	// 8.5.10 has the list of messages that are integrity protected, but they might as well not have bothered -
 	// it is just all messages on DCCH are integrity protected, and on other channels they are not.
 	// The spec goes on and on about Integrity Protection being started or not, but it is massive overkill:
@@ -40,16 +40,16 @@ class IntegrityProtect
 	// TODO: We are also supposed to stop all other activity during the SecurityCommand procedure,
 	// which doesnt matter much because it is the first thing we do, but it may be needed if we timeout
 	// during the procedure, but I think that case is caught and handled in the SGSN.
-	bool mIntegrityStarted;		// Set when we are supposed to be integrity protecting.
+	bool mIntegrityStarted; // Set when we are supposed to be integrity protecting.
 	// The count-i per radio bearer.
 	// I do not understand why they want one of these for SRB0, since that is defined
 	// as used for CCCH, which is not integrity protected.
-	uint32_t mDlCounti[sIpNumSrbs];	// For SRB0-SRB4.
-	//uint32_t mUlCounti[sIpNumSrbs];// Same for uplink, except we are not going to bother with it.
+	uint32_t mDlCounti[sIpNumSrbs]; // For SRB0-SRB4.
+	// uint32_t mUlCounti[sIpNumSrbs];// Same for uplink, except we are not going to bother with it.
 
-	uint32_t mFresh;	// Yet another random number chosen by RRC.
-	uint32_t mStart;	// 20-bit init value for RRC HFN.
-	public:
+	uint32_t mFresh; // Yet another random number chosen by RRC.
+	uint32_t mStart; // 20-bit init value for RRC HFN.
+public:
 	uint32_t getStart() { return mStart; }
 	uint32_t getFresh() { return mFresh; }
 
@@ -60,17 +60,19 @@ class IntegrityProtect
 	unsigned getDlRrcSn(unsigned rbid) { return 0xf & mDlCounti[rbid]; }
 	void advanceDlRrcSn(unsigned rbid) { mDlCounti[rbid]++; }
 
-	void initIntegrity() {
+	void initIntegrity()
+	{
 		for (int rbid = 0; rbid < sIpNumSrbs; rbid++) {
 			// 33.102 6.5.4.1 COUNT-I initialized from START as follows:
 			mDlCounti[rbid] = (mStart << 12) & 0x0FFFFF000;
 		}
 	}
-	void updateStartValue(uint32_t newStart) {
+	void updateStartValue(uint32_t newStart)
+	{
 		mStart = newStart;
-                for (int rbid = 0; rbid < sIpNumSrbs; rbid++) {
-                        mDlCounti[rbid] = (mDlCounti[rbid] & 0x0FFF) | ((mStart << 12) & 0x0FFFFF000);
-                }
+		for (int rbid = 0; rbid < sIpNumSrbs; rbid++) {
+			mDlCounti[rbid] = (mDlCounti[rbid] & 0x0FFF) | ((mStart << 12) & 0x0FFFFF000);
+		}
 	}
 
 	// 13.4.10: Integrity Protection is turned off when entering/leaving RRC Connected Mode, ie, idle mode.
@@ -80,15 +82,22 @@ class IntegrityProtect
 	// that is protected (using the IK from the Kc from a previous Layer3 authentication command) we
 	// are goint to set the integrityStarted variable immediately instead of waiting for the
 	// IntegrityModeComplete from the UE.  TODO: That may not be right, in case we have to rerun something.
-	void integrityStart() { initIntegrity(); mIntegrityStarted = true; }
-	void integrityStop() { mIntegrityStarted = false; }
-	bool isStarted() { return mIntegrityStarted; }	// Is security mode started?
-
-	protected: void _initIntegrityProtect() {
-		mIntegrityStarted = false;	// Not started yet.
-		mStart = 0;	// A fine place to start.
-		mFresh = 1;	// A fine random number.
+	void integrityStart()
+	{
+		initIntegrity();
+		mIntegrityStarted = true;
 	}
-	public: IntegrityProtect() { _initIntegrityProtect(); }
-};
+	void integrityStop() { mIntegrityStarted = false; }
+	bool isStarted() { return mIntegrityStarted; } // Is security mode started?
 
+protected:
+	void _initIntegrityProtect()
+	{
+		mIntegrityStarted = false; // Not started yet.
+		mStart = 0;		   // A fine place to start.
+		mFresh = 1;		   // A fine random number.
+	}
+
+public:
+	IntegrityProtect() { _initIntegrityProtect(); }
+};

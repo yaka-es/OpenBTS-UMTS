@@ -6,7 +6,7 @@
  *
  * Copyright 2011, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
+ * This software is distributed under the terms of the GNU Affero General
  * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
@@ -14,42 +14,59 @@
  * See the LEGAL file in the main directory for details.
  */
 
+#include <CommonLibs/Logger.h>
+
 #include "UMTSTransfer.h"
 #include "URRC.h"
-#include <Logger.h>
-
 
 namespace UMTS {
 
-
-TxBitsBurst::TxBitsBurst(const BitVector& bits, size_t wSF, size_t wCodeIndex, const Time& wTime, bool wRightJustified)
-		:BitVector(bits),mSF(wSF),mCodeIndex(wCodeIndex),mTime(wTime),mRightJustified(wRightJustified)
+TxBitsBurst::TxBitsBurst(const BitVector &bits, size_t wSF, size_t wCodeIndex, const Time &wTime, bool wRightJustified)
+	: BitVector(bits), mSF(wSF), mCodeIndex(wCodeIndex), mTime(wTime), mRightJustified(wRightJustified)
 {
 	mDCH = false;
-	assert(size()/2 <= gSlotLen/wSF); 
+	assert(size() / 2 <= gSlotLen / wSF);
 	mLog2SF = 0;
-	while (wSF > 1) {mLog2SF++; wSF = wSF >> 1;}
+	while (wSF > 1) {
+		mLog2SF++;
+		wSF = wSF >> 1;
+	}
 	mAICH = false;
 }
 
-std::ostream& TxBitsBurst::text(std::ostream&os) const
+std::ostream &TxBitsBurst::text(std::ostream &os) const
 {
-	os <<LOGVAR(mTime) <<LOGVAR(mSF) <<LOGVAR(mLog2SF) <<LOGVAR(mCodeIndex) <<LOGVAR(mRightJustified) <<" ";
+	os << LOGVAR(mTime) << LOGVAR(mSF) << LOGVAR(mLog2SF) << LOGVAR(mCodeIndex) << LOGVAR(mRightJustified) << " ";
 	textBitVector(os);
 	return os;
 }
 
-void TransportBlock::text(std::ostream&os) const
+void TransportBlock::text(std::ostream &os) const
 {
-	os <<LOGVARM(mTime) <<LOGVARM(mScheduled) <<LOGVARM(mDescr) <<" ";
+	os << LOGVARM(mTime) << LOGVARM(mScheduled) << LOGVARM(mDescr) << " ";
 	textBitVector(os);
 };
 
-std::ostream& operator<<(std::ostream& os, const TxBitsBurst&tbb) { tbb.text(os); return os;}
-std::ostream& operator<<(std::ostream& os, const TxBitsBurst*ptbb) { ptbb->text(os); return os; }
-std::ostream& operator<<(std::ostream& os, const TransportBlock&tbb) { tbb.text(os); return os; }
-std::ostream& operator<<(std::ostream& os, const TransportBlock*ptbb) { ptbb->text(os); return os; }
-
+std::ostream &operator<<(std::ostream &os, const TxBitsBurst &tbb)
+{
+	tbb.text(os);
+	return os;
+}
+std::ostream &operator<<(std::ostream &os, const TxBitsBurst *ptbb)
+{
+	ptbb->text(os);
+	return os;
+}
+std::ostream &operator<<(std::ostream &os, const TransportBlock &tbb)
+{
+	tbb.text(os);
+	return os;
+}
+std::ostream &operator<<(std::ostream &os, const TransportBlock *ptbb)
+{
+	ptbb->text(os);
+	return os;
+}
 
 #if 0
 size_t MACPDU::UEIdSize() const
@@ -82,7 +99,6 @@ size_t FACH_MACPDU::TCTFSize() const
 }
 #endif
 
-
 #if 0
 size_t DataRLCPDU::LILen() const
 {
@@ -106,4 +122,4 @@ unsigned DataRLCPDU::LI() const
 }
 #endif
 
-};
+}; // namespace UMTS

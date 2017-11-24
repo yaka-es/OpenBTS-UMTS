@@ -1,12 +1,12 @@
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2010 Kestrel Signal Processing, Inc.
  * Copyright 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
@@ -26,115 +26,93 @@ namespace GSM {
 /** GSM 03.41 9.3.2.1 */
 class L3SMSCBSerialNumber : public L3ProtocolElement {
 
-	private:
-	unsigned mGS;			///< geographic scope
-	unsigned mMessageCode;		///< code classifying message content
-	unsigned mUpdateNumber;		///< so MS knows to reload this message
+private:
+	unsigned mGS;		///< geographic scope
+	unsigned mMessageCode;  ///< code classifying message content
+	unsigned mUpdateNumber; ///< so MS knows to reload this message
 
-	public:
+public:
+	L3SMSCBSerialNumber(unsigned wGS, unsigned wMessageCode, unsigned wUpdateNumber)
+		: mGS(wGS), mMessageCode(wMessageCode), mUpdateNumber(wUpdateNumber)
+	{
+	}
 
-	L3SMSCBSerialNumber(unsigned wGS, unsigned wMessageCode, unsigned wUpdateNumber):
-		mGS(wGS),
-		mMessageCode(wMessageCode), mUpdateNumber(wUpdateNumber)
-	{ }
+	void parseV(const L3Frame &, size_t &, size_t) { assert(0); }
+	void parseV(const L3Frame &, size_t &) { assert(0); }
 
-	void parseV(const L3Frame&, size_t&, size_t) { assert(0); }
-	void parseV(const L3Frame&, size_t&) { assert(0); }
-
-	void writeV(L3Frame&, size_t&) const;
+	void writeV(L3Frame &, size_t &) const;
 	size_t lengthV() const { return 2; }
-	void text(std::ostream& os) const;
-
+	void text(std::ostream &os) const;
 };
 
 /** GSM 03.41 9.3.2.2 */
 class L3SMSCBMessageIdentifier : public L3ProtocolElement {
 
-	private:
+private:
 	unsigned mValue;
 
-	public:
+public:
+	L3SMSCBMessageIdentifier(unsigned wValue) : mValue(wValue) {}
 
-	L3SMSCBMessageIdentifier(unsigned wValue):
-		mValue(wValue)
-	{ }
+	void parseV(const L3Frame &, size_t &, size_t) { assert(0); }
+	void parseV(const L3Frame &, size_t &) { assert(0); }
 
-	void parseV(const L3Frame&, size_t&, size_t) { assert(0); }
-	void parseV(const L3Frame&, size_t&) { assert(0); }
-
-	void writeV(L3Frame&, size_t&) const;
+	void writeV(L3Frame &, size_t &) const;
 	size_t lengthV() const { return 2; }
-	void text(std::ostream& os) const;
-
+	void text(std::ostream &os) const;
 };
 
 /** GSM 03.41 9.3.2.3 */
 class L3SMSCBDataCodingScheme : public L3ProtocolElement {
 
-	private:
+private:
 	unsigned mValue;
 
-	public:
+public:
+	L3SMSCBDataCodingScheme(unsigned wValue) : mValue(wValue) {}
 
-	L3SMSCBDataCodingScheme(unsigned wValue):
-		mValue(wValue)
-	{ }
+	void parseV(const L3Frame &, size_t &, size_t) { assert(0); }
+	void parseV(const L3Frame &, size_t &) { assert(0); }
 
-	void parseV(const L3Frame&, size_t&, size_t) { assert(0); }
-	void parseV(const L3Frame&, size_t&) { assert(0); }
-
-	void writeV(L3Frame&, size_t&) const;
+	void writeV(L3Frame &, size_t &) const;
 	size_t lengthV() const { return 1; }
-	void text(std::ostream& os) const;
-
+	void text(std::ostream &os) const;
 };
-
 
 /** GSM 03.41 9.3.2.4 */
 class L3SMSCBPageParameter : public L3ProtocolElement {
 
-	private:
+private:
 	unsigned mNumber;
 	unsigned mTotal;
 
-	public:
+public:
+	L3SMSCBPageParameter(unsigned wNumber, unsigned wTotal) : mNumber(wNumber), mTotal(wTotal) {}
 
-	L3SMSCBPageParameter(unsigned wNumber, unsigned wTotal):
-		mNumber(wNumber),mTotal(wTotal)
-	{ }
+	void parseV(const L3Frame &, size_t &, size_t) { assert(0); }
+	void parseV(const L3Frame &, size_t &) { assert(0); }
 
-	void parseV(const L3Frame&, size_t&, size_t) { assert(0); }
-	void parseV(const L3Frame&, size_t&) { assert(0); }
-
-	void writeV(L3Frame&, size_t&) const;
+	void writeV(L3Frame &, size_t &) const;
 	size_t lengthV() const { return 1; }
-	void text(std::ostream& os) const;
-
+	void text(std::ostream &os) const;
 };
-
-
 
 /** GSM 03.41 9.3.2.5 */
 class L3SMSCBContent : public L3ProtocolElement {
 
-	private:
-	char mData[82];		///< raw data
+private:
+	char mData[82]; ///< raw data
 
-	public:
+public:
+	L3SMSCBContent(const char *wData) { bcopy(wData, mData, 82); }
 
-	L3SMSCBContent(const char *wData)
-		{ bcopy(wData,mData,82); }
+	void parseV(const L3Frame &, size_t &, size_t) { assert(0); }
+	void parseV(const L3Frame &, size_t &) { assert(0); }
 
-	void parseV(const L3Frame&, size_t&, size_t) { assert(0); }
-	void parseV(const L3Frame&, size_t&) { assert(0); }
-
-	void writeV(L3Frame&, size_t&) const;
+	void writeV(L3Frame &, size_t &) const;
 	size_t lengthV() const { return 82; }
-	void text(std::ostream& os) const;
+	void text(std::ostream &os) const;
 };
-
-
-
 
 /**
 	L3 definition of the SMSCB message.
@@ -144,36 +122,27 @@ class L3SMSCBContent : public L3ProtocolElement {
 */
 class L3SMSCBMessage {
 
-	private:
+private:
 	L3SMSCBSerialNumber mSerialNumber;
 	L3SMSCBMessageIdentifier mMessageIdentifier;
 	L3SMSCBDataCodingScheme mDataCodingScheme;
 	L3SMSCBPageParameter mPageParameter;
 	L3SMSCBContent mContent;
 
-	public:
-	L3SMSCBMessage(
-		L3SMSCBSerialNumber wSerialNumber,
-		L3SMSCBMessageIdentifier wMessageIdentifier,
-		L3SMSCBDataCodingScheme wDataCodingScheme,
-		L3SMSCBPageParameter wPageParameter,
-		L3SMSCBContent wContent
-	):
-		mSerialNumber(wSerialNumber),
-		mMessageIdentifier(wMessageIdentifier),
-		mDataCodingScheme(wDataCodingScheme),
-		mPageParameter(wPageParameter),
-		mContent(wContent)
-	{ }
+public:
+	L3SMSCBMessage(L3SMSCBSerialNumber wSerialNumber, L3SMSCBMessageIdentifier wMessageIdentifier,
+		L3SMSCBDataCodingScheme wDataCodingScheme, L3SMSCBPageParameter wPageParameter, L3SMSCBContent wContent)
+		: mSerialNumber(wSerialNumber), mMessageIdentifier(wMessageIdentifier),
+		  mDataCodingScheme(wDataCodingScheme), mPageParameter(wPageParameter), mContent(wContent)
+	{
+	}
 
-	void write(L3Frame&) const;
-	void text(std::ostream&) const;
+	void write(L3Frame &) const;
+	void text(std::ostream &) const;
 };
 
-std::ostream& operator<<(std::ostream&, const L3SMSCBMessage&);
+std::ostream &operator<<(std::ostream &, const L3SMSCBMessage &);
 
-}
+} // namespace GSM
 
 #endif
-
-// vim: ts=4 sw=4

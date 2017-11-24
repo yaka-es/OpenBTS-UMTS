@@ -18,22 +18,19 @@
  */
 
 #include <malloc.h>
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
 
 #ifdef HAVE_SSE3
-#include <xmmintrin.h>
 #include <pmmintrin.h>
+#include <xmmintrin.h>
 
 /* 4-tap SSE complex-real convolution */
-static void sse_conv_real4(float *restrict x,
-			   float *restrict h,
-			   float *restrict y,
-			   int len)
+static void sse_conv_real4(float *restrict x, float *restrict h, float *restrict y, int len)
 {
 	__m128 m0, m1, m2, m3, m4, m5, m6, m7;
 
@@ -64,10 +61,7 @@ static void sse_conv_real4(float *restrict x,
 }
 
 /* 8-tap SSE complex-real convolution */
-static void sse_conv_real8(float *restrict x,
-			   float *restrict h,
-			   float *restrict y,
-			   int len)
+static void sse_conv_real8(float *restrict x, float *restrict h, float *restrict y, int len)
 {
 	__m128 m0, m1, m2, m3, m4, m5, m6, m7, m8, m9;
 
@@ -111,10 +105,7 @@ static void sse_conv_real8(float *restrict x,
 }
 
 /* 12-tap SSE complex-real convolution */
-static void sse_conv_real12(float *restrict x,
-			    float *restrict h,
-			    float *restrict y,
-			    int len)
+static void sse_conv_real12(float *restrict x, float *restrict h, float *restrict y, int len)
 {
 	__m128 m0, m1, m2, m3, m4, m5, m6, m7;
 	__m128 m8, m9, m10, m11, m12, m13, m14;
@@ -158,8 +149,8 @@ static void sse_conv_real12(float *restrict x,
 		m5 = _mm_mul_ps(m9, m14);
 
 		/* Sum and store */
-		m8  = _mm_add_ps(m0, m2);
-		m9  = _mm_add_ps(m1, m3);
+		m8 = _mm_add_ps(m0, m2);
+		m9 = _mm_add_ps(m1, m3);
 		m10 = _mm_add_ps(m8, m4);
 		m11 = _mm_add_ps(m9, m5);
 
@@ -173,10 +164,7 @@ static void sse_conv_real12(float *restrict x,
 }
 
 /* 16-tap SSE complex-real convolution */
-static void sse_conv_real16(float *restrict x,
-			    float *restrict h,
-			    float *restrict y,
-			    int len)
+static void sse_conv_real16(float *restrict x, float *restrict h, float *restrict y, int len)
 {
 	__m128 m0, m1, m2, m3, m4, m5, m6, m7;
 	__m128 m8, m9, m10, m11, m12, m13, m14, m15;
@@ -214,8 +202,8 @@ static void sse_conv_real16(float *restrict x,
 		m2 = _mm_loadu_ps(&x[2 * i + 24]);
 		m3 = _mm_loadu_ps(&x[2 * i + 28]);
 
-		m8  = _mm_shuffle_ps(m0, m1, _MM_SHUFFLE(0, 2, 0, 2));
-		m9  = _mm_shuffle_ps(m0, m1, _MM_SHUFFLE(1, 3, 1, 3));
+		m8 = _mm_shuffle_ps(m0, m1, _MM_SHUFFLE(0, 2, 0, 2));
+		m9 = _mm_shuffle_ps(m0, m1, _MM_SHUFFLE(1, 3, 1, 3));
 		m10 = _mm_shuffle_ps(m2, m3, _MM_SHUFFLE(0, 2, 0, 2));
 		m11 = _mm_shuffle_ps(m2, m3, _MM_SHUFFLE(1, 3, 1, 3));
 
@@ -231,8 +219,8 @@ static void sse_conv_real16(float *restrict x,
 		m7 = _mm_mul_ps(m11, m15);
 
 		/* Sum and store */
-		m8  = _mm_add_ps(m0, m2);
-		m9  = _mm_add_ps(m1, m3);
+		m8 = _mm_add_ps(m0, m2);
+		m9 = _mm_add_ps(m1, m3);
 		m10 = _mm_add_ps(m4, m6);
 		m11 = _mm_add_ps(m5, m7);
 
@@ -248,10 +236,7 @@ static void sse_conv_real16(float *restrict x,
 }
 
 /* 20-tap SSE complex-real convolution */
-static void sse_conv_real20(float *restrict x,
-			    float *restrict h,
-			    float *restrict y,
-			    int len)
+static void sse_conv_real20(float *restrict x, float *restrict h, float *restrict y, int len)
 {
 	__m128 m0, m1, m2, m3, m4, m5, m6, m7;
 	__m128 m8, m9, m11, m12, m13, m14, m15;
@@ -283,12 +268,12 @@ static void sse_conv_real20(float *restrict x,
 		m4 = _mm_loadu_ps(&x[2 * i + 16]);
 		m5 = _mm_loadu_ps(&x[2 * i + 20]);
 
-		m6  = _mm_shuffle_ps(m0, m1, _MM_SHUFFLE(0, 2, 0, 2));
-		m7  = _mm_shuffle_ps(m0, m1, _MM_SHUFFLE(1, 3, 1, 3));
-		m8  = _mm_shuffle_ps(m2, m3, _MM_SHUFFLE(0, 2, 0, 2));
-		m9  = _mm_shuffle_ps(m2, m3, _MM_SHUFFLE(1, 3, 1, 3));
-		m0  = _mm_shuffle_ps(m4, m5, _MM_SHUFFLE(0, 2, 0, 2));
-		m1  = _mm_shuffle_ps(m4, m5, _MM_SHUFFLE(1, 3, 1, 3));
+		m6 = _mm_shuffle_ps(m0, m1, _MM_SHUFFLE(0, 2, 0, 2));
+		m7 = _mm_shuffle_ps(m0, m1, _MM_SHUFFLE(1, 3, 1, 3));
+		m8 = _mm_shuffle_ps(m2, m3, _MM_SHUFFLE(0, 2, 0, 2));
+		m9 = _mm_shuffle_ps(m2, m3, _MM_SHUFFLE(1, 3, 1, 3));
+		m0 = _mm_shuffle_ps(m4, m5, _MM_SHUFFLE(0, 2, 0, 2));
+		m1 = _mm_shuffle_ps(m4, m5, _MM_SHUFFLE(1, 3, 1, 3));
 
 		m2 = _mm_mul_ps(m6, m11);
 		m3 = _mm_mul_ps(m7, m11);
@@ -297,10 +282,10 @@ static void sse_conv_real20(float *restrict x,
 		m6 = _mm_mul_ps(m0, m13);
 		m7 = _mm_mul_ps(m1, m13);
 
-		m0  = _mm_add_ps(m2, m4);
-		m1  = _mm_add_ps(m3, m5);
-		m8  = _mm_add_ps(m0, m6);
-		m9  = _mm_add_ps(m1, m7);
+		m0 = _mm_add_ps(m2, m4);
+		m1 = _mm_add_ps(m3, m5);
+		m8 = _mm_add_ps(m0, m6);
+		m9 = _mm_add_ps(m1, m7);
 
 		/* Multiply-accumulate last 8 taps */
 		m0 = _mm_loadu_ps(&x[2 * i + 24]);
@@ -318,8 +303,8 @@ static void sse_conv_real20(float *restrict x,
 		m2 = _mm_mul_ps(m6, m15);
 		m3 = _mm_mul_ps(m7, m15);
 
-		m4  = _mm_add_ps(m0, m2);
-		m5  = _mm_add_ps(m1, m3);
+		m4 = _mm_add_ps(m0, m2);
+		m5 = _mm_add_ps(m1, m3);
 
 		/* Final sum and store */
 		m0 = _mm_add_ps(m8, m4);
@@ -452,8 +437,8 @@ static void sse_conv_cmplx_8n(float *x, float *h, float *y, int h_len, int len)
 			m2 = _mm_loadu_ps(&x[2 * i + 16 * n + 8]);
 			m3 = _mm_loadu_ps(&x[2 * i + 16 * n + 12]);
 
-			m8  = _mm_shuffle_ps(m0, m1, _MM_SHUFFLE(0, 2, 0, 2));
-			m9  = _mm_shuffle_ps(m0, m1, _MM_SHUFFLE(1, 3, 1, 3));
+			m8 = _mm_shuffle_ps(m0, m1, _MM_SHUFFLE(0, 2, 0, 2));
+			m9 = _mm_shuffle_ps(m0, m1, _MM_SHUFFLE(1, 3, 1, 3));
 			m10 = _mm_shuffle_ps(m2, m3, _MM_SHUFFLE(0, 2, 0, 2));
 			m11 = _mm_shuffle_ps(m2, m3, _MM_SHUFFLE(1, 3, 1, 3));
 
@@ -508,69 +493,52 @@ static void mac_cmplx(float *x, float *h, float *y)
 }
 
 /* Base vector complex-complex multiply and accumulate */
-static void mac_real_vec_n(float *x, float *h, float *y,
-			   int len, int step, int offset)
+static void mac_real_vec_n(float *x, float *h, float *y, int len, int step, int offset)
 {
 	for (int i = offset; i < len; i += step)
 		mac_real(&x[2 * i], &h[2 * i], y);
 }
 
 /* Base vector complex-complex multiply and accumulate */
-static void mac_cmplx_vec_n(float *x, float *h, float *y,
-			    int len, int step, int offset)
+static void mac_cmplx_vec_n(float *x, float *h, float *y, int len, int step, int offset)
 {
 	for (int i = offset; i < len; i += step)
 		mac_cmplx(&x[2 * i], &h[2 * i], y);
 }
 
 /* Base complex-real convolution */
-static int _base_convolve_real(float *x, int x_len,
-			       float *h, int h_len,
-			       float *y, int y_len,
-			       int start, int len,
-			       int step, int offset)
+static int _base_convolve_real(
+	float *x, int x_len, float *h, int h_len, float *y, int y_len, int start, int len, int step, int offset)
 {
 	for (int i = 0; i < len; i++) {
-		mac_real_vec_n(&x[2 * (i - (h_len - 1) + start)],
-			       h,
-			       &y[2 * i], h_len,
-			       step, offset);
+		mac_real_vec_n(&x[2 * (i - (h_len - 1) + start)], h, &y[2 * i], h_len, step, offset);
 	}
 
 	return len;
 }
 
 /* Base complex-complex convolution */
-static int _base_convolve_complex(float *x, int x_len,
-				  float *h, int h_len,
-				  float *y, int y_len,
-				  int start, int len,
-				  int step, int offset)
+static int _base_convolve_complex(
+	float *x, int x_len, float *h, int h_len, float *y, int y_len, int start, int len, int step, int offset)
 {
 	for (int i = 0; i < len; i++) {
-		mac_cmplx_vec_n(&x[2 * (i - (h_len - 1) + start)],
-				h,
-				&y[2 * i],
-				h_len, step, offset);
+		mac_cmplx_vec_n(&x[2 * (i - (h_len - 1) + start)], h, &y[2 * i], h_len, step, offset);
 	}
 
 	return len;
 }
 
 /* Buffer validity checks */
-static int bounds_check(int x_len, int h_len, int y_len,
-			int start, int len, int step)
+static int bounds_check(int x_len, int h_len, int y_len, int start, int len, int step)
 {
-	if ((x_len < 1) || (h_len < 1) ||
-	    (y_len < 1) || (len < 1) || (step < 1)) {
+	if ((x_len < 1) || (h_len < 1) || (y_len < 1) || (len < 1) || (step < 1)) {
 		fprintf(stderr, "Convolve: Invalid input\n");
 		return -1;
 	}
 
 	if ((start + len > x_len) || (len > y_len) || (x_len < h_len)) {
 		fprintf(stderr, "Convolve: Boundary exception\n");
-		fprintf(stderr, "start: %i, len: %i, x: %i, h: %i, y: %i\n",
-				start, len, x_len, h_len, y_len);
+		fprintf(stderr, "start: %i, len: %i, x: %i, h: %i, y: %i\n", start, len, x_len, h_len, y_len);
 		return -1;
 	}
 
@@ -578,11 +546,8 @@ static int bounds_check(int x_len, int h_len, int y_len,
 }
 
 /* API: Aligned complex-real */
-int convolve_real(float *x, int x_len,
-		  float *h, int h_len,
-		  float *y, int y_len,
-		  int start, int len,
-		  int step, int offset)
+int convolve_real(
+	float *x, int x_len, float *h, int h_len, float *y, int y_len, int start, int len, int step, int offset)
 {
 	void (*conv_func)(float *, float *, float *, int) = NULL;
 	void (*conv_func_n)(float *, float *, float *, int, int) = NULL;
@@ -617,27 +582,19 @@ int convolve_real(float *x, int x_len,
 	}
 #endif
 	if (conv_func) {
-		conv_func(&x[2 * (-(h_len - 1) + start)],
-			  h, y, len);
+		conv_func(&x[2 * (-(h_len - 1) + start)], h, y, len);
 	} else if (conv_func_n) {
-		conv_func_n(&x[2 * (-(h_len - 1) + start)],
-			    h, y, h_len, len);
+		conv_func_n(&x[2 * (-(h_len - 1) + start)], h, y, h_len, len);
 	} else {
-		_base_convolve_real(x, x_len,
-				    h, h_len,
-				    y, y_len,
-				    start, len, step, offset);
+		_base_convolve_real(x, x_len, h, h_len, y, y_len, start, len, step, offset);
 	}
 
 	return len;
 }
 
 /* API: Aligned complex-complex */
-int convolve_complex(float *x, int x_len,
-		     float *h, int h_len,
-		     float *y, int y_len,
-		     int start, int len,
-		     int step, int offset)
+int convolve_complex(
+	float *x, int x_len, float *h, int h_len, float *y, int y_len, int start, int len, int step, int offset)
 {
 	void (*conv_func)(float *, float *, float *, int, int) = NULL;
 
@@ -655,52 +612,36 @@ int convolve_complex(float *x, int x_len,
 	}
 #endif
 	if (conv_func) {
-		conv_func(&x[2 * (-(h_len - 1) + start)],
-			  h, y, h_len, len);
+		conv_func(&x[2 * (-(h_len - 1) + start)], h, y, h_len, len);
 	} else {
-		_base_convolve_complex(x, x_len,
-				       h, h_len,
-				       y, y_len,
-				       start, len, step, offset);
+		_base_convolve_complex(x, x_len, h, h_len, y, y_len, start, len, step, offset);
 	}
 
 	return len;
 }
 
 /* API: Non-aligned (no SSE) complex-real */
-int base_convolve_real(float *x, int x_len,
-		       float *h, int h_len,
-		       float *y, int y_len,
-		       int start, int len,
-		       int step, int offset)
+int base_convolve_real(
+	float *x, int x_len, float *h, int h_len, float *y, int y_len, int start, int len, int step, int offset)
 {
 	if (bounds_check(x_len, h_len, y_len, start, len, step) < 0)
 		return -1;
 
 	memset(y, 0, len * 2 * sizeof(float));
 
-	return _base_convolve_real(x, x_len,
-				   h, h_len,
-				   y, y_len,
-				   start, len, step, offset);
+	return _base_convolve_real(x, x_len, h, h_len, y, y_len, start, len, step, offset);
 }
 
 /* API: Non-aligned (no SSE) complex-complex */
-int base_convolve_complex(float *x, int x_len,
-			  float *h, int h_len,
-			  float *y, int y_len,
-			  int start, int len,
-			  int step, int offset)
+int base_convolve_complex(
+	float *x, int x_len, float *h, int h_len, float *y, int y_len, int start, int len, int step, int offset)
 {
 	if (bounds_check(x_len, h_len, y_len, start, len, step) < 0)
 		return -1;
 
 	memset(y, 0, len * 2 * sizeof(float));
 
-	return _base_convolve_complex(x, x_len,
-				      h, h_len,
-				      y, y_len,
-				      start, len, step, offset);
+	return _base_convolve_complex(x, x_len, h, h_len, y, y_len, start, len, step, offset);
 }
 
 /* Aligned filter tap allocation */

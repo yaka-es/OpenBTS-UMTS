@@ -1,13 +1,13 @@
 /**@file Objects for generating UMTS channelization, scrambling and sync codes, from 3GPP 25.213 Sections 4 & 5. */
 
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2011, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
@@ -17,7 +17,8 @@
 #ifndef UMTSCODES_H
 #define UMTSCODES_H
 
-#include <BitVector.h>
+#include <CommonLibs/BitVector.h>
+
 #include "UMTSCommon.h"
 
 namespace UMTS {
@@ -30,24 +31,19 @@ namespace UMTS {
 */
 class OVSFTree {
 
-	protected:
+protected:
+	int8_t **mCodeSets[10]; //< Each point in this array is another array storing a code set.
 
-	int8_t** mCodeSets[10];		//< Each point in this array is another array storing a code set.
-
-
-	public:
-
+public:
 	/** Generate the code tree. */
 	OVSFTree(void);
 
-	//TODO -- We need a proper destructor for this to deallocate the memory.
+	// TODO -- We need a proper destructor for this to deallocate the memory.
 
 	/** Return the OVSF code for the given spreading factor and channel index. */
-	const int8_t* code(unsigned SFI, unsigned index);
+	const int8_t *code(unsigned SFI, unsigned index);
 
-
-	protected:
-
+protected:
 	/** From the code set at SFI-1, generate the code set for SFI. */
 	void branch(unsigned SFI);
 
@@ -57,7 +53,6 @@ class OVSFTree {
 
 extern UMTS::OVSFTree gOVSFTree;
 
-
 /**
   This class provides a global table of Hadamard8 codes.
   This is a singleton; you only need one in the system.
@@ -66,23 +61,19 @@ extern UMTS::OVSFTree gOVSFTree;
 */
 class Hadamard8 {
 
-	protected:
+protected:
+	int8_t **mCodeSets[9]; //< Each point in this array is another array storing a code set.
 
-	int8_t** mCodeSets[9];		//< Each point in this array is another array storing a code set.
-
-
-	public:
-
+public:
 	/** Generate the code tree. */
 	Hadamard8(void);
 
-	//TODO -- We need a proper destructor for this to deallocate the memory.
+	// TODO -- We need a proper destructor for this to deallocate the memory.
 
 	/** Return the H_8 for the given spreading factor and channel index. */
-	const int8_t* code(unsigned index);
+	const int8_t *code(unsigned index);
 
-	protected:
-
+protected:
 	/** From the code set at H_(N-1), generate the code set H_N. */
 	void branch(unsigned dim);
 
@@ -92,43 +83,37 @@ class Hadamard8 {
 
 extern UMTS::Hadamard8 gHadamard8;
 
-
 /**
 	Common scrambling code framework.
 */
 class ScramblingCode {
 
-	protected:
-
+protected:
 	SequenceGenerator32 mXGenerator;
-	unsigned char *mXFBCode;		///< feedback path from LSB
-	unsigned char *mXFFCode;		///< feed-forward path
+	unsigned char *mXFBCode; ///< feedback path from LSB
+	unsigned char *mXFFCode; ///< feed-forward path
 
 	SequenceGenerator32 mYGenerator;
-	unsigned char *mYFBCode;		///< feedback path from LSB
-	unsigned char *mYFFCode;		///< feed-forward path
+	unsigned char *mYFBCode; ///< feedback path from LSB
+	unsigned char *mYFFCode; ///< feed-forward path
 
 	int8_t *mICode;
 	int8_t *mQCode;
 
-	public:
-
+public:
 	ScramblingCode(unsigned xCoeff, unsigned yCoeff, unsigned order, unsigned len = gFrameLen);
 
 	~ScramblingCode();
 
-	const int8_t* ICode() const { return mICode; }
-	const int8_t* QCode() const { return mQCode; }
+	const int8_t *ICode() const { return mICode; }
+	const int8_t *QCode() const { return mQCode; }
 
-	protected:
+protected:
+	void generateXYSubcodes(SequenceGenerator32 &gen, unsigned readMask, unsigned char *codeFB,
+		unsigned char *codeFF, unsigned len = gFrameLen);
 
-	void generateXYSubcodes(SequenceGenerator32& gen, unsigned readMask, unsigned char* codeFB, unsigned char* codeFF, unsigned len = gFrameLen);
-
-	void sumCodes(const unsigned char *codeX, const unsigned char* codeY, int8_t* codeC, unsigned len = gFrameLen);
-
+	void sumCodes(const unsigned char *codeX, const unsigned char *codeY, int8_t *codeC, unsigned len = gFrameLen);
 };
-
-
 
 /**
 	Downlink scrambling codes.
@@ -142,15 +127,9 @@ class ScramblingCode {
 */
 class DownlinkScramblingCode : public ScramblingCode {
 
-	public:
-
+public:
 	DownlinkScramblingCode(unsigned N);
-
 };
-
-
-
-
 
 /**
 	Uplink long scrambling codes.
@@ -164,16 +143,11 @@ class DownlinkScramblingCode : public ScramblingCode {
 */
 class UplinkScramblingCode : public ScramblingCode {
 
-
-	public:
-
+public:
 	UplinkScramblingCode(unsigned N);
 
 	~UplinkScramblingCode();
-
 };
-
-
 
 /**
 	Promary synchronization code.
@@ -181,21 +155,14 @@ class UplinkScramblingCode : public ScramblingCode {
 */
 class PrimarySyncCode {
 
-	protected:
-
+protected:
 	int8_t mCode[256];
 
-	public:
-
+public:
 	PrimarySyncCode();
 
-	const int8_t* code() const { return mCode; }
-
-
+	const int8_t *code() const { return mCode; }
 };
-
-
-
 
 /**
 	Secondary synchronization code.
@@ -204,23 +171,15 @@ class PrimarySyncCode {
 */
 class SecondarySyncCode {
 
-	protected:
-
+protected:
 	int8_t mCode[256];
 
-	public:
-
+public:
 	SecondarySyncCode(unsigned N);
 
-	const int8_t* code() const { return mCode; }
-
-
+	const int8_t *code() const { return mCode; }
 };
 
-
 } // namespace UMTS
-
-
-
 
 #endif

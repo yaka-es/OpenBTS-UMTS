@@ -1,13 +1,13 @@
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2008 Free Software Foundation, Inc.
  * Copyright 2010 Kestrel Signal Processing, Inc.
  * Copyright 2011, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
@@ -17,31 +17,31 @@
 #ifndef SIPENGINE_H
 #define SIPENGINE_H
 
-#include <string>
-#include <sys/time.h>
 #include <sys/types.h>
+#include <sys/time.h>
+
 #include <semaphore.h>
 
+#include <string>
 
-#include <osip2/osip.h>
 #include <ortp/ortp.h>
+#include <osip2/osip.h>
+#undef WARNING
 
-#include <Sockets.h>
-#include <Globals.h>
+#include <CommonLibs/Sockets.h>
+#include <Globals/Globals.h>
 
 using namespace std;
 
 namespace SIP {
 
-
 class SIPInterface;
 
-
-enum SIPState  {
+enum SIPState {
 	NullState,
 	Timeout,
 	Starting,
-	Proceeding,	
+	Proceeding,
 	Ringing,
 	Busy,
 	Connecting,
@@ -53,20 +53,15 @@ enum SIPState  {
 	MessageSubmit
 };
 
+const char *SIPStateString(SIPState s);
+std::ostream &operator<<(std::ostream &os, SIPState s);
 
-const char* SIPStateString(SIPState s);
-std::ostream& operator<<(std::ostream& os, SIPState s);
-
-class SIPEngine 
-{
+class SIPEngine {
 
 public:
-
-	enum Method { SIPRegister =0, SIPUnregister=1 };
+	enum Method { SIPRegister = 0, SIPUnregister = 1 };
 
 private:
-
-
 	/**@name General SIP tags and ids. */
 	//@{
 	std::string mRemoteUsername;
@@ -74,74 +69,73 @@ private:
 	std::string mMyTag;
 	std::string mCallID;
 	std::string mViaBranch;
-	std::string mSIPUsername;	///< our SIP username
-	unsigned  mCSeq;
+	std::string mSIPUsername; ///< our SIP username
+	unsigned mCSeq;
 	/**@name Pre-formed headers. These point into mINVITE. */
 	//@{
-	osip_from_t* mMyToFromHeader;	///< To/From header for us
-	osip_from_t* mRemoteToFromHeader;	///< To/From header for the remote party
-	osip_call_id_t *mCallIDHeader;		///< the call ID header for this transaction
+	osip_from_t *mMyToFromHeader;     ///< To/From header for us
+	osip_from_t *mRemoteToFromHeader; ///< To/From header for the remote party
+	osip_call_id_t *mCallIDHeader;    ///< the call ID header for this transaction
 	//@}
 	//@}
 
 	/**@name SIP UDP parameters */
 	//@{
-	unsigned mSIPPort;			///< our local SIP port
-	std::string mSIPIP;			///< our SIP IP address as seen by the proxy
-	std::string mProxyIP;			///< IP address of the SIP proxy
-	unsigned mProxyPort;			///< UDP port number of the SIP proxy
-	struct ::sockaddr_in mProxyAddr;	///< the ready-to-use UDP address
+	unsigned mSIPPort;		 ///< our local SIP port
+	std::string mSIPIP;		 ///< our SIP IP address as seen by the proxy
+	std::string mProxyIP;		 ///< IP address of the SIP proxy
+	unsigned mProxyPort;		 ///< UDP port number of the SIP proxy
+	struct ::sockaddr_in mProxyAddr; ///< the ready-to-use UDP address
 	//@}
 
 	/**@name Saved SIP messages. */
 	//@{
-	osip_message_t * mINVITE;	///< the INVITE message for this transaction
-	osip_message_t * mLastResponse;	///< the last response received for this transaction
-	osip_message_t * mBYE;		///< the BYE message for this transaction
+	osip_message_t *mINVITE;       ///< the INVITE message for this transaction
+	osip_message_t *mLastResponse; ///< the last response received for this transaction
+	osip_message_t *mBYE;	  ///< the BYE message for this transaction
 	//@}
 
 	/**@name RTP state and parameters. */
 	//@{
 	short mRTPPort;
 	unsigned mCodec;
-	RtpSession * mSession;		///< RTP media session
-	unsigned int mTxTime;		///< RTP transmission timestamp in 8 kHz samples
-	unsigned int mRxTime;		///< RTP receive timestamp in 8 kHz samples
+	RtpSession *mSession; ///< RTP media session
+	unsigned int mTxTime; ///< RTP transmission timestamp in 8 kHz samples
+	unsigned int mRxTime; ///< RTP receive timestamp in 8 kHz samples
 	//@}
 
-	SIPState mState;			///< current SIP call state
+	SIPState mState; ///< current SIP call state
 
 	/**@name RFC-2833 DTMF state. */
 	//@{
-	char mDTMF;					///< current DTMF digit, \0 if none
-	unsigned mDTMFDuration;		///< duration of DTMF event so far
-	unsigned mDTMFStartTime;	///< start time of the DTMF key event
-	//@}
+	char mDTMF;		 ///< current DTMF digit, \0 if none
+	unsigned mDTMFDuration;  ///< duration of DTMF event so far
+	unsigned mDTMFStartTime; ///< start time of the DTMF key event
+				 //@}
 
 public:
-
 	/**
 		Default constructor. Initialize the object.
 		@param proxy <host>:<port>
 	*/
-	SIPEngine(const char* proxy, const char* IMSI=NULL);
+	SIPEngine(const char *proxy, const char *IMSI = NULL);
 
 	/** Destroy held message copies. */
 	~SIPEngine();
 
-	const std::string& callID() const { return mCallID; } 
+	const std::string &callID() const { return mCallID; }
 
-	const std::string& proxyIP() const { return mProxyIP; }
+	const std::string &proxyIP() const { return mProxyIP; }
 	unsigned proxyPort() const { return mProxyPort; }
 
 	/** Return the current SIP call state. */
 	SIPState state() const { return mState; }
 
 	/** Set the user to IMSI<IMSI> and generate a call ID; for mobile-originated transactions. */
-	void user( const char * IMSI );
+	void user(const char *IMSI);
 
 	/** Set the use to IMSI<IMSI> and set the other SIP call parameters; for network-originated transactions. */
-	void user( const char * wCallID, const char * IMSI , const char *origID, const char *origHost);
+	void user(const char *wCallID, const char *IMSI, const char *origID, const char *origHost);
 
 	/**@name Messages for SIP registration. */
 	//@{
@@ -151,7 +145,8 @@ public:
 		Can throw SIPTimeout().
 		@return True on success.
 	*/
-	bool Register(Method wMethod=SIPRegister, string *RAND = NULL, const char *IMSI = NULL, const char *SRES = NULL);	
+	bool Register(
+		Method wMethod = SIPRegister, string *RAND = NULL, const char *IMSI = NULL, const char *SRES = NULL);
 
 	/**
 		Send sip unregister and look at return msg.
@@ -162,8 +157,6 @@ public:
 
 	//@}
 
-
-	
 	/**@name Messages associated with MOC procedure. */
 	//@{
 
@@ -175,8 +168,7 @@ public:
 		@param codec Code for codec to be used.
 		@return New SIP call state.
 	*/
-	SIPState MOCSendINVITE(const char * calledUser,
-		const char * calledDomain, short rtpPort, unsigned codec);
+	SIPState MOCSendINVITE(const char *calledUser, const char *calledDomain, short rtpPort, unsigned codec);
 
 	SIPState MOCResendINVITE();
 
@@ -196,16 +188,14 @@ public:
 		@param messageText MESSAGE payload as a C string.
 		@return New SIP call state.
 	*/
-	SIPState MOSMSSendMESSAGE(const char * calledUsername,
-		const char * calledDomain, const char *messageText,
-		const char *contentType);
+	SIPState MOSMSSendMESSAGE(
+		const char *calledUsername, const char *calledDomain, const char *messageText, const char *contentType);
 
 	SIPState MOSMSWaitForSubmit();
 
 	SIPState MTSMSSendOK();
 
 	//@}
-
 
 	/**@name Messages associated with MTC procedure. */
 	//@{
@@ -227,8 +217,6 @@ public:
 
 	//@}
 
-
-
 	/**@name Messages for MOD procedure. */
 	//@{
 	SIPState MODSendBYE();
@@ -238,14 +226,12 @@ public:
 	SIPState MODWaitForOK();
 	//@}
 
-
 	/**@name Messages for MTD procedure. */
 	//@{
-	SIPState MTDCheckBYE();	
+	SIPState MTDCheckBYE();
 
 	SIPState MTDSendOK();
 	//@}
-
 
 	/** Set up to start sending RFC2833 DTMF event frames in the RTP stream. */
 	bool startDTMF(char key);
@@ -254,14 +240,14 @@ public:
 	void stopDTMF();
 
 	/** Send a vocoder frame over RTP. */
-	void txFrame(unsigned char* frame);
+	void txFrame(unsigned char *frame);
 
 	/**
 		Receive a vocoder frame over RTP.
 		@param The vocoder frame
 		@return new RTP timestamp
 	*/
-	int  rxFrame(unsigned char* frame);
+	int rxFrame(unsigned char *frame);
 
 	void MOCInitRTP();
 	void MTCInitRTP();
@@ -280,7 +266,6 @@ public:
 
 	//@}
 
-
 	/** Save a copy of an INVITE or MESSAGE message in the engine. */
 	void saveINVITE(const osip_message_t *INVITE, bool mine);
 
@@ -290,20 +275,14 @@ public:
 	/** Save a copy of a BYE message in the engine. */
 	void saveBYE(const osip_message_t *BYE, bool mine);
 
-
-
-	private:
-
+private:
 	/**
 		Initialize the RTP session.
 		@param msg A SIP INVITE or 200 OK wth RTP parameters
 	*/
-	void InitRTP(const osip_message_t * msg );
-
+	void InitRTP(const osip_message_t *msg);
 };
 
-
-}; 
+}; // namespace SIP
 
 #endif // SIPENGINE_H
-// vim: ts=4 sw=4

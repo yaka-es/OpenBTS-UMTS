@@ -1,5 +1,5 @@
 /*
- * Device support for Ettus Research UHD driver 
+ * Device support for Ettus Research UHD driver
  * Written by Tom Tsou <tom@tsou.cc>
  *
  * Copyright 2010-2011 Free Software Foundation, Inc.
@@ -20,18 +20,19 @@
  * See the COPYING file in the main directory for details.
  */
 
-#include <uhd/version.hpp>
 #include <uhd/property_tree.hpp>
-#include <uhd/utils/thread_priority.hpp>
 #include <uhd/utils/msg.hpp>
-
-#include "Threads.h"
-#include "Logger.h"
-#include "UHDDevice.h"
+#include <uhd/utils/thread_priority.hpp>
+#include <uhd/version.hpp>
 
 #ifdef HAVE_CONFIG_H
 #include "config.h"
 #endif
+
+#include <CommonLibs/Logger.h>
+#include <CommonLibs/Threads.h>
+
+#include "UHDDevice.h"
 
 /*
  * Transmit packet synchronization count
@@ -41,7 +42,7 @@
  * of packets to remove from the beginning of a transmit stream so that we get
  * close to an on-time packet arrival.
  */
-#define TX_PACKET_SYNC		30
+#define TX_PACKET_SYNC 30
 
 /*
  * B200/B210 FPGA clocking rate
@@ -51,7 +52,7 @@
  * 3.84 Mcps UMTS rate. This provides a balance of sufficient filtering and
  * device compatibility.
  */
-#define B2XX_CLK_RT		25e6
+#define B2XX_CLK_RT 25e6
 
 /*
  * Device clocking offset limit
@@ -59,10 +60,10 @@
  * Error if the actual device clocking rate differs from the requested rate by
  * more than this limit.
  */
-#define MASTER_CLK_LIMIT	10.0
+#define MASTER_CLK_LIMIT 10.0
 
 /* Timestamped ring buffer size */
-#define SAMPLE_BUF_SZ		(1 << 20)
+#define SAMPLE_BUF_SZ (1 << 20)
 
 struct uhd_dev_offset {
 	enum uhd_dev_type type;
@@ -76,12 +77,12 @@ struct uhd_dev_offset {
  * and accounts for overall group delay digital filters and analog components.
  */
 static struct uhd_dev_offset uhd_offsets[NUM_USRP_TYPES] = {
-	{ USRP1, 0 },
-	{ USRP2, 61 },
-	{ B100,  0 },
-	{ B2XX,  99 },
-	{ X300,  73 },
-	{ UMTRX, 0 },
+	{USRP1, 0},
+	{USRP2, 61},
+	{B100, 0},
+	{B2XX, 99},
+	{X300, 73},
+	{UMTRX, 0},
 };
 
 static int get_dev_offset(enum uhd_dev_type type)
@@ -109,7 +110,7 @@ static void *async_event_loop(UHDDevice *dev)
 	return NULL;
 }
 
-/* 
+/*
  * Catch and drop underrun 'U' and overrun 'O' messages from stdout
  * since we already report using the logging facility. Direct
  * everything else appropriately.
@@ -133,16 +134,14 @@ void uhd_msg_handler(uhd::msg::type_t type, const std::string &msg)
 
 static void thread_enable_cancel(bool cancel)
 {
-	cancel ? pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL) :
-		 pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
+	cancel ? pthread_setcancelstate(PTHREAD_CANCEL_ENABLE, NULL)
+	       : pthread_setcancelstate(PTHREAD_CANCEL_DISABLE, NULL);
 }
 
 UHDDevice::UHDDevice(double rate)
-	: tx_gain_min(0.0), tx_gain_max(0.0),
-	  rx_gain_min(0.0), rx_gain_max(0.0),
-	  tx_rate(rate), rx_rate(rate), tx_freq(0.0), rx_freq(0.0),
-	  started(false), aligned(false), rx_pkt_cnt(0), drop_cnt(0),
-	  prev_ts(0), ts_offset(0), rx_buffer(NULL)
+	: tx_gain_min(0.0), tx_gain_max(0.0), rx_gain_min(0.0), rx_gain_max(0.0), tx_rate(rate), rx_rate(rate),
+	  tx_freq(0.0), rx_freq(0.0), started(false), aligned(false), rx_pkt_cnt(0), drop_cnt(0), prev_ts(0),
+	  ts_offset(0), rx_buffer(NULL)
 {
 }
 
@@ -221,8 +220,7 @@ int UHDDevice::set_rates(double tx_rate, double rx_rate)
 	rx_offset = fabs(this->rx_rate - rx_rate);
 	if ((tx_offset > offset_limit) || (rx_offset > offset_limit)) {
 		LOG(ALERT) << "Actual sample rate differs from desired rate";
-		LOG(ALERT) << "Tx/Rx (" << this->tx_rate << "/"
-			  << this->rx_rate << ")" << std::endl;
+		LOG(ALERT) << "Tx/Rx (" << this->tx_rate << "/" << this->rx_rate << ")" << std::endl;
 		return -1;
 	}
 
@@ -286,8 +284,7 @@ bool UHDDevice::parse_dev_type()
 	}
 
 	tx_window = TX_WINDOW_FIXED;
-	LOG(INFO) << "Using fixed transmit window for "
-		  << dev_str << " " << mboard_str;
+	LOG(INFO) << "Using fixed transmit window for " << dev_str << " " << mboard_str;
 	return true;
 
 nosupport:
@@ -309,7 +306,7 @@ bool UHDDevice::open(const std::string &args, bool extref)
 	LOG(INFO) << "Using discovered UHD device " << dev_addrs[0].to_string();
 	try {
 		usrp_dev = uhd::usrp::multi_usrp::make(dev_addrs[0]);
-	} catch(...) {
+	} catch (...) {
 		LOG(ALERT) << "UHD make failed, device " << dev_addrs[0].to_string();
 		return false;
 	}
@@ -353,8 +350,7 @@ bool UHDDevice::flush_recv(size_t num_pkts)
 	size_t num_smpls, chans = 1;
 	float timeout = 0.5f;
 
-	std::vector<std::vector<short> >
-		pkt_bufs(chans, std::vector<short>(2 * rx_spp));
+	std::vector<std::vector<short>> pkt_bufs(chans, std::vector<short>(2 * rx_spp));
 
 	std::vector<short *> pkt_ptrs;
 	for (size_t i = 0; i < pkt_bufs.size(); i++)
@@ -362,8 +358,7 @@ bool UHDDevice::flush_recv(size_t num_pkts)
 
 	ts_initial = 0;
 	while (!ts_initial || (num_pkts-- > 0)) {
-		num_smpls = rx_stream->recv(pkt_ptrs, rx_spp, md,
-					    timeout, true);
+		num_smpls = rx_stream->recv(pkt_ptrs, rx_spp, md, timeout, true);
 		if (!num_smpls) {
 			switch (md.error_code) {
 			case uhd::rx_metadata_t::ERROR_CODE_TIMEOUT:
@@ -419,7 +414,7 @@ bool UHDDevice::start()
 
 	/* Start asynchronous event (underrun check) loop */
 	async_event_thrd = new Thread();
-	async_event_thrd->start((void * (*)(void*))async_event_loop, (void*) this);
+	async_event_thrd->start((void *(*)(void *))async_event_loop, (void *)this);
 
 	/* Display USRP time */
 	double time_now = usrp_dev->get_time_now().get_real_secs();
@@ -443,8 +438,7 @@ bool UHDDevice::stop()
 		return false;
 	}
 
-	uhd::stream_cmd_t stream_cmd =
-		uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
+	uhd::stream_cmd_t stream_cmd = uhd::stream_cmd_t::STREAM_MODE_STOP_CONTINUOUS;
 
 	usrp_dev->issue_stream_cmd(stream_cmd);
 
@@ -502,8 +496,7 @@ int UHDDevice::check_rx_md_err(uhd::rx_metadata_t &md, ssize_t num_smpls)
 	return 0;
 }
 
-int UHDDevice::readSamples(short *buf, int len, bool *overrun,
-			    long long timestamp, bool *underrun, unsigned *RSSI)
+int UHDDevice::readSamples(short *buf, int len, bool *overrun, long long timestamp, bool *underrun, unsigned *RSSI)
 {
 	ssize_t rc;
 	uhd::time_spec_t timespec;
@@ -530,12 +523,7 @@ int UHDDevice::readSamples(short *buf, int len, bool *overrun,
 	/* Receive samples from the usrp until we have enough */
 	while (rx_buffer->avail_smpls(timestamp) < len) {
 		thread_enable_cancel(false);
-		size_t num_smpls = rx_stream->recv(
-					(void *) pkt_buf,
-					rx_spp,
-					metadata,
-					0.1,
-					true);
+		size_t num_smpls = rx_stream->recv((void *)pkt_buf, rx_spp, metadata, 0.1, true);
 		thread_enable_cancel(true);
 
 		rx_pkt_cnt++;
@@ -552,13 +540,10 @@ int UHDDevice::readSamples(short *buf, int len, bool *overrun,
 			continue;
 		}
 
-
 		timespec = metadata.time_spec;
 		LOG(DEBUG) << "Received timestamp = " << timespec.to_ticks(rx_rate);
 
-		rc = rx_buffer->write(pkt_buf,
-				      num_smpls,
-				      metadata.time_spec);
+		rc = rx_buffer->write(pkt_buf, num_smpls, metadata.time_spec);
 
 		/* Continue on local overrun, exit on other errors */
 		if ((rc < 0)) {
@@ -580,8 +565,7 @@ int UHDDevice::readSamples(short *buf, int len, bool *overrun,
 	return len;
 }
 
-int UHDDevice::writeSamples(short *buf, int len,
-			     bool *underrun, long long ts)
+int UHDDevice::writeSamples(short *buf, int len, bool *underrun, long long ts)
 {
 	uhd::tx_metadata_t metadata;
 	metadata.has_time_spec = true;
@@ -614,7 +598,7 @@ int UHDDevice::writeSamples(short *buf, int len,
 	size_t num_smpls = tx_stream->send(buf, len, metadata);
 	thread_enable_cancel(true);
 
-	if (num_smpls != (unsigned) len) {
+	if (num_smpls != (unsigned)len) {
 		LOG(ALERT) << "UHD: Device send timed out";
 	}
 
@@ -654,7 +638,7 @@ bool UHDDevice::recv_async_msg()
 		aligned = false;
 
 		if ((md.event_code != uhd::async_metadata_t::EVENT_CODE_UNDERFLOW) &&
-		    (md.event_code != uhd::async_metadata_t::EVENT_CODE_TIME_ERROR)) {
+			(md.event_code != uhd::async_metadata_t::EVENT_CODE_TIME_ERROR)) {
 			LOG(ERR) << str_code(md);
 		}
 	}

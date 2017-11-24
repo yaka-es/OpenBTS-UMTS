@@ -1,11 +1,11 @@
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2011, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
@@ -14,69 +14,65 @@
 
 #ifndef SGSNEXPORT_H
 #define SGSNEXPORT_H
+
 #include <string>
-#include <Defines.h>	// For RN_UMTS
-#include "ByteVector.h"
-#include "SgsnBase.h"	// For SmCause
-#include "LinkedLists.h"
-#include "MemoryLeak.h"
+
+#include <Globals/Defines.h> // For RN_UMTS
+
+#include <CommonLibs/ByteVector.h>
+#include <CommonLibs/LinkedLists.h>
+#include <CommonLibs/MemoryLeak.h>
+#include <CommonLibs/Timeval.h>
+
+#include "SgsnBase.h" // For SmCause
 
 namespace SGSN {
 class GmmInfo;
 class SgsnInfo;
 
 // Printing option flags.
-enum PrintOptions {
-	printVerbose = 1,
-	printCaps = 2,
-	printDebug = 4,
-	printNoMsId = 8
-};
+enum PrintOptions { printVerbose = 1, printCaps = 2, printDebug = 4, printNoMsId = 8 };
 
 // 24.008 4.1.3 GMM state machine picture and description.
-class GmmState
-{ 	public:
+class GmmState {
+public:
 	enum state {
-		//GmmNotOurTlli,		// This tlli was not assigned by us.
-		GmmDeregistered,	// Tlli was assigned by us, but not registered yet.
+		// GmmNotOurTlli,		// This tlli was not assigned by us.
+		GmmDeregistered, // Tlli was assigned by us, but not registered yet.
 		GmmRegistrationPending,
-		GmmRegisteredNormal,		// aka "GPRS Attached"
+		GmmRegisteredNormal, // aka "GPRS Attached"
 		GmmRegisteredSuspsended
 	};
 	static const char *GmmState2Name(state);
 };
 
 // A class for downlink messages from the SGSN to GPRS/UMTS.
-struct SgsnDownlinkMsg
-{
-	//enum { } msgType;
-	ByteVector mDlData;	// The PDU itself.
-	std::string mDescr;	// Description of this pdu.
+struct SgsnDownlinkMsg {
+	// enum { } msgType;
+	ByteVector mDlData; // The PDU itself.
+	std::string mDescr; // Description of this pdu.
 	SgsnDownlinkMsg(ByteVector a, std::string wDescr) : mDlData(a), mDescr(wDescr) { RN_MEMCHKNEW(SgsnDownlinkMsg) }
 	// The virtual keyword on a destructor indicates that both the base destructor (this one)
 	virtual ~SgsnDownlinkMsg() { RN_MEMCHKDEL(SgsnDownlinkMsg) }
-	//SgsnDownlinkPdu(SgsnDownlinkPdu&other) { *this = other; }
+	// SgsnDownlinkPdu(SgsnDownlinkPdu&other) { *this = other; }
 };
 
-struct GprsSgsnDownlinkPdu : public SingleLinkListNode, public SgsnDownlinkMsg
-{
-	uint32_t mTlli;		// For gprs: the TLLI of the MS to receive the message.
-						// (In gprs NSAPI is encoded in the LLC message in the data.)
-	uint32_t mAliasTlli;// Another TLLI that the SGSN knows refers to the same MS as the above.
+struct GprsSgsnDownlinkPdu : public SingleLinkListNode, public SgsnDownlinkMsg {
+	uint32_t mTlli;      // For gprs: the TLLI of the MS to receive the message.
+			     // (In gprs NSAPI is encoded in the LLC message in the data.)
+	uint32_t mAliasTlli; // Another TLLI that the SGSN knows refers to the same MS as the above.
 	Timeval mDlTime;
-	bool isKeepAlive() { return false; }	// Is this is a dummy message?
-	unsigned size() { return mDlData.size(); }	// Decl must exactly match SingleLinkListNode
-	GprsSgsnDownlinkPdu(ByteVector a, uint32_t wTlli, uint32_t wAliasTlli, std::string descr) :
-		SgsnDownlinkMsg(a,descr), mTlli(wTlli), mAliasTlli(wAliasTlli)
-		{}
+	bool isKeepAlive() { return false; }       // Is this is a dummy message?
+	unsigned size() { return mDlData.size(); } // Decl must exactly match SingleLinkListNode
+	GprsSgsnDownlinkPdu(ByteVector a, uint32_t wTlli, uint32_t wAliasTlli, std::string descr)
+		: SgsnDownlinkMsg(a, descr), mTlli(wTlli), mAliasTlli(wAliasTlli)
+	{
+	}
 };
 
-struct UmtsSgsnDownlinkPdu : public SgsnDownlinkMsg
-{
-	int mRbid;			// For UMTS, the rbid (if 3..4) or NSAPI if (5..15).
-	UmtsSgsnDownlinkPdu(ByteVector a, int wRbid, std::string descr) :
-		SgsnDownlinkMsg(a,descr), mRbid(wRbid)
-		{}
+struct UmtsSgsnDownlinkPdu : public SgsnDownlinkMsg {
+	int mRbid; // For UMTS, the rbid (if 3..4) or NSAPI if (5..15).
+	UmtsSgsnDownlinkPdu(ByteVector a, int wRbid, std::string descr) : SgsnDownlinkMsg(a, descr), mRbid(wRbid) {}
 };
 
 // This class is inherited by the MSInfo struct in GPRS and the UEInfo struct in UMTS
@@ -99,16 +95,16 @@ class MSUEAdapter {
 	// Methods that begin with 'sgsn' are implemented by the SGSN side.
 	// Methods that begin with 'ms' are implemented by the UMTS RRC or GPRS L2 side.
 
-	public:
+public:
 	// The rbid is used only by UMTS.
-	void sgsnWriteLowSide(ByteVector &payload,uint32_t handle, unsigned rbid=0);
+	void sgsnWriteLowSide(ByteVector &payload, uint32_t handle, unsigned rbid = 0);
 	GmmState::state sgsnGetRegistrationState(uint32_t mshandle);
 	void sgsnPrint(uint32_t mshandle, int options, std::ostream &os);
 	void sgsnFreePdpAll(uint32_t mshandle);
 
-	//MSUEAdapter() {}
+	// MSUEAdapter() {}
 	virtual ~MSUEAdapter() {}
-	virtual std::string msid() const = 0;	// A human readable name for the MS or UE.
+	virtual std::string msid() const = 0; // A human readable name for the MS or UE.
 
 #if RN_UMTS
 	// This is the old interface to GPRS/UMTS; see saWriteHighSide()
@@ -120,7 +116,7 @@ class MSUEAdapter {
 	void sgsnHandleSecurityModeComplete(bool success);
 	// When allocating Pdp Contexts, the Ggsn allocates RABs in the middle
 	// of the procedure, and waits for RRC to respond with this function:
-	void sgsnHandleRabSetupResponse(unsigned RabId,bool success);
+	void sgsnHandleRabSetupResponse(unsigned RabId, bool success);
 	// Deactivate all the rabs specified by rabMask.
 	virtual void msDeactivateRabs(unsigned rabMask) = 0;
 	// This is only externally visible for UMTS because in GPRS we have
@@ -128,16 +124,16 @@ class MSUEAdapter {
 	void sgsnHandleL3Msg(uint32_t handle, ByteVector &msgFrame);
 	// For UMTS only, get the SgsnInfo that goes with this UE.
 	// Only used when called indirectly from RRC so we know the UEInfo still exists.
-    SGSN::SgsnInfo *sgsnGetSgsnInfo();  // Return SgsnInfo for this UE or NULL.
+	SGSN::SgsnInfo *sgsnGetSgsnInfo(); // Return SgsnInfo for this UE or NULL.
 #else
 	// This sends a pdu from the MS/UE to the sgsn.
 	void sgsnSendKeepAlive();
 	int sgsnGetMultislotClass(uint32_t mshandle);
 	bool sgsnGetGeranFeaturePackI(uint32_t mshandle);
 #endif
-	private:
-	virtual uint32_t msGetHandle() = 0;	// return URNTI or TLLI
-	friend std::ostream& operator<<(std::ostream&os,const SgsnInfo*);
+private:
+	virtual uint32_t msGetHandle() = 0; // return URNTI or TLLI
+	friend std::ostream &operator<<(std::ostream &os, const SgsnInfo *);
 };
 
 // This is our information about the allocated channel passed from GPRS or UMTS back to GGSN.
@@ -145,14 +141,14 @@ class MSUEAdapter {
 // are letting the GGSN module handle the QoS.
 struct RabStatus {
 	enum Status { RabIdle, RabFailure, RabPending, RabAllocated, RabDeactPending } mStatus;
-	//Timeval mDeactivateTime;	// If RabFreePending, when to kill it.
+	// Timeval mDeactivateTime;	// If RabFreePending, when to kill it.
 	SmCauseType mFailCode;
-	unsigned mRateDownlink;	// peak KByte/sec downlink of allocated channel
-	unsigned mRateUplink;	// peak KByte/sec uplink of allocated channel
-	RabStatus(): mStatus(RabIdle), mFailCode((SmCauseType)0) {}
-	RabStatus(SmCauseType wFailCode): mStatus(RabFailure), mFailCode(wFailCode) {}
-	RabStatus(Status wStatus,SmCauseType wFailCode): mStatus(wStatus), mFailCode(wFailCode) {}
-	//void scheduleDeactivation() {
+	unsigned mRateDownlink; // peak KByte/sec downlink of allocated channel
+	unsigned mRateUplink;   // peak KByte/sec uplink of allocated channel
+	RabStatus() : mStatus(RabIdle), mFailCode((SmCauseType)0) {}
+	RabStatus(SmCauseType wFailCode) : mStatus(RabFailure), mFailCode(wFailCode) {}
+	RabStatus(Status wStatus, SmCauseType wFailCode) : mStatus(wStatus), mFailCode(wFailCode) {}
+	// void scheduleDeactivation() {
 	//	mStatus = RabDeactPending;
 	//	mDeactivationTime.future(gConfig.getNum("UMTS.Rab.DeactivationDelay",5000));
 	//}
@@ -177,7 +173,7 @@ struct SgsnAdapter {
 
 // This is the external interface to the SGSN.
 struct Sgsn {
-	public:
+public:
 	static bool isUmts() { return SgsnAdapter::isUmts(); }
 
 	// Find the UE/MS in the SGSN database and return the handle, which is
@@ -189,11 +185,11 @@ struct Sgsn {
 
 	static bool handleGprsSuspensionRequest(uint32_t wTlli, const ByteVector &wRaId);
 	static void notifyGsmActivity(const char *imsi);
-//#if RN_UMTS
+	//#if RN_UMTS
 	// FIXME: make this work like gprs
-	//static void sgsnWriteLowSide(ByteVector &payload,SgsnInfo *si, unsigned rbid);	// UMTS only
-//#endif
+	// static void sgsnWriteLowSide(ByteVector &payload,SgsnInfo *si, unsigned rbid);	// UMTS only
+	//#endif
 };
 
-};	// namespace SGSN
+}; // namespace SGSN
 #endif

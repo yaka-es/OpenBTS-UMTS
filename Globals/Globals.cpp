@@ -1,15 +1,15 @@
 /**@file Global system parameters. */
 
 /*
- * OpenBTS provides an open source alternative to legacy telco protocols and 
+ * OpenBTS provides an open source alternative to legacy telco protocols and
  * traditionally complex, proprietary hardware systems.
  *
  * Copyright 2008, 2009, 2010 Free Software Foundation, Inc.
  * Copyright 2010 Kestrel Signal Processing, Inc.
  * Copyright 2011, 2014 Range Networks, Inc.
  *
- * This software is distributed under the terms of the GNU Affero General 
- * Public License version 3. See the COPYING and NOTICE files in the main 
+ * This software is distributed under the terms of the GNU Affero General
+ * Public License version 3. See the COPYING and NOTICE files in the main
  * directory for licensing information.
  *
  * This use of this software may be subject to additional restrictions.
@@ -17,10 +17,12 @@
  */
 
 #include "config.h"
-#include <Globals.h>
-#include <CLI.h>
-#include <TMSITable.h>
-#include <URLEncode.h>
+
+#include <CLI/CLI.h>
+#include <CommonLibs/URLEncode.h>
+#include <Control/TMSITable.h>
+
+#include "Globals.h"
 
 #define PROD_CAT "P"
 
@@ -33,7 +35,8 @@ const char *gOpenWelcome =
 	"Copyright 2008, 2009, 2010 Free Software Foundation, Inc.\n"
 	"Copyright 2010 Kestrel Signal Processing, Inc.\n"
 	"Copyright 2011, 2012, 2013, 2014 Range Networks, Inc.\n"
-	"Release " VERSION " " PROD_CAT " formal build date " TIMESTAMP_ISO " " REPO_REV "\n"
+	"Release " VERSION " " PROD_CAT " formal build date " TIMESTAMP_ISO " " REPO_REV
+	"\n"
 	"\"OpenBTS\" is a trademark of Range Networks, Inc.\n"
 	"\"OpenBTS-UMTS\" is a trademark of Range Networks, Inc.\n"
 	// (pat) Normally this should also say: "All Rights Reserved",
@@ -59,9 +62,6 @@ const char *gOpenWelcome =
 	"including patent licsensing and radio spectrum licensing.\n"
 	"All users of this software are expected to comply with applicable\n"
 	"regulations and laws.  See the LEGAL file in the source code for\n"
-	"more information."
-;
-
+	"more information.";
 
 CommandLine::Parser gParser;
-
