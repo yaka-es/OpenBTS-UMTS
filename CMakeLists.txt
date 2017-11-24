@@ -4,9 +4,13 @@
 
 cmake_minimum_required(VERSION 3.0)
 
-option(CONFIG_LTO "Use link-time optimization" OFF)
-
 project(OpenBTS-UMTS)
+
+option(CONFIG_LTO "Use link-time optimization" OFF)
+option(ORTP_NEW_API "New API of libortp" ON)  # FIXME
+option(USE_UHD "Use UHD transceiver" ON)  # FIXME
+option(USE_UHD_3_9 "Use UHD transceiver (>= v3.9)" ON)  # FIXME
+option(USE_RAD1 "Use RAD1 transceiver" ON)  # FIXME
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
