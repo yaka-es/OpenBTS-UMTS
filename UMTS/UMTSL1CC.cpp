@@ -820,7 +820,7 @@ void L1CCTrChDownlink::l1DownlinkOpen()
 {
 	mTotalBursts = 0;
 	mPrevWriteTime = 0;
-	mNextWriteTime = gNodeB.clock().get();
+	mNextWriteTime = gNodeB->clock().get();
 }
 
 // void L1TrCHFECDecoder::close(bool hardRelease)
@@ -931,7 +931,7 @@ void L1CCTrChDownlink::l1SendFrame2(BitVector &frame, unsigned tfci)
 	BitVector U(mYoutBuf.head(hsize));
 
 	// if (gFecTestMode == 2) {
-	//	gNodeB.mRachFec->decoder()->writeLowSide2(U);
+	//	gNodeB->mRachFec->decoder()->writeLowSide2(U);
 	//	return;
 	//}
 
@@ -1311,7 +1311,7 @@ void L1TrChEncoder::l1FirstDTXInsertion(L1FecProgInfo *fpi, BitVector &g)
 	//	// Jumper around the radio frame segmentation for now.
 	//	// We are assuming it is RACH/FACH for now.
 	//	SoftVector qdebug(q); // Convert to SoftVector.
-	//	gNodeB.mRachFec->decoder()->writeLowSide3(qdebug);
+	//	gNodeB->mRachFec->decoder()->writeLowSide3(qdebug);
 	//	return;
 	//}
 
@@ -1688,9 +1688,9 @@ void L1CCTrChDownlink::l1WaitToSend() const
 	// Block until the NodeB clock catches up to the
 	// mostly recently transmitted burst.
 	// LOG(INFO) << "mPrevWriteTime: " << mPrevWriteTime << ", " << mNextWriteTime;
-	unsigned fnbefore = gNodeB.clock().FN();
-	gNodeB.clock().wait(mPrevWriteTime);
-	unsigned fnafter = gNodeB.clock().FN();
+	unsigned fnbefore = gNodeB->clock().FN();
+	gNodeB->clock().wait(mPrevWriteTime);
+	unsigned fnafter = gNodeB->clock().FN();
 	int diff = FNDelta(fnafter, fnbefore);
 	// It is usual to wait 2 frames since BCH is TTI 20ms.
 	// TODO: Occasionally it waits 3 frames preceded or followed by 1 frame - why?
@@ -1726,7 +1726,7 @@ void BCHFEC::generate()
 #if CANNEDBEACON
 	const TransportBlock *tb = cannedBeaconBlocks[nextWriteTime().FN() >> 1];
 #else
-	const TransportBlock *tb = gNodeB.getTxSIB(nextWriteTime().FN());
+	const TransportBlock *tb = gNodeB->getTxSIB(nextWriteTime().FN());
 #endif
 	writeHighSide(*tb);
 }

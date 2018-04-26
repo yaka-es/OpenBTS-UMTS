@@ -673,14 +673,14 @@ bool RadioModem::detectRACHPreamble(signalVector &wBurst, UMTS::Time wTime, floa
 				// to priority queue for next available timestamp.
 				UMTS::Time mAICHResponseTime = wTime;
 
-				while (mAICHResponseTime < gNodeB.clock().get() + UMTS::Time(1, 9)) {
+				while (mAICHResponseTime < gNodeB->clock().get() + UMTS::Time(1, 9)) {
 					mAICHResponseTime = mAICHResponseTime + UMTS::Time(1, 9); // 12 access slots
 				}
 				// mAICHResponseTime = mAICHResponseTime + UMTS::Time(1,9);
 				LOG(INFO) << "Insert AICH" << LOGVAR(SNR) << LOGVAR(TOA) << " at " << mAICHResponseTime
 					  << " and " << mAICHResponseTime + UMTS::Time(0, 1)
 					  << ", last transmit: " << mLastTransmitTime
-					  << ", now: " << gNodeB.clock().get() << "rcvTime: " << cpTime;
+					  << ", now: " << gNodeB->clock().get() << "rcvTime: " << cpTime;
 				bool dummy;
 				Time uselessTime;
 				TxBitsBurst *out1 = new TxBitsBurst(gAICHSignatures[j].segment(0, 20), 256,
@@ -775,7 +775,7 @@ bool RadioModem::decodeRACHMessage(signalVector &wBurst, UMTS::Time wTime, float
 	signalVector *despreadRACHData =
 		despread(descrambledRACHFrame, gOVSFTree.code(sfLog2, sfIndex), (1 << sfLog2), false);
 
-	// Where to send these results? the FEC is at gNodeB.mRachFec
+	// Where to send these results? the FEC is at gNodeB->mRachFec
 	// FIXME: need to set RSSI
 	unsigned slotSize = despreadRACHData->size() / gFrameSlots;
 	for (unsigned j = 0; j < gFrameSlots; j++) {
@@ -792,7 +792,7 @@ bool RadioModem::decodeRACHMessage(signalVector &wBurst, UMTS::Time wTime, float
 		RxBitsBurst dataBurst(sfLog2, dataBits, slotTime, TOA, 0);
 		dataBurst.mTfciBits[0] = RACHTFCI[0 + 2 * j];
 		dataBurst.mTfciBits[1] = RACHTFCI[1 + 2 * j];
-		gNodeB.mRachFec->l1WriteLowSide(dataBurst);
+		gNodeB->mRachFec->l1WriteLowSide(dataBurst);
 	}
 
 	delete despreadRACHData;
@@ -1184,7 +1184,7 @@ void RadioModem::transmitSlot(UMTS::Time nowTime, bool &underrun)
 	delete[] buffer;
 
 	mLastTransmitTime = nowTime;
-	// LOG(INFO) << LOGVAR(mLastTransmitTime) <<LOGVAR2("clock.FN",gNodeB.clock().FN());
+	// LOG(INFO) << LOGVAR(mLastTransmitTime) <<LOGVAR2("clock.FN",gNodeB->clock().FN());
 }
 
 void RadioModem::addBurst(TxBitsBurst *wBurst, bool &underrun, Time &updateTime)

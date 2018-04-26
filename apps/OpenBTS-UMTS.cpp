@@ -55,22 +55,22 @@ const char *gDateTime = __DATE__ " " __TIME__;
 
 // Configure the BTS object based on the config file.
 // So don't create this until AFTER loading the config file.
-UMTSConfig gNodeB;
+UMTSConfig *gNodeB;
 
 // Our interface to the software-defined radio.
-TransceiverManager gTRX; // init below with TransceiverManagerInit()
+TransceiverManager *gTRX; // init below with TransceiverManagerInit()
 
 // The TMSI Table.
-Control::TMSITable gTMSITable(gConfig.getStr("Control.Reporting.TMSITable").c_str());
+Control::TMSITable *gTMSITable;
 
 // The transaction table.
-Control::TransactionTable gTransactionTable(gConfig.getStr("Control.Reporting.TransactionTable").c_str());
+Control::TransactionTable *gTransactionTable;
 
 // The global SIPInterface object.
-SIP::SIPInterface gSIPInterface;
+SIP::SIPInterface *gSIPInterface;
 
 /** The remote node manager. */
-NodeManager gNodeManager;
+NodeManager *gNodeManager;
 
 const char *transceiverPath = "./transceiver";
 
@@ -85,7 +85,7 @@ void purgeConfig(void *, int, char const *, char const *, sqlite3_int64)
 	// not from UMTSConfig::start() as you might naively expect.
 	// But I'm leaving both calls to regenerateBeacon intact in case someone changes
 	// the initialization order in here, because it doesnt hurt to do it twice.
-	gNodeB.regenerateBeacon();
+	gNodeB->regenerateBeacon();
 }
 
 void startTransceiver()
@@ -111,6 +111,13 @@ void startTransceiver()
 
 int main(int argc, char *argv[])
 {
+	gNodeB = new UMTSConfig();
+	gTRX = new TransceiverManager();
+	gTMSITable = new Control::TMSITable(gConfig.getStr("Control.Reporting.TMSITable").c_str());
+	gTransactionTable = new Control::TransactionTable(gConfig.getStr("Control.Reporting.TransactionTable").c_str());
+	gSIPInterface = new SIP::SIPInterface();
+	gNodeManager = new NodeManager();
+
 	bool testmode = false;
 
 	// TODO: Properly parse and handle any arguments
@@ -151,7 +158,7 @@ int main(int argc, char *argv[])
 		int trx_port = gConfig.getNum("TRX.Port");
 		int num_arfcns = gConfig.getNum("UMTS.Radio.ARFCNs");
 
-		gTRX.TransceiverManagerInit(num_arfcns, trx_ip.c_str(), trx_port);
+		gTRX->TransceiverManagerInit(num_arfcns, trx_ip.c_str(), trx_port);
 
 		srandom(time(NULL));
 
@@ -167,9 +174,9 @@ int main(int argc, char *argv[])
 
 		COUT("\nStarting the system...");
 
-		ARFCNManager *downstreamRadio = gTRX.ARFCN(0);
+		ARFCNManager *downstreamRadio = gTRX->ARFCN(0);
 
-		gNodeB.init(downstreamRadio); // (pat) Nicer to test the beacon config before starting the transceiver.
+		gNodeB->init(downstreamRadio); // (pat) Nicer to test the beacon config before starting the transceiver.
 
 		// (pat) DEBUG: Run these tests on startup.
 		if (testmode) {
@@ -188,7 +195,7 @@ int main(int argc, char *argv[])
 
 		// Start the SIP interface.
 		LOG(INFO) << "Starting the SIP interface...";
-		gSIPInterface.start();
+		gSIPInterface->start();
 
 		//
 		// Configure the radio.
@@ -198,7 +205,7 @@ int main(int argc, char *argv[])
 
 		// Set up the interface to the radio.
 		// Get a handle to the C0 transceiver interface.
-		ARFCNManager *C0radio = gTRX.ARFCN(0);
+		ARFCNManager *C0radio = gTRX->ARFCN(0);
 
 		// Tuning.
 		// Make sure its off for tuning.
@@ -208,12 +215,12 @@ int main(int argc, char *argv[])
 		// Get the ARFCN list.
 		unsigned C0 = gConfig.getNum("UMTS.Radio.C0");
 		LOG(INFO) << "tuning TRX to UARFCN " << C0;
-		ARFCNManager *radio = gTRX.ARFCN(0);
+		ARFCNManager *radio = gTRX->ARFCN(0);
 		radio->tune(C0);
 
 		// Sleep long enough for the USRP to bootload.
 		LOG(INFO) << "Starting the TRX ...";
-		gTRX.trxStart();
+		gTRX->trxStart();
 
 		// Set maximum expected delay spread.
 		// C0radio->setMaxDelay(gConfig.getNum("UMTS.Radio.MaxExpectedDelaySpread"));
@@ -249,10 +256,10 @@ int main(int argc, char *argv[])
 		// Set up the pager.
 		// Set up paging channels.
 		// HACK -- For now, use a single paging channel, since paging groups are broken.
-		// gNodeB.addPCH(&CCCH2);
+		// gNodeB->addPCH(&CCCH2);
 
 		// Be sure we are not over-reserving.
-		// LOG_ASSERT(gConfig.getNum("UMTS.CCCH.PCH.Reserve")<(int)gNodeB.numAGCHs());
+		// LOG_ASSERT(gConfig.getNum("UMTS.CCCH.PCH.Reserve")<(int)gNodeB->numAGCHs());
 
 		// XXX skip this test
 		// C0radio->readRxPwrCoarse();
@@ -260,7 +267,7 @@ int main(int argc, char *argv[])
 		// OK, now it is safe to start the BTS.
 		LOG(INFO) << "Starting the NodeB ...";
 
-		gNodeB.start(C0radio);
+		gNodeB->start(C0radio);
 
 		/*
 		 * Setup CLI socket
@@ -305,7 +312,7 @@ int main(int argc, char *argv[])
 
 		// gNodeManager.setAppLogicHandler(&nmHandler);
 
-		gNodeManager.start(45070);
+		gNodeManager->start(45070);
 
 		size_t cmd_buffer_size = 4096;
 		char *cmd_buffer = (char *)malloc(cmd_buffer_size);

@@ -181,7 +181,7 @@ public:
 			mRrcRNTI = 0;
 		}
 		*crnti = ueid;
-		unsigned srnc = gNodeB.getSrncId();
+		unsigned srnc = gNodeB->getSrncId();
 		// printf("SRNC=%d ueid=%d\n",srnc,ueid);	// Something is wrong.
 		*urnti = (srnc << 20) | ueid;
 	}

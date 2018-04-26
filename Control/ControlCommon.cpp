@@ -67,7 +67,7 @@ unsigned Control::resolveIMSI(bool sameLAI, GSM::L3MobileIdentity &mobileID, UMT
 
 	// IMSI already?  See if there's a TMSI already, too.
 	if (mobileID.type() == GSM::IMSIType)
-		return gTMSITable.TMSI(mobileID.digits());
+		return gTMSITable->TMSI(mobileID.digits());
 
 	// IMEI?  WTF?!
 	// FIXME -- Should send MM Reject, cause 0x60, "invalid mandatory information".
@@ -79,7 +79,7 @@ unsigned Control::resolveIMSI(bool sameLAI, GSM::L3MobileIdentity &mobileID, UMT
 	unsigned TMSI = mobileID.TMSI();
 	char *IMSI = NULL;
 	if (sameLAI)
-		IMSI = gTMSITable.IMSI(TMSI);
+		IMSI = gTMSITable->IMSI(TMSI);
 	if (IMSI) {
 		// We assigned this TMSI already; the TMSI/IMSI pair is already in the table.
 		mobileID = GSM::L3MobileIdentity(IMSI);
@@ -119,7 +119,7 @@ void Control::resolveIMSI(GSM::L3MobileIdentity &mobileIdentity, UMTS::LogicalCh
 
 	// If we got a TMSI, find the IMSI.
 	if (mobileIdentity.type() == GSM::TMSIType) {
-		char *IMSI = gTMSITable.IMSI(mobileIdentity.TMSI());
+		char *IMSI = gTMSITable->IMSI(mobileIdentity.TMSI());
 		if (IMSI)
 			mobileIdentity = GSM::L3MobileIdentity(IMSI);
 		free(IMSI);

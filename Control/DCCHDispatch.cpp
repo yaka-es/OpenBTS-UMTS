@@ -128,46 +128,46 @@ void Control::DCCHDispatcher()
 			LOG(NOTICE) << "ChannelReadTimeout";
 			// Cause 0x03 means "abnormal release, timer expired".
 			DCCH->send(GSM::L3ChannelRelease(0x03));
-			gTransactionTable.remove(except.transactionID());
+			gTransactionTable->remove(except.transactionID());
 		} catch (UnexpectedPrimitive except) {
 			LOG(NOTICE) << "UnexpectedPrimitive";
 			// Cause 0x62 means "message type not not compatible with protocol state".
 			DCCH->send(GSM::L3ChannelRelease(0x62));
 			if (except.transactionID())
-				gTransactionTable.remove(except.transactionID());
+				gTransactionTable->remove(except.transactionID());
 		} catch (UnexpectedMessage except) {
 			LOG(NOTICE) << "UnexpectedMessage";
 			// Cause 0x62 means "message type not not compatible with protocol state".
 			DCCH->send(GSM::L3ChannelRelease(0x62));
 			if (except.transactionID())
-				gTransactionTable.remove(except.transactionID());
+				gTransactionTable->remove(except.transactionID());
 		} catch (UnsupportedMessage except) {
 			LOG(NOTICE) << "UnsupportedMessage";
 			// Cause 0x61 means "message type not implemented".
 			DCCH->send(GSM::L3ChannelRelease(0x61));
 			if (except.transactionID())
-				gTransactionTable.remove(except.transactionID());
+				gTransactionTable->remove(except.transactionID());
 		} catch (Q931TimerExpired except) {
 			LOG(NOTICE) << "Q.931 T3xx timer expired";
 			// Cause 0x03 means "abnormal release, timer expired".
 			// TODO -- Send diagnostics.
 			DCCH->send(GSM::L3ChannelRelease(0x03));
 			if (except.transactionID())
-				gTransactionTable.remove(except.transactionID());
+				gTransactionTable->remove(except.transactionID());
 		} catch (SIP::SIPTimeout except) {
 			// FIXME -- The transaction ID should be an argument here.
 			LOG(WARNING) << "Uncaught SIPTimeout, will leave a stray transcation";
 			// Cause 0x03 means "abnormal release, timer expired".
 			DCCH->send(GSM::L3ChannelRelease(0x03));
 			if (except.transactionID())
-				gTransactionTable.remove(except.transactionID());
+				gTransactionTable->remove(except.transactionID());
 		} catch (SIP::SIPError except) {
 			// FIXME -- The transaction ID should be an argument here.
 			LOG(WARNING) << "Uncaught SIPError, will leave a stray transcation";
 			// Cause 0x01 means "abnormal release, unspecified".
 			DCCH->send(GSM::L3ChannelRelease(0x01));
 			if (except.transactionID())
-				gTransactionTable.remove(except.transactionID());
+				gTransactionTable->remove(except.transactionID());
 		}
 	}
 }

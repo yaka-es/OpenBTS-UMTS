@@ -321,9 +321,9 @@ MacdTbs::MacdTbs(UEInfo *uep, TfcMap &map) : MacTbs(map.mtfc)
 		unsigned tbSize = tf->getTBSize();
 		for (unsigned tbn = 0; tbn < numTB; tbn++) {
 			RbId rbid = map.mtc[tcid].mChIdMap[tbn];
-			// LOG(INFO) << "ueReadLowSide rb " << rbid << " at time " << gNodeB.clock().get();
+			// LOG(INFO) << "ueReadLowSide rb " << rbid << " at time " << gNodeB->clock().get();
 			ByteVector *vec = uep->ueReadLowSide(rbid);
-			// LOG(INFO) << "ueReadLowSide rb " << rbid << " done at time " << gNodeB.clock().get();
+			// LOG(INFO) << "ueReadLowSide rb " << rbid << " done at time " << gNodeB->clock().get();
 			if (!vec) {
 				continue;
 			}
@@ -541,7 +541,7 @@ MaccBase *MacSwitch::pickFachMac(unsigned urnti)
 
 void MacSimple::sendDownstreamTb(MacTbDl &tb)
 {
-	UMTS::Time now = gNodeB.clock().get(); // (harvind) <<<<< add me
+	UMTS::Time now = gNodeB->clock().get(); // (harvind) <<<<< add me
 	tb.time(now);			       // (harvind) <<<<< add me
 	tb.mScheduled = true;
 	macWriteHighSide(tb); // blocks until sent.  Probably the caller should pull.
@@ -568,20 +568,20 @@ void MacWithTfc::sendDownstreamTbs(MacTbs &tbs)
 	for (TrChId tcid = 0; tcid < numTrCh; tcid++) {
 		LOG(INFO) << "numTb: " << tbs.getNumTb(tcid) << " tcid: " << tcid;
 		unsigned numTb = tbs.getNumTb(tcid);
-		LOG(INFO) << "Sched. Tbs of " << numTb << " for time " << gNodeB.clock().get();
+		LOG(INFO) << "Sched. Tbs of " << numTb << " for time " << gNodeB->clock().get();
 		for (unsigned tbIx = 0; tbIx < numTb; tbIx++) {
 			TransportBlock *tb = tbs.getTB(tbIx, tcid);
-			UMTS::Time now = gNodeB.clock().get(); // (harvind) <<<<< add me
+			UMTS::Time now = gNodeB->clock().get(); // (harvind) <<<<< add me
 			tb->time(now);			       // (harvind) <<<<< add me
 			tb->mScheduled = true;
 			totalTb++;
 		}
 	}
-	// LOG(INFO) << "Sched writing high side at time " << gNodeB.clock().get();
-	tbs.mTime = gNodeB.clock().get();
+	// LOG(INFO) << "Sched writing high side at time " << gNodeB->clock().get();
+	tbs.mTime = gNodeB->clock().get();
 	if (totalTb > 0)
 		mccDownstream->l1WriteHighSide(tbs);
-	// LOG(INFO) << "Sched done at time " << gNodeB.clock().get();
+	// LOG(INFO) << "Sched done at time " << gNodeB->clock().get();
 }
 
 // Get the number of each TB [Transport Block] size that is ready to send.
@@ -884,23 +884,23 @@ bool MacdSimple::flushUE()
 // Send one tbs downstream, and return true if we did.
 bool MacdWithTfc::flushUE()
 {
-	// LOG(INFO) << "flushUE: ueGetState at time " << gNodeB.clock().get();
+	// LOG(INFO) << "flushUE: ueGetState at time " << gNodeB->clock().get();
 	if (mUep->ueGetState() != stCELL_DCH) {
 		return false;
 	} // This is Harvinds idea.
-	// LOG(INFO) << "flushUE: uePullLowSide at time " << gNodeB.clock().get();
+	// LOG(INFO) << "flushUE: uePullLowSide at time " << gNodeB->clock().get();
 	mUep->uePullLowSide(mUep->ueGetTrChConfig()->dl()->getMaxAnyTfSize() / 8);
 	TfcMap map;
-	// LOG(INFO) << "flushUE: findTfcforUe at time " << gNodeB.clock().get();
+	// LOG(INFO) << "flushUE: findTfcforUe at time " << gNodeB->clock().get();
 	if (!findTfcForUe(mUep, &map)) {
 		// No TFC matched the data waiting in UE.
 		// This is bad, because there should have been an option even for no data.
 		LOG(WARNING) << "mac-d: No tfc matched available data in UE";
 		return false;
 	}
-	// LOG(INFO) << "flushUE: Macdtbs at time " << gNodeB.clock().get();
+	// LOG(INFO) << "flushUE: Macdtbs at time " << gNodeB->clock().get();
 	MacdTbs tbs(mUep, map); // This handles the logical channel multiplexing
-				// LOG(INFO) << "flushUE: sendDownstreamTbs at time " << gNodeB.clock().get();
+				// LOG(INFO) << "flushUE: sendDownstreamTbs at time " << gNodeB->clock().get();
 	sendDownstreamTbs(tbs);
 	tbs.clear();
 	return true;
@@ -985,11 +985,11 @@ void *MacSwitch::macServiceLoop(void *arg)
 	UMTS::Time mNextWriteTime;
 	while (1) {
 		// Roll forward to the next write opportunity.
-		// mNextWriteTime = gNodeB.clock().get()+1;
-		// gNodeB.clock().wait(mNextWriteTime);
-		int nowFN = gNodeB.clock().get().FN();
+		// mNextWriteTime = gNodeB->clock().get()+1;
+		// gNodeB->clock().wait(mNextWriteTime);
+		int nowFN = gNodeB->clock().get().FN();
 
-		while (gNodeB.clock().get() <= UMTS::Time(nowFN, 0)) {
+		while (gNodeB->clock().get() <= UMTS::Time(nowFN, 0)) {
 			struct timespec howlong, rem;
 			howlong.tv_sec = 0;
 			// Its not * 1024, its * 1000
@@ -1004,9 +1004,9 @@ void *MacSwitch::macServiceLoop(void *arg)
 		MacEngine *mac;
 		RN_FOR_ALL(MacList_t, gMacSwitch.mMacList, mac)
 		{
-			LOG(DEBUG) << "Service MAC " << mac << " at time " << gNodeB.clock().get();
+			LOG(DEBUG) << "Service MAC " << mac << " at time " << gNodeB->clock().get();
 			mac->macService(nowFN);
-			LOG(DEBUG) << "Service MAC " << mac << " done at time " << gNodeB.clock().get();
+			LOG(DEBUG) << "Service MAC " << mac << " done at time " << gNodeB->clock().get();
 		}
 		gMacSwitch.mMacListLock.unlock();
 	}

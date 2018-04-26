@@ -235,7 +235,7 @@ public:
 /**@addtogroup Globals */
 //@{
 /** A single global UMTSConfig object in the global namespace. */
-extern UMTS::UMTSConfig gNodeB;
+extern UMTS::UMTSConfig *gNodeB;
 //@}
 
 #endif

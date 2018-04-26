@@ -172,7 +172,7 @@ void driveLoop(SIPInterface *);
 /*@addtogroup Globals */
 //@{
 /** A single global SIPInterface in the global namespace. */
-extern SIP::SIPInterface gSIPInterface;
+extern SIP::SIPInterface *gSIPInterface;
 //@}
 
 #endif // SIPINTERFACE_H

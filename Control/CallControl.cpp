@@ -135,7 +135,7 @@ void abortCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH, con
 void abortAndRemoveCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *LCH, const GSM::L3Cause &cause)
 {
 	abortCall(transaction, LCH, cause);
-	gTransactionTable.remove(transaction);
+	gTransactionTable->remove(transaction);
 }
 
 /**
@@ -522,7 +522,7 @@ void callManagementLoop(TransactionEntry *transaction, UMTS::DTCHLogicalChannel 
 	// poll everything until the call is cleared
 	while (!pollInCall(transaction, TCH)) {
 	}
-	gTransactionTable.remove(transaction);
+	gTransactionTable->remove(transaction);
 }
 
 /**
@@ -592,7 +592,7 @@ void Control::MOCStarter(const GSM::L3CMServiceRequest *req, UMTS::DTCHLogicalCh
 	TransactionEntry *transaction = new TransactionEntry(gConfig.getStr("SIP.Proxy.Speech").c_str(), mobileID, LCH,
 		req->serviceType(), L3TI, setup->calledPartyBCDNumber());
 	LOG(DEBUG) << "transaction: " << *transaction;
-	gTransactionTable.add(transaction);
+	gTransactionTable->add(transaction);
 
 	// At this point, we have enough information start the SIP call setup.
 	// We also have a SIP side and a transaction that will need to be
@@ -971,13 +971,13 @@ void Control::TestCall(TransactionEntry *transaction, UMTS::DTCHLogicalChannel *
 	LOG(INFO) << "ending";
 	LCH->send(GSM::L3ChannelRelease());
 	LCH->send(GSM::RELEASE);
-	gTransactionTable.remove(transaction);
+	gTransactionTable->remove(transaction);
 }
 
 void Control::initiateMTTransaction(
 	Control::TransactionEntry *transaction, UMTS::ChannelTypeL3 chanType, unsigned pageTime)
 {
-	gTransactionTable.add(transaction);
+	gTransactionTable->add(transaction);
 	transaction->GSMState(GSM::Paging);
-	gNodeB.pager().addID(transaction->subscriber(), chanType, *transaction, pageTime);
+	gNodeB->pager().addID(transaction->subscriber(), chanType, *transaction, pageTime);
 }

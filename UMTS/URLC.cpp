@@ -650,9 +650,9 @@ URlcPdu *URlcTransAm::getDataPdu()
 	// in "explicit signaling" modes.  If these are TCP packets, it is ok
 	// to just drop them, so that's what we'll do.  Pretty easy:
 	// just ignore the fillPduData returned result.
-	// LOG(INFO) << "fPD time " << gNodeB.clock().get();
+	// LOG(INFO) << "fPD time " << gNodeB->clock().get();
 	fillPduData(result, 2, 0);
-	// LOG(INFO) << "fPD done " << gNodeB.clock().get();
+	// LOG(INFO) << "fPD done " << gNodeB->clock().get();
 	result->setAmSN(mVTS);
 	result->setAmP(0); // Until we know better.
 	RLCLOG("getDataPdu VTS=%d,VTA=%d bytes=%zu header=%s dc=%d sn=%u", (int)mVTS, (int)mVTA, result->sizeBytes(),

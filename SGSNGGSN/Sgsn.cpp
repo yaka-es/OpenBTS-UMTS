@@ -617,7 +617,7 @@ static void sendAuthenticationRequest(SgsnInfo *si, GmmInfo::SecurityState secSt
 	// memcpy(imsi,gmm->mImsi.hexstr().c_str(),len);
 	// imsi[len] = 0;
 	LOG(INFO) << "Looking up Kc for imsi " << IMSI;
-	string Kcs = gTMSITable.getKc(IMSI.c_str());
+	string Kcs = gTMSITable->getKc(IMSI.c_str());
 	if (Kcs.length() <= 1) {
 		SGSNERROR("No Kc found for MS in TMSI table during Attach procedure" << si);
 		// need to do authentication, send authentication request
@@ -635,8 +635,8 @@ static void sendAuthenticationRequest(SgsnInfo *si, GmmInfo::SecurityState secSt
 	}
 	gmm->mSecState = secState;
 	// Stick new UE into TMSI table if its not already there
-	if (!gTMSITable.TMSI(IMSI.c_str()))
-		gTMSITable.assign(IMSI.c_str());
+	if (!gTMSITable->TMSI(IMSI.c_str()))
+		gTMSITable->assign(IMSI.c_str());
 	if (RAND.size() < 2) {
 		// This happens if the IMSI does not exist in the registration database.
 		LOG(NOTICE) << "No registration found for IMSI " << IMSI;
@@ -675,7 +675,7 @@ static void sgsnStartIntegrityProtection(SgsnInfo *si)
 	printf("PDP of %u is %p\n", nsapiMask, pdp);
 	string IMSI = gmm->mImsi.hexstr();
 	LOG(INFO) << "Looking up Kc for imsi " << IMSI;
-	string Kcs = gTMSITable.getKc(IMSI.c_str());
+	string Kcs = gTMSITable->getKc(IMSI.c_str());
 	if (Kcs.length() <= 1) {
 		const char *what = (gmm->mSecState == GmmInfo::SecurityStateAttach) ? "attach procedure"
 										    : "service request procedure";

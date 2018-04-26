@@ -824,7 +824,7 @@ void sendRrcConnectionSetup(UEInfo *uep, ASN::InitialUE_Identity *ueInitialId)
 		memset(&iep->initialUE_Identity, 0, sizeof(ASN::InitialUE_Identity_t));
 	}
 
-	LOG(INFO) << "gNodeB: " << gNodeB.clock().get() << ", SCCPCH: " << result;
+	LOG(INFO) << "gNodeB: " << gNodeB->clock().get() << ", SCCPCH: " << result;
 
 	// TODO: This crashes
 	// ASN_STRUCT_FREE_CONTENTS_ONLY(ASN::asn_DEF_DL_CCCH_Message,&msg);
@@ -1046,7 +1046,7 @@ bool sendRadioBearerSetup(UEInfo *uep, RrcMasterChConfig *masterConfig, PhCh *ph
 		return 1;
 	}
 
-	LOG(INFO) << "gNodeB: " << gNodeB.clock().get() << ", RadioBearerSetup: " << result;
+	LOG(INFO) << "gNodeB: " << gNodeB->clock().get() << ", RadioBearerSetup: " << result;
 
 	// Prepare to receive the reply to this message:
 	UeTransaction(uep, UeTransaction::ttRadioBearerSetup, 1 << rbid, transactionId, stCELL_DCH);

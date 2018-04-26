@@ -215,7 +215,7 @@ void SIPInterface::drive()
 			LOG(INFO) << "storing kc in TMSI table"; // mustn't display kc in log
 			const char *imsi = osip_uri_get_username(msg->to->url);
 			if (imsi && strlen(imsi) > 0) {
-				gTMSITable.putKc(imsi + 4, kc);
+				gTMSITable->putKc(imsi + 4, kc);
 			} else {
 				LOG(ERR) << "can't find imsi to store kc";
 			}
@@ -305,19 +305,19 @@ bool SIPInterface::checkInvite(osip_message_t *msg)
 		if (gConfig.getBool("Control.VEA")) {
 			// Very early assignment.
 			requiredChannel = UMTS::DTCHType;
-			channelAvailable = gNodeB.DTCHAvailable();
+			channelAvailable = gNodeB->DTCHAvailable();
 		} else {
 			// Early assignment
 			requiredChannel = UMTS::DCCHType;
 			// (pat) There is no DCCH for UMTS.  If the UE is registered we can send it messages.
-			channelAvailable = gNodeB.DCCHAvailable() && gNodeB.DTCHAvailable();
+			channelAvailable = gNodeB->DCCHAvailable() && gNodeB->DTCHAvailable();
 		}
 		serviceType = GSM::L3CMServiceType::MobileTerminatedCall;
 		proxy = gConfig.getStr("SIP.Proxy.Speech");
 	} else if (strcmp(method, "MESSAGE") == 0) {
 		// MESSAGE is for MTSMS.
 		requiredChannel = UMTS::DCCHType;
-		channelAvailable = gNodeB.DCCHAvailable();
+		channelAvailable = gNodeB->DCCHAvailable();
 		serviceType = GSM::L3CMServiceType::MobileTerminatedShortMessage;
 		proxy = gConfig.getStr("SIP.Proxy.SMS");
 	} else {
@@ -344,7 +344,7 @@ bool SIPInterface::checkInvite(osip_message_t *msg)
 	}
 
 	// Find any active transaction for this IMSI with an assigned DTCH or DCCH.
-	UMTS::LogicalChannel *chan = gTransactionTable.findChannel(mobileID);
+	UMTS::LogicalChannel *chan = gTransactionTable->findChannel(mobileID);
 	if (chan) {
 		if (chan->DCCH())
 			chan = chan->DCCH();
@@ -352,7 +352,7 @@ bool SIPInterface::checkInvite(osip_message_t *msg)
 
 	// Check SIP map.  Repeated entry?  Page again.
 	if (mSIPMap.map().readNoBlock(callIDNum) != NULL) {
-		TransactionEntry *transaction = gTransactionTable.find(mobileID, callIDNum);
+		TransactionEntry *transaction = gTransactionTable->find(mobileID, callIDNum);
 		// There's a FIFO but no trasnaction record?
 		if (!transaction) {
 			LOG(WARNING) << "repeated INVITE/MESSAGE with no transaction record";
@@ -365,13 +365,13 @@ bool SIPInterface::checkInvite(osip_message_t *msg)
 		// And if no channel is established yet, page again.
 		if (!chan) {
 			LOG(INFO) << "repeated SIP INVITE/MESSAGE, repaging for transaction " << *transaction;
-			gNodeB.pager().addID(mobileID, requiredChannel, *transaction);
+			gNodeB->pager().addID(mobileID, requiredChannel, *transaction);
 		}
 		return false;
 	}
 
 	// So we will need a new channel.
-	// Check gNodeB for channel availability.
+	// Check gNodeB ->or channel availability.
 	if (!chan && !channelAvailable) {
 		// FIXME -- Send 503 "Service Unavailable" response on SIP interface.
 		// Don't forget the retry-after header.
@@ -446,13 +446,13 @@ bool SIPInterface::checkInvite(osip_message_t *msg)
 	}
 
 	LOG(INFO) << "MTC MTSMS make transaction and add to transaction table: " << *transaction;
-	gTransactionTable.add(transaction);
+	gTransactionTable->add(transaction);
 
 	// If there's an existing channel, skip the paging step.
 	if (!chan) {
 		// Add to paging list.
 		LOG(DEBUG) << "MTC MTSMS new SIP invite, initial paging for mobile ID " << mobileID;
-		gNodeB.pager().addID(mobileID, requiredChannel, *transaction);
+		gNodeB->pager().addID(mobileID, requiredChannel, *transaction);
 	} else {
 		// Add a transaction to an existing channel.
 		chan->addTransaction(transaction);

@@ -75,8 +75,8 @@ void TransactionEntry::initTimers()
 TransactionEntry::TransactionEntry(const char *proxy, const GSM::L3MobileIdentity &wSubscriber,
 	UMTS::LogicalChannel *wChannel, const GSM::L3CMServiceType &wService,
 	const GSM::L3CallingPartyBCDNumber &wCalling, GSM::CallState wState, const char *wMessage)
-	: mID(gTransactionTable.newID()), mSubscriber(wSubscriber), mService(wService),
-	  mL3TI(gTMSITable.nextL3TI(wSubscriber.digits())), mCalling(wCalling), mSIP(proxy, mSubscriber.digits()),
+	: mID(gTransactionTable->newID()), mSubscriber(wSubscriber), mService(wService),
+	  mL3TI(gTMSITable->nextL3TI(wSubscriber.digits())), mCalling(wCalling), mSIP(proxy, mSubscriber.digits()),
 	  mGSMState(wState), mNumSQLTries(gConfig.getNum("Control.NumSQLTries")), mChannel(wChannel),
 	  mTerminationRequested(false)
 {
@@ -91,7 +91,7 @@ TransactionEntry::TransactionEntry(const char *proxy, const GSM::L3MobileIdentit
 TransactionEntry::TransactionEntry(const char *proxy, const GSM::L3MobileIdentity &wSubscriber,
 	UMTS::LogicalChannel *wChannel, const GSM::L3CMServiceType &wService, unsigned wL3TI,
 	const GSM::L3CalledPartyBCDNumber &wCalled)
-	: mID(gTransactionTable.newID()), mSubscriber(wSubscriber), mService(wService), mL3TI(wL3TI), mCalled(wCalled),
+	: mID(gTransactionTable->newID()), mSubscriber(wSubscriber), mService(wService), mL3TI(wL3TI), mCalled(wCalled),
 	  mSIP(proxy, mSubscriber.digits()), mGSMState(GSM::MOCInitiated),
 	  mNumSQLTries(gConfig.getNum("Control.NumSQLTries")), mChannel(wChannel), mTerminationRequested(false)
 {
@@ -103,7 +103,7 @@ TransactionEntry::TransactionEntry(const char *proxy, const GSM::L3MobileIdentit
 // Form for SOS transactions.
 TransactionEntry::TransactionEntry(const char *proxy, const GSM::L3MobileIdentity &wSubscriber,
 	UMTS::LogicalChannel *wChannel, const GSM::L3CMServiceType &wService, unsigned wL3TI)
-	: mID(gTransactionTable.newID()), mSubscriber(wSubscriber), mService(wService), mL3TI(wL3TI),
+	: mID(gTransactionTable->newID()), mSubscriber(wSubscriber), mService(wService), mL3TI(wL3TI),
 	  mSIP(proxy, mSubscriber.digits()), mGSMState(GSM::MOCInitiated),
 	  mNumSQLTries(2 * gConfig.getNum("Control.NumSQLTries")), mChannel(wChannel), mTerminationRequested(false)
 {
@@ -114,7 +114,7 @@ TransactionEntry::TransactionEntry(const char *proxy, const GSM::L3MobileIdentit
 // Form for MO-SMS transactions.
 TransactionEntry::TransactionEntry(const char *proxy, const GSM::L3MobileIdentity &wSubscriber,
 	UMTS::LogicalChannel *wChannel, const GSM::L3CalledPartyBCDNumber &wCalled, const char *wMessage)
-	: mID(gTransactionTable.newID()), mSubscriber(wSubscriber), mService(GSM::L3CMServiceType::ShortMessage),
+	: mID(gTransactionTable->newID()), mSubscriber(wSubscriber), mService(GSM::L3CMServiceType::ShortMessage),
 	  mL3TI(7), mCalled(wCalled), mSIP(proxy, mSubscriber.digits()), mGSMState(GSM::SMSSubmitting),
 	  mNumSQLTries(gConfig.getNum("Control.NumSQLTries")), mChannel(wChannel), mTerminationRequested(false)
 {
@@ -129,7 +129,7 @@ TransactionEntry::TransactionEntry(const char *proxy, const GSM::L3MobileIdentit
 // Form for MO-SMS transactions with parallel call.
 TransactionEntry::TransactionEntry(
 	const char *proxy, const GSM::L3MobileIdentity &wSubscriber, UMTS::LogicalChannel *wChannel)
-	: mID(gTransactionTable.newID()), mSubscriber(wSubscriber), mService(GSM::L3CMServiceType::ShortMessage),
+	: mID(gTransactionTable->newID()), mSubscriber(wSubscriber), mService(GSM::L3CMServiceType::ShortMessage),
 	  mL3TI(7), mSIP(proxy, mSubscriber.digits()), mGSMState(GSM::SMSSubmitting),
 	  mNumSQLTries(gConfig.getNum("Control.NumSQLTries")), mChannel(wChannel), mTerminationRequested(false)
 {
@@ -251,11 +251,11 @@ void TransactionEntry::messageType(const char *wContentType)
 void TransactionEntry::runQuery(const char *query) const
 {
 	for (unsigned i = 0; i < mNumSQLTries; i++) {
-		if (sqlite3_command(gTransactionTable.DB(), query))
+		if (sqlite3_command(gTransactionTable->DB(), query))
 			return;
 	}
 	LOG(ALERT) << "transaction table access failed after " << mNumSQLTries << "attempts. query:" << query
-		   << " error: " << sqlite3_errmsg(gTransactionTable.DB());
+		   << " error: " << sqlite3_errmsg(gTransactionTable->DB());
 }
 
 void TransactionEntry::insertIntoDatabase()
@@ -557,7 +557,7 @@ TransactionTable::TransactionTable(const char *path)
 		LOG(ALERT) << "Cannot create Transaction Table";
 	}
 	// Clear any previous entires.
-	if (!sqlite3_command(gTransactionTable.DB(), "DELETE FROM TRANSACTION_TABLE"))
+	if (!sqlite3_command(gTransactionTable->DB(), "DELETE FROM TRANSACTION_TABLE"))
 		LOG(WARNING) << "cannot clear previous transaction table";
 }
 
@@ -604,7 +604,7 @@ TransactionEntry *TransactionTable::find(unsigned key)
 void TransactionTable::innerRemove(TransactionMap::iterator itr)
 {
 	LOG(DEBUG) << "removing transaction: " << *(itr->second);
-	gSIPInterface.removeCall(itr->second->SIPCallID());
+	gSIPInterface->removeCall(itr->second->SIPCallID());
 	delete itr->second;
 	mTable.erase(itr);
 }

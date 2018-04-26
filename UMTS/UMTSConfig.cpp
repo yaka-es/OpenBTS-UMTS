@@ -1449,7 +1449,7 @@ void BeaconConfig::regenerate()
 	ASN_STRUCT_FREE_CONTENTS_ONLY(asn_DEF_SysInfoType7, &mSIB7);
 	memset(&mSIB7, 0, sizeof(mSIB7));
 	mSIB7.modeSpecificInfo.present = SysInfoType7__modeSpecificInfo_PR_fdd;
-	mSIB7.modeSpecificInfo.choice.fdd.ul_Interference = gNodeB.getULInterference();
+	mSIB7.modeSpecificInfo.choice.fdd.ul_Interference = gNodeB->getULInterference();
 	// SIB5 dynamic persistence level list
 	// DynamicPersistenceLevel_t *dpl = (DynamicPersistenceLevel_t*)calloc(1,sizeof(*dpl));
 	//*dpl = gConfig.getNum("UMTS.PRACH.DynamicPersistenceLevel");	// TODO UMTS -- what does this mean?

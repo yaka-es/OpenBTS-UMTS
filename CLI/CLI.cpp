@@ -51,8 +51,8 @@ namespace SGSN {
 extern CommandLine::CLIStatus sgsnCLI(int argc, char **argv, std::ostream &os);
 }; // namespace SGSN
 
-extern TransceiverManager gTRX;
-// extern NodeManager gNodeManager;
+extern TransceiverManager *gTRX;
+// extern NodeManager *gNodeManager;
 
 namespace CommandLine {
 using namespace std;
@@ -295,23 +295,23 @@ static CLIStatus uptime(int argc, char **argv, ostream &os)
 	const char *timestring = ctime(&now);
 	// no endl since ctime includes a "\n" in the string
 	os << "Unix time " << now << ", " << timestring;
-	int seconds = gNodeB.uptime();
+	int seconds = gNodeB->uptime();
 	if (seconds < 120) {
-		os << "uptime " << seconds << " seconds, frame " << gNodeB.time() << endl;
+		os << "uptime " << seconds << " seconds, frame " << gNodeB->time() << endl;
 		return SUCCESS;
 	}
 	float minutes = seconds / 60.0F;
 	if (minutes < 120) {
-		os << "uptime " << minutes << " minutes, frame " << gNodeB.time() << endl;
+		os << "uptime " << minutes << " minutes, frame " << gNodeB->time() << endl;
 		return SUCCESS;
 	}
 	float hours = minutes / 60.0F;
 	if (hours < 48) {
-		os << "uptime " << hours << " hours, frame " << gNodeB.time() << endl;
+		os << "uptime " << hours << " hours, frame " << gNodeB->time() << endl;
 		return SUCCESS;
 	}
 	float days = hours / 24.0F;
-	os << "uptime " << days << " days, frame " << gNodeB.time() << endl;
+	os << "uptime " << days << " days, frame " << gNodeB->time() << endl;
 
 	return SUCCESS;
 }
@@ -354,22 +354,22 @@ static CLIStatus exit_function(int argc, char **argv, ostream &os)
 		wait = atoi(argv[1]);
 
 	if (wait != 0)
-		os << "waiting up to " << wait << " seconds for clearing of " << gNodeB.DTCHActive() << " active calls"
+		os << "waiting up to " << wait << " seconds for clearing of " << gNodeB->DTCHActive() << " active calls"
 		   << endl;
 
 	// Block creation of new channels.
-	gNodeB.hold(true);
+	gNodeB->hold(true);
 	// Wait up to the timeout for active channels to release.
 	time_t finish = time(NULL) + wait;
 	while (time(NULL) < finish) {
-		unsigned load = gNodeB.DTCHActive();
+		unsigned load = gNodeB->DTCHActive();
 		if (load == 0)
 			break;
 		sleep(1);
 	}
 	// bool loads = false;
-	if (gNodeB.DTCHActive() > 0) {
-		LOG(WARNING) << "dropping " << gNodeB.DTCHActive() << " DTCH channels on exit";
+	if (gNodeB->DTCHActive() > 0) {
+		LOG(WARNING) << "dropping " << gNodeB->DTCHActive() << " DTCH channels on exit";
 		// loads = true;
 	}
 	// if (loads) {
@@ -396,7 +396,7 @@ static CLIStatus tmsis(int argc, char** argv, ostream& os)
 	if (argc) return BAD_NUM_ARGS;
 	if (options.count("clear")) {
 		os << "clearing TMSI table" << endl;
-		gTMSITable.tmsiTabClear();
+		gTMSITable->tmsiTabClear();
 		return SUCCESS;
 	}
 	if (options.count("dump")) {
@@ -404,7 +404,7 @@ static CLIStatus tmsis(int argc, char** argv, ostream& os)
 		string filename = options["dump"];
 		os << "dumping TMSI table to " << filename << endl;
 		fileout.open(filename.c_str(), ios::out); // erases existing!
-		gTMSITable.tmsiTabDump(options.count("-l"),fileout);
+		gTMSITable->tmsiTabDump(options.count("-l"),fileout);
 		return SUCCESS;
 		//return dumpTMSIs(filename.c_str());
 	}
@@ -413,14 +413,14 @@ static CLIStatus tmsis(int argc, char** argv, ostream& os)
 		string imsiopt = options["-imsi"];
 		if (tmsiopt.size()) {
 			unsigned tmsi = strtoul(tmsiopt.c_str(),NULL,0);
-			if (gTMSITable.dropTmsi(tmsi)) {
+			if (gTMSITable->dropTmsi(tmsi)) {
 				os << format("Deleted TMSI table entry for 0x%x",tmsi) << endl;
 			} else {
 				os << format("Cound not delete TMSI table entry for 0x%x",tmsi) << endl;
 				return FAILURE;
 			}
 		} else if (imsiopt.size()) {
-			if (gTMSITable.dropImsi(imsiopt.c_str())) {
+			if (gTMSITable->dropImsi(imsiopt.c_str())) {
 				os << format("Deleted TMSI table entry for %s",imsiopt) << endl;
 			} else {
 				os << format("Cound not delete TMSI table entry for %s",imsiopt) << endl;
@@ -434,7 +434,7 @@ static CLIStatus tmsis(int argc, char** argv, ostream& os)
 	}
 	if (options.count("-query")) {
 		string query = options["-query"];
-		if (gTMSITable.runQuery(query.c_str(),0)) {
+		if (gTMSITable->runQuery(query.c_str(),0)) {
 			os << "Query success."<<endl;
 			return SUCCESS;
 		} else {
@@ -442,7 +442,7 @@ static CLIStatus tmsis(int argc, char** argv, ostream& os)
 			return FAILURE;
 		}
 	}
-	gTMSITable.tmsiTabDump(options.count("-l"),os);
+	gTMSITable->tmsiTabDump(options.count("-l"),os);
 	return SUCCESS;
 }
 */
@@ -542,7 +542,7 @@ static CLIStatus cellID(int argc, char **argv, ostream &os)
 		return BAD_VALUE;
 	}
 
-	//	gTMSITable.tmsiTabClear();
+	//	gTMSITable->tmsiTabClear();
 	gConfig.set("UMTS.Identity.MCC", argv[1]);
 	gConfig.set("UMTS.Identity.MNC", argv[2]);
 	gConfig.set("UMTS.Identity.LAC", argv[3]);
@@ -597,7 +597,7 @@ static CLIStatus trxfactory(int argc, char** argv, ostream& os)
 {
 	if (argc!=1) return BAD_NUM_ARGS;
 
-	signed val = gTRX.ARFCN(0)->getFactoryCalibration("sdrsn");
+	signed val = gTRX->ARFCN(0)->getFactoryCalibration("sdrsn");
 	if (val == 0 || val == 65535) {
 		os << "Reading factory calibration not supported on this radio." << endl;
 		return SUCCESS;
@@ -605,10 +605,10 @@ static CLIStatus trxfactory(int argc, char** argv, ostream& os)
 	os << "Factory Information" << endl;
 	os << "  SDR Serial Number = " << val << endl;
 
-	val = gTRX.ARFCN(0)->getFactoryCalibration("rfsn");
+	val = gTRX->ARFCN(0)->getFactoryCalibration("rfsn");
 	os << "  RF Serial Number = " << val << endl;
 
-	val = gTRX.ARFCN(0)->getFactoryCalibration("band");
+	val = gTRX->ARFCN(0)->getFactoryCalibration("band");
 	os << "  UMTS.Radio.Band = ";
 	if (val == 0) {
 		os << "multi-band";
@@ -617,13 +617,13 @@ static CLIStatus trxfactory(int argc, char** argv, ostream& os)
 	}
 	os << endl;
 
-	val = gTRX.ARFCN(0)->getFactoryCalibration("rxgain");
+	val = gTRX->ARFCN(0)->getFactoryCalibration("rxgain");
 	os << "  UMTS.Radio.RxGain = " << val << endl;
 
-	val = gTRX.ARFCN(0)->getFactoryCalibration("txgain");
+	val = gTRX->ARFCN(0)->getFactoryCalibration("txgain");
 	os << "  TRX.TxAttenOffset = " << val << endl;
 
-	val = gTRX.ARFCN(0)->getFactoryCalibration("freq");
+	val = gTRX->ARFCN(0)->getFactoryCalibration("freq");
 	os << "  TRX.RadioFrequencyOffset = " << val << endl;
 
 	return SUCCESS;
@@ -657,7 +657,7 @@ static CLIStatus audit(int argc, char **argv, ostream &os)
 
 	/* TODO : add getFactoryCalibration to TranceiverRAD1
 	// factory calibration warnings
-	signed sdrsn = gTRX.ARFCN(0)->getFactoryCalibration("sdrsn");
+	signed sdrsn = gTRX->ARFCN(0)->getFactoryCalibration("sdrsn");
 	if (sdrsn != 0 && sdrsn != 65535) {
 		string factoryValue;
 		string configValue;
@@ -665,7 +665,7 @@ static CLIStatus audit(int argc, char **argv, ostream &os)
 		factoryValue = gConfig.mSchema["UMTS.Radio.Band"].getDefaultValue();
 		configValue = gConfig.getStr("UMTS.Radio.Band");
 		// only warn on band changes if the unit is not multi-band
-		if (gTRX.ARFCN(0)->getFactoryCalibration("band") != 0 && configValue.compare(factoryValue) != 0) {
+		if (gTRX->ARFCN(0)->getFactoryCalibration("band") != 0 && configValue.compare(factoryValue) != 0) {
 			ss << "UMTS.Radio.Band \"" << configValue << "\" (\"" << factoryValue << "\")" << endl;
 		}
 
@@ -747,9 +747,9 @@ static CLIStatus audit(int argc, char **argv, ostream &os)
 		ss.str("");
 	}
 
-	/* TODO : gNodeManager
+	/* TODO : *gNodeManager
 	// unapplied values
-	std::map<std::string, std::string> dirtyKeys = gNodeManager.getDirtyConfigurationKeysMap();
+	std::map<std::string, std::string> dirtyKeys = gNodeManager->getDirtyConfigurationKeysMap();
 	std::map<std::string, std::string>::iterator dk = dirtyKeys.begin();
 	while (dk != dirtyKeys.end()) {
 		ss << dk->first << " \"" << gConfig.getStr(dk->first) << "\" (\"" << dk->second << "\")" << endl;
@@ -1091,7 +1091,7 @@ static CLIStatus notices(int argc, char **argv, ostream &os)
 static CLIStatus page(int argc, char **argv, ostream &os)
 {
 	if (argc == 1) {
-		gNodeB.pager().dump(os);
+		gNodeB->pager().dump(os);
 		return SUCCESS;
 	}
 	if (argc != 3)
@@ -1103,7 +1103,7 @@ static CLIStatus page(int argc, char **argv, ostream &os)
 	}
 	Control::TransactionEntry dummy(gConfig.getStr("SIP.Proxy.SMS").c_str(), GSM::L3MobileIdentity(IMSI), NULL,
 		GSM::L3CMServiceType::UndefinedType, GSM::L3CallingPartyBCDNumber("0"), GSM::Paging);
-	gNodeB.pager().addID(GSM::L3MobileIdentity(IMSI), UMTS::DCCHType, dummy, 1000 * atoi(argv[2]));
+	gNodeB->pager().addID(GSM::L3MobileIdentity(IMSI), UMTS::DCCHType, dummy, 1000 * atoi(argv[2]));
 	return SUCCESS;
 }
 
@@ -1112,7 +1112,7 @@ static CLIStatus endcall(int argc, char **argv, ostream &os)
 	if (argc != 2)
 		return BAD_NUM_ARGS;
 	unsigned transID = atoi(argv[1]);
-	Control::TransactionEntry *target = gTransactionTable.find(transID);
+	Control::TransactionEntry *target = gTransactionTable->find(transID);
 	if (!target) {
 		os << transID << " not found in table";
 		return BAD_VALUE;
@@ -1123,7 +1123,7 @@ static CLIStatus endcall(int argc, char **argv, ostream &os)
 
 static CLIStatus power(int argc, char **argv, ostream &os)
 {
-	//	os << "current downlink power " << gNodeB.powerManager().power() << " dB wrt full scale" << endl;
+	//	os << "current downlink power " << gNodeB->powerManager().power() << " dB wrt full scale" << endl;
 	os << "current attenuation bounds " << gConfig.getNum("UMTS.Radio.PowerManager.MinAttenDB") << " to "
 	   << gConfig.getNum("UMTS.Radio.PowerManager.MaxAttenDB") << " dB" << endl;
 
@@ -1173,8 +1173,8 @@ static CLIStatus rxgain(int argc, char **argv, ostream &os)
 		return BAD_VALUE;
 	}
 
-	/* TODO : gTRX.ARFCN(0)->setRxGain
-int newGain = gTRX.ARFCN(0)->setRxGain(atoi(argv[1]));
+	/* TODO : gTRX->ARFCN(0)->setRxGain
+int newGain = gTRX->ARFCN(0)->setRxGain(atoi(argv[1]));
 os << "new RX gain is " << newGain << " dB" << endl;
 
 gConfig.set("UMTS.Radio.RxGain",newGain);
@@ -1197,8 +1197,8 @@ static CLIStatus txatten(int argc, char **argv, ostream &os)
 		return BAD_VALUE;
 	}
 
-	/* TODO : gTRX.ARFCN(0)->setTxAtten
-int newAtten = gTRX.ARFCN(0)->setTxAtten(atoi(argv[1]));
+	/* TODO : gTRX->ARFCN(0)->setTxAtten
+int newAtten = gTRX->ARFCN(0)->setTxAtten(atoi(argv[1]));
 os << "new TX attenuation is " << newAtten << " dB" << endl;
 
 gConfig.set("TRX.TxAttenOffset",newAtten);
@@ -1212,7 +1212,7 @@ static CLIStatus temperature(int argc, char **argv, ostream &os)
 	if (argc != 1)
 		return BAD_NUM_ARGS;
 
-	int temperature = gTRX.ARFCN(0)->getTemperature();
+	int temperature = gTRX->ARFCN(0)->getTemperature();
 
 	os << "temperature is " << temperature << " C" << endl;
 
@@ -1225,7 +1225,7 @@ static CLIStatus noise(int argc, char** argv, ostream& os)
 {
 	if (argc!=1) return BAD_NUM_ARGS;
 
-	int noise = gTRX.ARFCN(0)->getNoiseLevel();
+	int noise = gTRX->ARFCN(0)->getNoiseLevel();
 	os << "noise RSSI is -" << noise << " dB wrt full scale" << endl;
 	os << "MS RSSI target is " << gConfig.getNum("UMTS.Radio.RSSITarget") << " dB wrt full scale" << endl;
 
@@ -1247,7 +1247,7 @@ static CLIStatus freqcorr(int argc, char **argv, ostream &os)
 		return BAD_VALUE;
 	}
 
-	int newOffset = gTRX.ARFCN(0)->setFreqOffset(atoi(argv[1]));
+	int newOffset = gTRX->ARFCN(0)->setFreqOffset(atoi(argv[1]));
 	os << "new freq. offset is " << newOffset << endl;
 
 	gConfig.set("TRX.RadioFrequencyOffset", newOffset);

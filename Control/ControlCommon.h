@@ -183,7 +183,7 @@ public:
 /**@addtogroup Globals */
 //@{
 /** A single global transaction table in the global namespace. */
-extern Control::TransactionTable gTransactionTable;
+extern Control::TransactionTable *gTransactionTable; // FIXME
 //@}
 
 #endif

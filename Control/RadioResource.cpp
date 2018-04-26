@@ -90,7 +90,7 @@ unsigned Pager::pageAll()
 		else {
 			LOG(INFO) << "erasing " << lp->ID();
 			// Non-responsive, dead transaction?
-			gTransactionTable.removePaging(lp->transactionID());
+			gTransactionTable->removePaging(lp->transactionID());
 			// remove from the list
 			lp = mPageIDs.erase(lp);
 		}
@@ -145,7 +145,7 @@ void Pager::serviceLoop()
 		// Wait for pending activity to clear the channel.
 		// TODO UMTS -- Needs to be written for UMTS.
 		// This wait is what causes PCH to have lower priority than AGCH.
-		// unsigned load = gNodeB.getPCH()->load();
+		// unsigned load = gNodeB->getPCH()->load();
 		// LOG(DEBUG) << "Pager waiting for " << load << " multiframes";
 		// if (load) usleep(UMTS::gFrameMicroseconds*load);
 	}

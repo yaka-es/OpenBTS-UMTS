@@ -178,7 +178,7 @@ void TrCHFECEncoder::open()
 {
 	mTotalBursts = 0;
 	mPrevWriteTime = 0;
-	mNextWriteTime = gNodeB.clock().get();
+	mNextWriteTime = gNodeB->clock().get();
 	mActive = true;
 }
 
@@ -261,7 +261,7 @@ void TrCHFECEncoder::sendFrame(BitVector &frame, unsigned tfci)
 
 #if USE_OLD_FEC // This makes assumptions about RACHFEC so does not compile with the new code.
 	if (gFecTestMode == 2) {
-		gNodeB.mRachFec->decoder()->writeLowSide2(U);
+		gNodeB->mRachFec->decoder()->writeLowSide2(U);
 		return;
 	}
 #endif
@@ -729,7 +729,7 @@ void TrCHFECEncoder::writeHighSide(const TransportBlock &tblock)
 		// Jumper around the radio frame segmentation for now.
 		// We are assuming it is RACH/FACH for now.
 		SoftVector qdebug(q); // Convert to SoftVector.
-		gNodeB.mRachFec->decoder()->writeLowSide3(qdebug);
+		gNodeB->mRachFec->decoder()->writeLowSide3(qdebug);
 		return;
 	}
 #endif
@@ -996,8 +996,8 @@ void TrCHFECEncoder::l1WaitToSend() const
 	// mostly recently transmitted burst.
 	// LOG(INFO) << "mPrevWriteTime: " << mPrevWriteTime << ", " << mNextWriteTime;
 	// (pat) TODO: Add Transceiver.mTransmitLatency in here.
-	gNodeB.clock().wait(mPrevWriteTime);
-	// LOG(NOTICE) << "waitToSend "<<when<<" clock="<<gNodeB.clock().FN();
+	gNodeB->clock().wait(mPrevWriteTime);
+	// LOG(NOTICE) << "waitToSend "<<when<<" clock="<<gNodeB->clock().FN();
 }
 
 void TrCHFECEncoderLowRate::encode(BitVector &in, BitVector &c)
@@ -1018,9 +1018,9 @@ void BCHFEC::generate()
 {
 	// printf("BCHFEC::generate\n"); fflush(stdout);
 	l1WaitToSend();
-	const TransportBlock *tb = gNodeB.getTxSIB(nextWriteTime().FN());
+	const TransportBlock *tb = gNodeB->getTxSIB(nextWriteTime().FN());
 	// printf("BCHFEC::generate calling writeHighSide\n"); fflush(stdout);
-	// LOG(NOTICE) << "BCH TB.time="<<tb->time() <<" clock="<<gNodeB.clock().FN() <<" t="<< format("%.2f",timef());
+	// LOG(NOTICE) << "BCH TB.time="<<tb->time() <<" clock="<<gNodeB->clock().FN() <<" t="<< format("%.2f",timef());
 	l1WriteHighSide(*tb);
 }
 

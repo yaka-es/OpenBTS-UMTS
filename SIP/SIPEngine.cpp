@@ -207,7 +207,7 @@ bool SIPEngine::Register(Method wMethod, string *RAND, const char *IMSI, const c
 	LOG(INFO) << "user " << mSIPUsername << " state " << mState << " " << wMethod << " callID " << mCallID;
 
 	// Before start, need to add mCallID
-	gSIPInterface.addCall(mCallID);
+	gSIPInterface->addCall(mCallID);
 
 	// Initial configuration for sip message.
 	// Make a new from tag and new branch.
@@ -229,7 +229,7 @@ bool SIPEngine::Register(Method wMethod, string *RAND, const char *IMSI, const c
 	}
 
 	LOG(DEBUG) << "writing " << reg;
-	gSIPInterface.write(&mProxyAddr, reg);
+	gSIPInterface->write(&mProxyAddr, reg);
 
 	bool success = false;
 	osip_message_t *msg = NULL;
@@ -238,10 +238,10 @@ bool SIPEngine::Register(Method wMethod, string *RAND, const char *IMSI, const c
 		try {
 			// SIPInterface::read will throw SIPTIimeout if it times out.
 			// It should not return NULL.
-			msg = gSIPInterface.read(mCallID, gConfig.getNum("SIP.Timer.E"));
+			msg = gSIPInterface->read(mCallID, gConfig.getNum("SIP.Timer.E"));
 		} catch (SIPTimeout) {
 			// send again
-			gSIPInterface.write(&mProxyAddr, reg);
+			gSIPInterface->write(&mProxyAddr, reg);
 			continue;
 		}
 
@@ -286,7 +286,7 @@ bool SIPEngine::Register(Method wMethod, string *RAND, const char *IMSI, const c
 
 	osip_message_free(reg);
 	osip_message_free(msg);
-	gSIPInterface.removeCall(mCallID);
+	gSIPInterface->removeCall(mCallID);
 	return success;
 }
 
@@ -319,7 +319,7 @@ SIPState SIPEngine::MOCSendINVITE(
 {
 	LOG(INFO) << "user " << mSIPUsername << " state " << mState;
 	// Before start, need to add mCallID
-	gSIPInterface.addCall(mCallID);
+	gSIPInterface->addCall(mCallID);
 
 	// Set Invite params.
 	// new CSEQ and codec
@@ -348,7 +348,7 @@ SIPState SIPEngine::MOCSendINVITE(
 	osip_message_set_header(invite, "P-Access-Network-Info", cgi_3gpp);
 
 	// Send Invite.
-	gSIPInterface.write(&mProxyAddr, invite);
+	gSIPInterface->write(&mProxyAddr, invite);
 	saveINVITE(invite, true);
 	osip_message_free(invite);
 	mState = Starting;
@@ -359,7 +359,7 @@ SIPState SIPEngine::MOCResendINVITE()
 {
 	assert(mINVITE);
 	LOG(INFO) << "user " << mSIPUsername << " state " << mState;
-	gSIPInterface.write(&mProxyAddr, mINVITE);
+	gSIPInterface->write(&mProxyAddr, mINVITE);
 	return mState;
 }
 
@@ -372,7 +372,7 @@ SIPState SIPEngine::MOCWaitForOK()
 	// Read off the fifo. if time out will
 	// clean up and return false.
 	try {
-		msg = gSIPInterface.read(mCallID, gConfig.getNum("SIP.Timer.A"));
+		msg = gSIPInterface->read(mCallID, gConfig.getNum("SIP.Timer.A"));
 	} catch (SIPTimeout &e) {
 		LOG(DEBUG) << "timeout";
 		mState = Timeout;
@@ -428,7 +428,7 @@ SIPState SIPEngine::MOCSendACK()
 		mSIPIP.c_str(), mProxyIP.c_str(), mMyToFromHeader, mRemoteToFromHeader, mViaBranch.c_str(),
 		mCallIDHeader, mCSeq);
 
-	gSIPInterface.write(&mProxyAddr, ack);
+	gSIPInterface->write(&mProxyAddr, ack);
 	osip_message_free(ack);
 
 	return mState;
@@ -447,7 +447,7 @@ SIPState SIPEngine::MODSendBYE()
 		mSIPIP.c_str(), mProxyIP.c_str(), mProxyPort, mMyToFromHeader, mRemoteToFromHeader, mViaBranch.c_str(),
 		mCallIDHeader, mCSeq);
 
-	gSIPInterface.write(&mProxyAddr, bye);
+	gSIPInterface->write(&mProxyAddr, bye);
 	saveBYE(bye, true);
 	osip_message_free(bye);
 	mState = MODClearing;
@@ -459,7 +459,7 @@ SIPState SIPEngine::MODResendBYE()
 	LOG(INFO) << "user " << mSIPUsername << " state " << mState;
 	assert(mState == MODClearing);
 	assert(mBYE);
-	gSIPInterface.write(&mProxyAddr, mBYE);
+	gSIPInterface->write(&mProxyAddr, mBYE);
 	return mState;
 }
 
@@ -470,7 +470,7 @@ SIPState SIPEngine::MODWaitForOK()
 	Timeval byeTimeout(gConfig.getNum("SIP.Timer.F"));
 	while (!byeTimeout.passed()) {
 		try {
-			osip_message_t *ok = gSIPInterface.read(mCallID, gConfig.getNum("SIP.Timer.E"));
+			osip_message_t *ok = gSIPInterface->read(mCallID, gConfig.getNum("SIP.Timer.E"));
 			responded = true;
 			unsigned code = ok->status_code;
 			saveResponse(ok);
@@ -505,7 +505,7 @@ SIPState SIPEngine::MTDCheckBYE()
 	// Need to check size of osip_message_t* fifo,
 	// so need to get fifo pointer and get size.
 	// HACK -- reach deep inside to get damn thing
-	int fifoSize = gSIPInterface.fifoSize(mCallID);
+	int fifoSize = gSIPInterface->fifoSize(mCallID);
 
 	// Size of -1 means the FIFO does not exist.
 	// Treat the call as cleared.
@@ -519,7 +519,7 @@ SIPState SIPEngine::MTDCheckBYE()
 	if (fifoSize == 0)
 		return mState;
 
-	osip_message_t *msg = gSIPInterface.read(mCallID);
+	osip_message_t *msg = gSIPInterface->read(mCallID);
 
 	if ((msg->sip_method != NULL) && (strcmp(msg->sip_method, "BYE") == 0)) {
 		LOG(DEBUG) << "found msg=" << msg->sip_method;
@@ -539,7 +539,7 @@ SIPState SIPEngine::MTDSendOK()
 	LOG(INFO) << "user " << mSIPUsername << " state " << mState;
 	assert(mBYE);
 	osip_message_t *okay = sip_b_okay(mBYE);
-	gSIPInterface.write(&mProxyAddr, okay);
+	gSIPInterface->write(&mProxyAddr, okay);
 	osip_message_free(okay);
 	mState = Cleared;
 	return mState;
@@ -553,7 +553,7 @@ SIPState SIPEngine::MTCSendTrying()
 	if (mState == Fail)
 		return mState;
 	osip_message_t *trying = sip_trying(mINVITE, mSIPUsername.c_str(), mProxyIP.c_str());
-	gSIPInterface.write(&mProxyAddr, trying);
+	gSIPInterface->write(&mProxyAddr, trying);
 	osip_message_free(trying);
 	mState = Proceeding;
 	return mState;
@@ -566,7 +566,7 @@ SIPState SIPEngine::MTCSendRinging()
 
 	LOG(DEBUG) << "send ringing";
 	osip_message_t *ringing = sip_ringing(mINVITE, mSIPUsername.c_str(), mProxyIP.c_str());
-	gSIPInterface.write(&mProxyAddr, ringing);
+	gSIPInterface->write(&mProxyAddr, ringing);
 	osip_message_free(ringing);
 
 	mState = Proceeding;
@@ -582,7 +582,7 @@ SIPState SIPEngine::MTCSendOK(short wRTPPort, unsigned wCodec)
 	LOG(DEBUG) << "port=" << wRTPPort << " codec=" << mCodec;
 	// Form ack from invite and new parameters.
 	osip_message_t *okay = sip_okay(mINVITE, mSIPUsername.c_str(), mSIPIP.c_str(), mSIPPort, mRTPPort, mCodec);
-	gSIPInterface.write(&mProxyAddr, okay);
+	gSIPInterface->write(&mProxyAddr, okay);
 	osip_message_free(okay);
 	mState = Connecting;
 	return mState;
@@ -599,7 +599,7 @@ SIPState SIPEngine::MTCWaitForACK()
 
 	// FIXME -- This is supposed to retransmit BYE on timer I.
 	try {
-		ack = gSIPInterface.read(mCallID, gConfig.getNum("SIP.Timer.H"));
+		ack = gSIPInterface->read(mCallID, gConfig.getNum("SIP.Timer.H"));
 	} catch (SIPTimeout &e) {
 		LOG(NOTICE) << "timeout";
 		mState = Timeout;
@@ -655,7 +655,7 @@ SIPState SIPEngine::MTCCheckForCancel()
 
 	try {
 		// 1 ms timeout, effectively non-blocking
-		msg = gSIPInterface.read(mCallID, 1);
+		msg = gSIPInterface->read(mCallID, 1);
 	} catch (SIPTimeout &e) {
 		return mState;
 	} catch (SIPError &e) {
@@ -812,7 +812,7 @@ SIPState SIPEngine::MOSMSSendMESSAGE(
 	LOG(DEBUG) << "mState=" << mState;
 	LOG(INFO) << "SIP send to " << wCalledUsername << "@" << wCalledDomain << " MESSAGE " << messageText;
 	// Before start, need to add mCallID
-	gSIPInterface.addCall(mCallID);
+	gSIPInterface->addCall(mCallID);
 
 	// Set MESSAGE params.
 	char tmp[50];
@@ -827,7 +827,7 @@ SIPState SIPEngine::MOSMSSendMESSAGE(
 		mProxyIP.c_str(), mMyTag.c_str(), mViaBranch.c_str(), mCallID.c_str(), mCSeq, messageText, contentType);
 
 	// Send Invite to the SIP proxy.
-	gSIPInterface.write(&mProxyAddr, message);
+	gSIPInterface->write(&mProxyAddr, message);
 	saveINVITE(message, true);
 	osip_message_free(message);
 	mState = MessageSubmit;
@@ -839,7 +839,7 @@ SIPState SIPEngine::MOSMSWaitForSubmit()
 	LOG(INFO) << "user " << mSIPUsername << " state " << mState;
 
 	try {
-		osip_message_t *ok = gSIPInterface.read(mCallID, gConfig.getNum("SIP.Timer.A"));
+		osip_message_t *ok = gSIPInterface->read(mCallID, gConfig.getNum("SIP.Timer.A"));
 		// That should never return NULL.
 		assert(ok);
 		if ((ok->status_code == 200) || (ok->status_code == 202)) {
@@ -868,7 +868,7 @@ SIPState SIPEngine::MTSMSSendOK()
 	}
 	// Form ack from invite and new parameters.
 	osip_message_t *okay = sip_okay_SMS(mINVITE, mSIPUsername.c_str(), mSIPIP.c_str(), mSIPPort);
-	gSIPInterface.write(&mProxyAddr, okay);
+	gSIPInterface->write(&mProxyAddr, okay);
 	osip_message_free(okay);
 	mState = Cleared;
 	return mState;
@@ -884,12 +884,12 @@ bool SIPEngine::sendINFOAndWaitForOK(unsigned wInfo)
 	mCSeq++;
 	osip_message_t *info = sip_info(wInfo, mRemoteUsername.c_str(), mRTPPort, mSIPUsername.c_str(), mSIPPort,
 		mSIPIP.c_str(), mProxyIP.c_str(), mMyTag.c_str(), mViaBranch.c_str(), mCallIDHeader, mCSeq);
-	gSIPInterface.write(&mProxyAddr, info);
+	gSIPInterface->write(&mProxyAddr, info);
 	osip_message_free(info);
 
 	try {
 		// This will timeout on failure.  It will not return NULL.
-		osip_message_t *msg = gSIPInterface.read(mCallID, gConfig.getNum("SIP.Timer.A"));
+		osip_message_t *msg = gSIPInterface->read(mCallID, gConfig.getNum("SIP.Timer.A"));
 		LOG(DEBUG) << "received status " << msg->status_code << " " << msg->reason_phrase;
 		bool retVal = (msg->status_code == 200);
 		osip_message_free(msg);

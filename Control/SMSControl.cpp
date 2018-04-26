@@ -171,7 +171,7 @@ void Control::MOSMSController(const GSM::L3CMServiceRequest *req, UMTS::DCCHLogi
 
 	// Create a transaction record.
 	TransactionEntry *transaction = new TransactionEntry(gConfig.getStr("SIP.Proxy.SMS").c_str(), mobileID, LCH);
-	gTransactionTable.add(transaction);
+	gTransactionTable->add(transaction);
 	LOG(DEBUG) << "MOSMS: transaction: " << *transaction;
 
 	// See GSM 04.11 Arrow Diagram A5 for the transaction
@@ -268,7 +268,7 @@ void Control::MOSMSController(const GSM::L3CMServiceRequest *req, UMTS::DCCHLogi
 
 	// Done.
 	LCH->send(GSM::L3ChannelRelease());
-	gTransactionTable.remove(transaction);
+	gTransactionTable->remove(transaction);
 	LOG(INFO) << "closing the Um channel";
 }
 
@@ -444,7 +444,7 @@ void Control::MTSMSController(TransactionEntry *transaction, UMTS::DCCHLogicalCh
 		transaction->MTSMSSendOK();
 
 	// Done.
-	gTransactionTable.remove(transaction);
+	gTransactionTable->remove(transaction);
 }
 
 void Control::InCallMOSMSStarter(TransactionEntry *parallelCall)
@@ -457,7 +457,7 @@ void Control::InCallMOSMSStarter(TransactionEntry *parallelCall)
 	// Create a partial transaction record.
 	TransactionEntry *newTransaction =
 		new TransactionEntry(gConfig.getStr("SIP.Proxy.SMS").c_str(), parallelCall->subscriber(), DCCH);
-	gTransactionTable.add(newTransaction);
+	gTransactionTable->add(newTransaction);
 }
 
 void Control::InCallMOSMSController(const CPData *cpData, TransactionEntry *transaction, UMTS::DCCHLogicalChannel *LCH)
@@ -526,5 +526,5 @@ void Control::InCallMOSMSController(const CPData *cpData, TransactionEntry *tran
 	ack.parse(*CM);
 	LOG(INFO) << "CPAck " << ack;
 
-	gTransactionTable.remove(transaction);
+	gTransactionTable->remove(transaction);
 }

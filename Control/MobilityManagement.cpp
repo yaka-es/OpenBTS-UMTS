@@ -90,7 +90,7 @@ bool authenticateViaCaching(const char *IMSI, UMTS::DCCHLogicalChannel *DCCH)
 {
 	uint64_t uRAND = 0, lRAND = 0;
 	uint32_t SRES = 0;
-	// bool foundIMSI = gTMSITable.getAuthTokens(IMSI,uRAND,lRAND,SRES);
+	// bool foundIMSI = gTMSITable->getAuthTokens(IMSI,uRAND,lRAND,SRES);
 
 	// First time?
 	if (!uRAND) {
@@ -112,7 +112,7 @@ bool authenticateViaCaching(const char *IMSI, UMTS::DCCHLogicalChannel *DCCH)
 			throw UnexpectedMessage();
 		}
 		LOG(INFO) << *resp;
-		gTMSITable.putAuthTokens(IMSI, uRAND, lRAND, resp->SRES().value());
+		gTMSITable->putAuthTokens(IMSI, uRAND, lRAND, resp->SRES().value());
 		delete msg;
 		return true;
 	}
@@ -174,7 +174,7 @@ void Control::LocationUpdatingController(const GSM::L3LocationUpdatingRequest *l
 	// This operation will throw an exception, caught in a higher scope,
 	// if it fails in the GSM domain.
 	GSM::L3MobileIdentity mobileID = lur->mobileID();
-	bool sameLAI = (lur->LAI() == gNodeB.LAI());
+	bool sameLAI = (lur->LAI() == gNodeB->LAI());
 	unsigned preexistingTMSI = resolveIMSI(sameLAI, mobileID, DCCH);
 	const char *IMSI = mobileID.digits();
 	// IMSIAttach set to true if this is a new registration.
@@ -184,7 +184,7 @@ void Control::LocationUpdatingController(const GSM::L3LocationUpdatingRequest *l
 	// even if we don't actually assign it.
 	unsigned newTMSI = 0;
 	if (!preexistingTMSI)
-		newTMSI = gTMSITable.assign(IMSI, lur);
+		newTMSI = gTMSITable->assign(IMSI, lur);
 
 	// Try to register the IMSI with Asterisk.
 	// This will be set true if registration succeeded in the SIP world.
@@ -284,7 +284,7 @@ void Control::LocationUpdatingController(const GSM::L3LocationUpdatingRequest *l
 			throw UnexpectedMessage();
 		}
 		LOG(INFO) << *resp;
-		if (!gTMSITable.IMEI(IMSI, resp->mobileID().digits()))
+		if (!gTMSITable->IMEI(IMSI, resp->mobileID().digits()))
 			LOG(WARNING) << "failed access to TMSITable";
 		delete msg;
 	}
@@ -303,7 +303,7 @@ void Control::LocationUpdatingController(const GSM::L3LocationUpdatingRequest *l
 		}
 		LOG(INFO) << *resp;
 		const GSM::L3MobileStationClassmark2 &classmark = resp->classmark();
-		if (!gTMSITable.classmark(IMSI, classmark))
+		if (!gTMSITable->classmark(IMSI, classmark))
 			LOG(WARNING) << "failed access to TMSITable";
 		delete msg;
 	}
@@ -337,10 +337,10 @@ void Control::LocationUpdatingController(const GSM::L3LocationUpdatingRequest *l
 	}
 	// Accept. Make a TMSI assignment, too, if needed.
 	if (preexistingTMSI || !gConfig.getBool("Control.LUR.SendTMSIs")) {
-		DCCH->send(GSM::L3LocationUpdatingAccept(gNodeB.LAI()));
+		DCCH->send(GSM::L3LocationUpdatingAccept(gNodeB->LAI()));
 	} else {
 		assert(newTMSI);
-		DCCH->send(GSM::L3LocationUpdatingAccept(gNodeB.LAI(), newTMSI));
+		DCCH->send(GSM::L3LocationUpdatingAccept(gNodeB->LAI(), newTMSI));
 		// Wait for MM TMSI REALLOCATION COMPLETE (0x055b).
 		GSM::L3Frame *resp = DCCH->recv(1000);
 		// FIXME -- Actually check the response type.

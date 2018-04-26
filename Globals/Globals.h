@@ -48,7 +48,7 @@ extern const char *gVersionString;
 extern CommandLine::Parser gParser;
 
 /** The global TMSI table. */
-extern Control::TMSITable gTMSITable;
+extern Control::TMSITable *gTMSITable;
 
 /** The physical status reporting table */
 extern GSM::PhysicalStatus gPhysStatus;

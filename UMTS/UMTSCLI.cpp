@@ -411,24 +411,24 @@ int rrcTest(int argc, char **argv, ostream &os)
 		printf("rrctest fec %d\n", testnum);
 		gFecTestMode = testnum; // bursts sent on FACH will come back on RACH.
 		MacTester macTester;
-		RACHFEC *originalRach = gNodeB.mRachFec;
+		RACHFEC *originalRach = gNodeB->mRachFec;
 		if (0 == strcmp(subcmd, "fec2")) {
 			// The RACH and FACH are not the same size any more, so create a temp rach.
 			// Make a dummy RACH to match the FACH: SF=64,PB=12,TB=512,TTI=10ms.
-			gNodeB.mRachFec = new RACHFEC(64, 1, 12, 512, TTI10ms);
+			gNodeB->mRachFec = new RACHFEC(64, 1, 12, 512, TTI10ms);
 		}
-		macTester.macSetDownstream(gNodeB.mFachFec);
-		MacEngine *saveme = gNodeB.mRachFec->l1SetUpstream(&macTester, true);
-		// TransportBlock tb(gNodeB.mRachFec->decoder()->trBkSz());
-		TransportBlock tb(gNodeB.mFachFec->encoder()->trBkSz());
+		macTester.macSetDownstream(gNodeB->mFachFec);
+		MacEngine *saveme = gNodeB->mRachFec->l1SetUpstream(&macTester, true);
+		// TransportBlock tb(gNodeB->mRachFec->decoder()->trBkSz());
+		TransportBlock tb(gNodeB->mFachFec->encoder()->trBkSz());
 		printf("Sending %d bits\n", tb.size());
 		tb.zero();
-		gNodeB.mFachFec->l1WriteHighSide(tb);
+		gNodeB->mFachFec->l1WriteHighSide(tb);
 		tb.fillField(0, 0x1234, 16);
-		gNodeB.mFachFec->l1WriteHighSide(tb);
+		gNodeB->mFachFec->l1WriteHighSide(tb);
 		// Put it back the way we found it:
-		gNodeB.mRachFec = originalRach;
-		gNodeB.mRachFec->l1SetUpstream(saveme, true);
+		gNodeB->mRachFec = originalRach;
+		gNodeB->mRachFec->l1SetUpstream(saveme, true);
 #endif
 	} else if (0 == strcmp(subcmd, "2")) {
 		// Test the RRC Connection Request/Setup, which will create a UEInfo and send
@@ -488,14 +488,14 @@ int rrcTest(int argc, char **argv, ostream &os)
 
 		// We have to format this as an UPLINK block, so that it will be recognized by MAC
 		// as such on the return trip.
-		// MaccTbDlCcch tb(gNodeB.mFachFec->l1GetDlTrBkSz(),&pdu);		// Will go down on fach.
-		MacTbDl tb(gNodeB.mFachFec->l1GetDlTrBkSz());
+		// MaccTbDlCcch tb(gNodeB->mFachFec->l1GetDlTrBkSz(),&pdu);		// Will go down on fach.
+		MacTbDl tb(gNodeB->mFachFec->l1GetDlTrBkSz());
 		tb.fillField(0, 0, 2); // On RACH, this is the TCTF field for a CCCH uplink block.
 		tb.segment(2, pdu.sizeBits()).unpack(pdu.begin()); // add the pdu data.
 
 		// Find the mac and send it off.
 #if USE_OLD_FEC
-		MacEngine *mactmp = gNodeB.mRachFec->decoder()->mUpstream; // Then come up on rach.
+		MacEngine *mactmp = gNodeB->mRachFec->decoder()->mUpstream; // Then come up on rach.
 		MaccSimple *macc = dynamic_cast<MaccSimple *>(mactmp);
 		macc->sendDownstreamTb(tb);
 #else

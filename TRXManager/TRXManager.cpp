@@ -262,8 +262,8 @@ void TransceiverManager::clockHandler()
 	if (strncmp(buffer, "IND CLOCK", 9) == 0) {
 		uint32_t FN;
 		sscanf(buffer, "IND CLOCK %u", &FN);
-		LOG(INFO) << "CLOCK indication, clock=" << FN << ", was=" << gNodeB.clock().FN();
-		gNodeB.clock().setFN(FN);
+		LOG(INFO) << "CLOCK indication, clock=" << FN << ", was=" << gNodeB->clock().FN();
+		gNodeB->clock().setFN(FN);
 		mHaveClock = true;
 		return;
 	}
@@ -394,8 +394,8 @@ int ::ARFCNManager::sendCommand(const char *command)
 bool ::ARFCNManager::tune(unsigned wUARFCN)
 {
 	// convert ARFCN number to a frequency
-	unsigned txFreq = channelFreqKHz(gNodeB.band(), wUARFCN);
-	unsigned rxFreq = txFreq - uplinkOffsetKHz(gNodeB.band());
+	unsigned txFreq = channelFreqKHz(gNodeB->band(), wUARFCN);
+	unsigned rxFreq = txFreq - uplinkOffsetKHz(gNodeB->band());
 
 	// tune tx
 	int status = sendCommand("TXTUNE", txFreq);
@@ -419,7 +419,7 @@ bool ::ARFCNManager::tune(unsigned wUARFCN)
 bool ::ARFCNManager::tuneLoopback(int wARFCN)
 {
 	// convert ARFCN number to a frequency
-	unsigned txFreq = channelFreqKHz(gNodeB.band(), wARFCN);
+	unsigned txFreq = channelFreqKHz(gNodeB->band(), wARFCN);
 	// tune rx
 	int status = sendCommand("RXTUNE", txFreq);
 	if (status != 0) {
@@ -448,7 +448,7 @@ void ::ARFCNManager::writeHighSide(TxBitsBurst *txBurst)
 		// XXX RPERRY                LOG(NOTICE) << "tx underrun: "<<getId() <<LOGVARP(txBurst)
 		// <<LOGVAR(updateTime);
 		delete txBurst;
-		// gNodeB.clock().set(updateTime.FN());
+		// gNodeB->clock().set(updateTime.FN());
 		// TODO -- update clock offset here
 	}
 
@@ -458,17 +458,17 @@ void ::ARFCNManager::writeHighSide(TxBitsBurst *txBurst)
 
 void ::ARFCNManager::transmitLoop(void)
 {
-	int32_t currFN = gNodeB.clock().FN();
+	int32_t currFN = gNodeB->clock().FN();
 	while (1) {
 		bool underrun;
-		// unsigned fnbefore = gNodeB.clock().FN();
+		// unsigned fnbefore = gNodeB->clock().FN();
 		usleep(UMTS::gFrameMicroseconds / 10);
 		// LOG(INFO) <<
-		// "transmitLoop"<<LOGVAR(currFN)<<LOGVAR(fnbefore)<<LOGVAR2("clock.FN",gNodeB.clock().FN())
+		// "transmitLoop"<<LOGVAR(currFN)<<LOGVAR(fnbefore)<<LOGVAR2("clock.FN",gNodeB->clock().FN())
 		// <<LOGVAR2("mLastTransmitTime",mRadioModem.mLastTransmitTime);
 		// (pat) I moved the test from after to before this loop, which prevents it from running ahead.
 		// Documentation says usleep may return early, and this prevents advancing currFN in that case.
-		while (Time(currFN) < Time(gNodeB.clock().FN())) {
+		while (Time(currFN) < Time(gNodeB->clock().FN())) {
 			underrun = false;
 			for (unsigned int i = 0; i < gFrameSlots; i++) {
 				mRadioModem.transmitSlot(Time(currFN, i), underrun);
@@ -476,7 +476,7 @@ void ::ARFCNManager::transmitLoop(void)
 			currFN++;
 			currFN = currFN % gHyperframe;
 			// (pat) Converting to Time() is a way to use modulo arithmetic on FN.
-		} // while (Time(currFN) < Time(gNodeB.clock().FN()));
+		} // while (Time(currFN) < Time(gNodeB->clock().FN()));
 	}
 }
 

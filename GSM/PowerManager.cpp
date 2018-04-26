@@ -21,7 +21,7 @@
 #include "GSMConfig.h"
 #include "PowerManager.h"
 
-extern TransceiverManager gTRX;
+extern TransceiverManager *gTRX;
 
 using namespace GSM;
 
@@ -114,7 +114,7 @@ void *GSM::PowerManagerServiceLoopAdapter(PowerManager *pm)
 
 void PowerManager::start()
 {
-	mRadio = gTRX.ARFCN(0);
+	mRadio = gTRX->ARFCN(0);
 	mRadio->setPower(mAtten);
 	mThread.start((void *(*)(void *))PowerManagerServiceLoopAdapter, this);
 }
