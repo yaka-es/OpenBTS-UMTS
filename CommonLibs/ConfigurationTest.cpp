@@ -32,7 +32,7 @@
 using namespace std;
 
 ConfigurationKeyMap getConfigurationKeys();
-ConfigurationTable gConfig("exampleconfig.db", "test", getConfigurationKeys());
+ConfigurationTable *gConfigObject;
 
 void purgeConfig(void *, int, char const *, char const *, sqlite3_int64)
 {
@@ -42,6 +42,8 @@ void purgeConfig(void *, int, char const *, char const *, sqlite3_int64)
 
 int main(int argc, char *argv[])
 {
+
+	gConfigObject = new ConfigurationTable("exampleconfig.db", "test", getConfigurationKeys());
 
 	gConfig.setUpdateHook(purgeConfig);
 
@@ -104,6 +106,10 @@ int main(int argc, char *argv[])
 	} catch (ConfigurationTableKeyNotFound) {
 		cout << "ConfigurationTableKeyNotFound exception successfully caught." << endl;
 	}
+
+	delete gConfigObject;
+
+	return 0;
 }
 
 ConfigurationKeyMap getConfigurationKeys()

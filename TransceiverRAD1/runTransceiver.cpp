@@ -32,7 +32,7 @@
 using namespace std;
 
 ConfigurationKeyMap getConfigurationKeys2();
-ConfigurationTable gConfig("/etc/OpenBTS/OpenBTS-UMTS.db", "transceiver", getConfigurationKeys2());
+ConfigurationTable *gConfigObject;
 FactoryCalibration gFactoryCalibration;
 
 volatile bool gbShutdown = false;
@@ -45,6 +45,8 @@ static void ctrlCHandler(int signo)
 
 int main(int argc, char *argv[])
 {
+	gConfigObject = new ConfigurationTable("/etc/OpenBTS/OpenBTS-UMTS.db", "transceiver", getConfigurationKeys2());
+
 	try {
 
 		if (signal(SIGINT, ctrlCHandler) == SIG_ERR) {
@@ -129,6 +131,10 @@ int main(int argc, char *argv[])
 		LOG(EMERG) << "required configuration parameter " << e.key() << " not defined, aborting";
 		// gReports.incr("OpenBTS-UMTS.Exit.Error.ConfigurationParamterNotFound");
 	}
+
+	delete gConfigObject;
+
+	return 0;
 }
 
 ConfigurationKeyMap getConfigurationKeys2()

@@ -26,7 +26,6 @@
 #include "FactoryCalibration.h"
 #include "Transceiver.h"
 
-extern ConfigurationTable gConfig;
 extern FactoryCalibration gFactoryCalibration;
 
 Transceiver::Transceiver(int wBasePort, const char *TRXAddress, int wSamplesPerSymbol, UMTS::Time wTransmitLatency,

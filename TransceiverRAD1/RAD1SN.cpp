@@ -31,7 +31,7 @@
 #include <CommonLibs/Configuration.h>
 #include <CommonLibs/Logger.h>
 
-ConfigurationTable gConfig;
+ConfigurationTable *gConfigObject;
 
 using namespace std;
 
@@ -132,6 +132,8 @@ bool get_on_off(const char *s)
 
 int main(int argc, char **argv)
 {
+	gConfigObject = new ConfigurationTable();
+
 	int ch;
 	// bool verbose = false;
 	int which_board = 0;
@@ -192,6 +194,8 @@ int main(int argc, char **argv)
 	}
 
 	delete core;
+
+	delete gConfigObject;
 
 	return 0;
 }

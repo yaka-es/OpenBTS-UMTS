@@ -26,10 +26,10 @@
 #include "URRCTrCh.h"
 
 using namespace std;
+
 namespace UMTS {
 
 int gFecTestMode = 0;
-extern ConfigurationTable gConfig;
 
 DCHListType gActiveDCH;
 

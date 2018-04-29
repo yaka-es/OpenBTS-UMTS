@@ -398,9 +398,12 @@ static void testEini()
 	}
 }
 
-ConfigurationTable gConfig; // geesh
+ConfigurationTable *gConfigObject; // geesh
+
 int main(int argc, char **argv)
 {
+	gConfigObject = new ConfigurationTable();
+
 	int eini[8];
 	int insize = 5904;
 	int outsize = 9600;
@@ -408,6 +411,9 @@ int main(int argc, char **argv)
 	// testOneEini(144,150,TTI20ms);
 	testRateMatchFunc(insize, outsize, eini[0]);
 	// testEini();
+
+	delete gConfigObject;
+
 	return 0;
 }
 #endif

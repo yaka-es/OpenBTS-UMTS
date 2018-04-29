@@ -141,7 +141,7 @@ ConfigurationTable::ConfigurationTable(const char *filename, const char *wCmdNam
 	// Init the cross checking callback to something predictable
 	mCrossCheck = NULL;
 
-#define DUMP_CONFIGURATION_TABLE 1
+#define DUMP_CONFIGURATION_TABLE 0
 #if DUMP_CONFIGURATION_TABLE
 	// (pat) Dump any non-default config variables...
 	try {

@@ -22,8 +22,6 @@
 #include "UMTSCodes.h"
 #include "sigProcLib.h"
 
-extern ConfigurationTable gConfig;
-
 namespace UMTS {
 
 typedef int16_t radioData_t;

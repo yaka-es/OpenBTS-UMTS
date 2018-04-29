@@ -217,7 +217,8 @@ UMTSConfig::UMTSConfig()
 	  // (pat) The class initializations should be finished before allocating
 	  // the FECs, so I am changing mBCH to a pointer and allocating it later.
 	  // mBCH(gConfig.getNum("UMTS.Downlink.ScramblingCode")),
-	  mInited(0), mBand((UMTSBand)gConfig.getNum("UMTS.Radio.Band")), mStartTime(::time(NULL))
+	  mInited(0), mBand((UMTSBand)gConfig.getNum("UMTS.Radio.Band")), mStartTime(::time(NULL)),
+	  mHold(false)
 {
 }
 

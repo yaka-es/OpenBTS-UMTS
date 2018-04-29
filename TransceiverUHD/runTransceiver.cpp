@@ -32,7 +32,7 @@
 #define DEVICE_RATE 6.25e6
 
 ConfigurationKeyMap getConfigurationKeys2();
-ConfigurationTable gConfig("/etc/OpenBTS/OpenBTS-UMTS.db", "transceiver", getConfigurationKeys2());
+ConfigurationTable *gConfigObject;
 
 volatile bool gbShutdown = false;
 
@@ -113,6 +113,8 @@ static std::string init_devaddr()
 
 int main(int argc, char *argv[])
 {
+	gConfigObject = new ConfigurationTable("/etc/OpenBTS/OpenBTS-UMTS.db", "transceiver", getConfigurationKeys2());
+
 	UHDDevice *usrp = NULL;
 	RadioDevice *dev = NULL;
 	Transceiver *trx = NULL;
@@ -170,6 +172,8 @@ shutdown:
 	delete trx;
 	delete radio;
 	delete usrp;
+
+	delete gConfigObject;
 
 	return 0;
 }

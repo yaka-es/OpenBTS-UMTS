@@ -38,7 +38,7 @@
 #include <UMTS/UMTSConfig.h>
 
 // Load configuration from a file.
-ConfigurationTable gConfig("/etc/OpenBTS/OpenBTS-UMTS.db", "OpenBTS-UMTS", getConfigurationKeys());
+ConfigurationTable *gConfigObject;
 
 using namespace std;
 using namespace UMTS;
@@ -111,6 +111,7 @@ void startTransceiver()
 
 int main(int argc, char *argv[])
 {
+	gConfigObject = new ConfigurationTable("/etc/OpenBTS/OpenBTS-UMTS.db", "OpenBTS-UMTS", getConfigurationKeys());
 	gNodeB = new UMTSConfig();
 	gTRX = new TransceiverManager();
 	gTMSITable = new Control::TMSITable(gConfig.getStr("Control.Reporting.TMSITable").c_str());

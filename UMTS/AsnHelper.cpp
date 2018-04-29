@@ -24,8 +24,6 @@ namespace ASN {
 #include "asn_SEQUENCE_OF.h"
 };
 
-extern ConfigurationTable gConfig; // Where is this thing?
-
 // (pat) This variable controls asn debug statements.
 // It is used in the ASN/makefile to over-ride the default ASN debugger.
 int rn_asn_debug = 1;

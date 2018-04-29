@@ -26,8 +26,6 @@
 
 #include "SgsnBase.h"
 
-extern ConfigurationTable gConfig;
-
 using namespace std;
 
 #define DEHEXIFY(c) ((c) >= 10 ? (c)-10 + 'a' : (c) + '0')

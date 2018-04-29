@@ -20,10 +20,11 @@
 
 using namespace std;
 
-ConfigurationTable gConfig;
+ConfigurationTable *gConfigObject;
 
 int main(int argc, char **argv)
 {
+	gConfigObject = new ConfigurationTable();
 
 	gLogInit("sigProcLibTest", "DEBUG");
 
@@ -150,4 +151,8 @@ int main(int argc, char **argv)
 	*/
 
 	sigProcLibDestroy();
+
+	delete gConfigObject;
+
+	return 0;
 }

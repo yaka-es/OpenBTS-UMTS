@@ -21,12 +21,14 @@
 
 #include "RAD1Device.h"
 
-ConfigurationTable gConfig;
+ConfigurationTable *gConfigObject;
 
 using namespace std;
 
 int main(int argc, char *argv[])
 {
+	gConfigObject = new ConfigurationTable();
+
 	// Configure logger.
 	if (argc > 1)
 		gLogInit("openbts", argv[1], LOG_LOCAL7);
@@ -102,4 +104,8 @@ int main(int argc, char *argv[])
 			// usrp->writeSamples((short*) data2,512*numpkts,&underrun,timestamp+1000);
 		}
 	}
+
+	delete gConfigObject;
+
+	return 0;
 }

@@ -33,7 +33,7 @@
 
 #include "RAD1Device.h"
 
-ConfigurationTable gConfig;
+ConfigurationTable *gConfigObject;
 
 using namespace std;
 
@@ -151,6 +151,8 @@ static bool get_on_off(const char *s)
 
 int main(int argc, char **argv)
 {
+	gConfigObject = new ConfigurationTable();
+
 	int ch;
 	// bool		verbose = false;
 	int which_board = 0;
@@ -308,4 +310,8 @@ int main(int argc, char **argv)
 	return 0;
 
 	delete core;
+
+	delete gConfigObject;
+
+	return 0;
 }

@@ -25,7 +25,7 @@
 using namespace std;
 
 // We must have a gConfig now to include BitVector.
-ConfigurationTable gConfig;
+ConfigurationTable *gConfigObject;
 
 bool veq(BitVector v1, BitVector v2)
 {
@@ -233,8 +233,14 @@ void testTurbo()
 
 int main()
 {
+	gConfigObject = new ConfigurationTable();
+
 	test2O4();
 	test2O9();
 	testInterleavings();
 	testTurbo();
+
+	delete gConfigObject;
+
+	return 0;
 }

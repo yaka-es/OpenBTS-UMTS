@@ -44,8 +44,6 @@
 using namespace std;
 namespace UMTS {
 
-extern ConfigurationTable gConfig;
-
 extern int gFecTestMode;
 #if SAVEME
 int gFecTestMode = 0;

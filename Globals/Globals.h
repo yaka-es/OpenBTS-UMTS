@@ -32,12 +32,6 @@
 /** Date-and-time string, defined in OpenBTS.cpp. */
 extern const char *gDateTime;
 
-/**
-	Just about everything goes into the configuration table.
-	This should be defined in the main body of the top-level application.
-*/
-extern ConfigurationTable gConfig;
-
 /** The OpenBTS welcome message. */
 extern const char *gOpenWelcome;
 

@@ -356,6 +356,14 @@ public:
 };
 
 // Reference to a global config table, used all over the system.
-extern ConfigurationTable gConfig;
+extern ConfigurationTable *gConfigObject;
+
+static inline ConfigurationTable &getConfig(void)
+{
+	assert(gConfigObject);
+	return *gConfigObject;
+}
+
+#define gConfig getConfig()
 
 #endif

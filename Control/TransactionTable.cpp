@@ -557,7 +557,7 @@ TransactionTable::TransactionTable(const char *path)
 		LOG(ALERT) << "Cannot create Transaction Table";
 	}
 	// Clear any previous entires.
-	if (!sqlite3_command(gTransactionTable->DB(), "DELETE FROM TRANSACTION_TABLE"))
+	if (!sqlite3_command(mDB, "DELETE FROM TRANSACTION_TABLE"))
 		LOG(WARNING) << "cannot clear previous transaction table";
 }
 
